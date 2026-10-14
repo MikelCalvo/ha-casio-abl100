@@ -1,6 +1,6 @@
 # Casio ABL-100WE — experimental read-only Home Assistant pilot
 
-A small, **manual** daily-step reader for Home Assistant 2026.9.4 with a connectable Bluetooth proxy. Not deployed, HACS-certified, or proven on a physical watch yet. No automatic scan-triggered connection, polling, time/alarm modification, pairing, phone-finder action, light action or write besides the DRSP start command.
+A small, **manual** daily-step reader for Home Assistant 2026.9.4 with a connectable Bluetooth proxy. Installed as an experimental local pilot, but **a complete physical watch read has not succeeded yet**. Not published or HACS-certified. No automatic scan-triggered connection, polling, time/alarm modification, pairing, phone-finder action, light action or write besides the DRSP start command. See [validation status](docs/validation.md) for the exact installed revision and measured limits.
 
 ## Install / use (after independent review)
 

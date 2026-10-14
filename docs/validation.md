@@ -1,0 +1,45 @@
+# Local pilot validation
+
+## Source and deployment identity
+
+- Installed production code: `35b21ecca2086d44e64365128fd680c4d744487f`, integration version `0.1.0`.
+- Development is local Git only, with no remote configured and no publication or PR.
+- Subsequent documentation commits do not imply a new production installation. Compare component file hashes before attributing a test or deployment to another source revision.
+
+## Verified layers
+
+| Layer | Result | Boundary |
+| --- | --- | --- |
+| Offline protocol and integration tests | 47 passed; five upstream dependency deprecation warnings | Synthetic BLE clients, not a physical watch |
+| Real Home Assistant 2026.9.4 runtime | 7 passed | Actual HA setup, registries, unload and job-dispatched date rollover; synthetic BLE |
+| Independent source review | SPEC PASS and QUALITY APPROVED for installed revision | Offline review, not hardware acceptance |
+| ESPHome room proxy | OTA installed; one connectable GATT slot; temperature and humidity still reporting | Does not by itself establish a watch read |
+| Production integration loading | Configuration check passed; Core restarted once; entry loaded | No automatic watch read |
+| Production Spanish device UI | One Casio device, two sensors and manual read button verified | English frontend rendering remains unverified |
+| Idle entry reload | Successful; no duplicate entities | Not an unload during a real active GATT transaction |
+
+## First physical trial
+
+The operator activated ordinary `CNCT` connection mode and reported **29 displayed steps**. One manual read was attempted through Home Assistant.
+
+Observed sequence:
+
+1. The connectable Home Assistant BLE path returned a connected GATT client.
+2. Local notification registration progressed to the DRSP characteristic's CCCD descriptor write.
+3. The first `start_notify` operation reached the integration's 12-second timeout while awaiting that descriptor-write response.
+4. The read failed. No steps or synchronization timestamp were published.
+5. No lifelog start request was sent: execution had not reached `write_gatt_char`. No end/clear command or watch-setting operation was sent by this integration.
+6. The proxy connection slot was free afterward; the temperature/humidity node remained live.
+
+This is **a failed physical read**, not a successful 29-step result. The backend/protocol subscription boundary is under investigation; there is not yet evidence establishing the cause. Do not change pairing, clear buffers, write time/DST initialization or bypass notification acknowledgement merely to obtain a plausible value.
+
+Target versions observed: Home Assistant `2026.9.4`, ESPHome `2026.9.1`, Bleak `3.0.2`, bleak-retry-connector `4.7.0`, bleak-esphome `4.0.0`, aioesphomeapi `46.2.0`, habluetooth `6.26.11`.
+
+## Remaining acceptance
+
+- Diagnose and reproduce the notification-subscription failure, then test any correction before a separately hash-verified installation.
+- Complete an explicitly initiated read through the actual proxy and compare the result with the watch display.
+- Verify cleanup during an actual connected transaction.
+- Clock/alarm operations and watch-button automations are later stages, not implemented or verified by this pilot.
+
+The user reports the Android CasioGShockSmartSync application works with this watch, including flashlight, phone finder and music actions. That is a useful independent protocol reference, not evidence that Home Assistant's proxy transport works. Raw logs, device addresses, credentials and private HA registry backups are intentionally not included here.
