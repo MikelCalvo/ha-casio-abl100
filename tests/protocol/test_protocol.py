@@ -1,16 +1,15 @@
 """Offline wire-format tests; no Home Assistant imports."""
 from datetime import date
-from pathlib import Path
 import pytest
 
 from custom_components.casio_abl100.protocol import parse_steps, ProtocolError
+from tests.protocol.fixtures import SYNTHETIC_RECORD
 
-CAPTURE = Path(__file__).with_name('abl_real_capture.txt')
-RAW = bytes.fromhex(''.join(line for line in CAPTURE.read_text().splitlines() if not line.startswith('#')))
+RAW = SYNTHETIC_RECORD
 
 
-def test_real_abl_capture():
-    # casiosync 86b76d9 logs/260801071501.txt, sha256 e189b91a293504f8ef3d6f6d467de8d04efe28818c48c3c34d09f3cd8bf6c6b0.
+def test_synthetic_abl_record():
+    # Constructed test inputs, not a physical watch result.
     result = parse_steps(RAW)
     assert (result.record_date, result.steps) == (date(2026, 8, 1), 1485)
     assert len(RAW) == 400

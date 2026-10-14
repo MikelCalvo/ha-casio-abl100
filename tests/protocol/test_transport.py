@@ -1,12 +1,13 @@
 """In-memory BLE client fake: never touches hardware or a local adapter."""
 import asyncio
-from pathlib import Path
 import pytest
 
 from custom_components.casio_abl100.transport import read_record, ReadError, DRSP, CONVOY, START
 from custom_components.casio_abl100.protocol import ProtocolError
 
-CAPTURE = bytes.fromhex(''.join(x for x in Path(__file__).with_name('abl_real_capture.txt').read_text().splitlines() if not x.startswith('#')))
+from tests.protocol.fixtures import SYNTHETIC_RECORD
+
+CAPTURE = SYNTHETIC_RECORD  # Synthetic bytes, never a captured hardware result.
 
 
 class FakeClient:
