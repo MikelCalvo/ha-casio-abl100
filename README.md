@@ -16,11 +16,15 @@ Wire constants derived from MIT-licensed [izivkov/gshock_api](https://github.com
 
 ## Offline development
 
-Use an isolated Python 3.14 venv with `homeassistant==2026.9.4`, `pytest`, `pytest-asyncio`, HA Bluetooth's `bleak==3.0.2` and `bleak-retry-connector==4.7.0`. The Bluetooth dependency already ships with HA's `bluetooth` component, so this integration declares no conflicting runtime pin. The offline suite imports actual HA classes and mocks only BLE boundary calls; it does **not** validate actual Core config-entry setup, registries, physical transport or proxy connection. Example commands:
+Use an isolated Python 3.14 venv with `homeassistant==2026.9.4`, `pytest`, `pytest-asyncio`, HA Bluetooth's `bleak==3.0.2` and `bleak-retry-connector==4.7.0`. The Bluetooth dependency already ships with HA's `bluetooth` component, so this integration declares no conflicting runtime pin. The offline suite imports actual HA classes and mocks only BLE boundary calls; a separate test loads a real HA config entry and checks registries/unload. Neither validates a physical proxy connection. Example commands:
 
 ```sh
 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 PYTHONPATH="$PWD" /path/to/isolated-venv/bin/python -m pytest -p pytest_asyncio.plugin -q tests/protocol
-PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 PYTHONPATH="$PWD" /path/to/isolated-venv/bin/python -m pytest -p pytest_asyncio.plugin -q tests/ha
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 PYTHONPATH="$PWD" /path/to/isolated-venv/bin/python -m pytest -p pytest_asyncio.plugin -q tests/ha --ignore=tests/ha/test_runtime.py
+# Runtime test loads a real HA config entry and verifies fresh entity/device
+# registries and unload, with the BLE connection boundary mocked. It does not
+# execute a BLE proxy/GATT read or translate the frontend in a browser.
+PYTHONPATH="$PWD" /path/to/isolated-venv/bin/python -m pytest -o asyncio_mode=auto -q tests/ha/test_runtime.py
 ```
 
-A physical opt-in read, Spanish/English UI rendering, exact registry identities, and unload under an actual connected proxy remain acceptance gates before calling this working on hardware. A failure is not grounds to retry with a destructive end command or time-setting routine.
+A physical opt-in read, Spanish/English UI rendering on the target installation, and unload under an actually connected proxy remain acceptance gates before calling this working on hardware. A failure is not grounds to retry with a destructive end command or time-setting routine.
