@@ -11,7 +11,7 @@
 
 | Layer | Result | Boundary |
 | --- | --- | --- |
-| Offline protocol and integration tests | 47 passed; five upstream dependency deprecation warnings | Synthetic BLE clients, not a physical watch |
+| Offline protocol and integration tests | 62 passed; five upstream dependency deprecation warnings | Synthetic BLE clients, not a physical watch |
 | Real Home Assistant 2026.9.4 runtime | 7 passed | Actual HA setup, registries, unload and job-dispatched date rollover; synthetic BLE |
 | Independent source review | SPEC PASS and QUALITY APPROVED for installed revision | Offline review, not hardware acceptance |
 | ESPHome room proxy | OTA installed; one connectable GATT slot; temperature and humidity still reporting | Does not by itself establish a watch read |
@@ -21,9 +21,11 @@
 
 ## Public-tree verification
 
-The publication candidate was rerun with the newly constructed synthetic fixture: **47 offline tests passed** (five upstream dependency deprecation warnings) and **7 real-HA runtime tests passed**. This verifies the public test tree separately from the earlier historical-capture checks. A repeated-fragment negative case was adapted to construct an invalid date rather than relying on arbitrary capture contents; it does not claim general duplication detection in an unsequenced protocol.
+The original publication candidate was rerun with the newly constructed synthetic fixture: **47 offline tests passed** (five upstream dependency deprecation warnings) and **7 real-HA runtime tests passed**. This verifies the public test tree separately from the earlier historical-capture checks. A repeated-fragment negative case was adapted to construct an invalid date rather than relying on arbitrary capture contents; it does not claim general duplication detection in an unsequenced protocol.
 
-Production Python behavior is unchanged from the private reviewed installation. Public repository metadata points to this project; that metadata-only change has not been installed on the private HA instance. The public repository contains no raw watch capture or internal test logs.
+A later, uninstalled protocol correction accepts both the original five-byte DRSP length announcement and the seven-byte `00 11 90 01 00 00 00` form visible in upstream `izivkov/gshock_api` ABL btsnoop examples (`ae817310`, `test_data/btsnoop_hci_ABL.txt` and `test_data/btsnoop_hci_ABL_2.txt`). Android GShockAPI `1.7.6` (`5b1043a`, `StepCounterIO.onDrspReceived`) reads command, category and the 24-bit little-endian length from the first five bytes when at least five bytes are available. The two extra bytes are not length bytes; their purpose remains unknown. This integration accepts only five or seven total bytes, requires command `00`, category `11` and length 400, and still rejects duplicates, missing/extra fragments and overflow. **62 offline tests passed** (five dependency deprecation warnings) and **7 real-HA runtime tests passed** with synthetic BLE clients on this candidate. The 1485-step fixture is not a watch result. Neither the upstream example nor this offline correction proves that the physical DRSP subscription will complete.
+
+The private reviewed installation and the original public revision shared production Python behavior. This newer public candidate changes only DRSP announcement validation and has **not** been installed on the private HA instance. Public repository metadata also differs from the installed private revision. The public repository contains no raw watch capture or internal test logs.
 
 ## First physical trial
 

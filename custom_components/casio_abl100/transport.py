@@ -34,8 +34,15 @@ async def read_record(client, *, timeout=12):
     def on_header(_characteristic, value):
         nonlocal header_seen
         if complete.done():
+            if header_seen:
+                fail('duplicate length announcement')
             return
-        if header_seen or bytes(value) != b'\x00\x11\x90\x01\x00':
+        # The first five bytes encode command, category and little-endian
+        # 24-bit record length; the optional two trailing bytes are not length.
+        header = bytes(value)
+        if (header_seen or len(header) not in (5, 7)
+                or header[:2] != b'\x00\x11'
+                or int.from_bytes(header[2:5], 'little') != 400):
             fail('invalid length announcement')
             return
         header_seen = True

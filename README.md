@@ -30,7 +30,7 @@ No read happens automatically during setup. Sensors have no value before a succe
 
 ## Protocol and safety
 
-The only application-level watch write is `00 11 00 00 00` to DRSP `26eb0023-b012-49a8-b1f8-394fb2032b0f`, after subscribing to DRSP and Convoy `26eb0024-b012-49a8-b1f8-394fb2032b0f`. The reader requires an announced 400-byte record, concatenates raw fragments, validates the date and daily-step fields, then disconnects.
+The only application-level watch write is `00 11 00 00 00` to DRSP `26eb0023-b012-49a8-b1f8-394fb2032b0f`, after subscribing to DRSP and Convoy `26eb0024-b012-49a8-b1f8-394fb2032b0f`. The reader accepts bounded five- and seven-byte DRSP announcements with command `00`, category `11` and a 24-bit little-endian length of 400 in bytes 2–4. The final two bytes of the seven-byte form are not part of the length; their meaning is not established, so they are not required to be zero. The reader concatenates exactly 400 raw Convoy bytes, validates the date and daily-step fields, then disconnects.
 
 It deliberately does **not** send the end request `04 11 00 00 00`, which can clear hourly details. It does not change time, alarms, pairing or other settings. GATT subscription itself writes the notification configuration descriptor; it is distinct from a watch-setting command. Notification order and cooperative backend cancellation have limits; these tests are not a guarantee against every firmware/backend behavior.
 

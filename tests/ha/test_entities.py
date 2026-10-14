@@ -10,6 +10,7 @@ from bleak.backends.device import BLEDevice
 from bleak.exc import BleakError
 import bleak_retry_connector as retry
 from custom_components.casio_abl100 import WatchSession
+from custom_components.casio_abl100.transport import DRSP, START
 from custom_components.casio_abl100.sensor import StepsSensor, LastSyncSensor
 from custom_components.casio_abl100.button import ReadStepsButton
 from tests.protocol.test_transport import FakeClient
@@ -40,6 +41,24 @@ async def test_manual_read_updates_entities_only_after_success():
     assert client.disconnected
     assert steps.unique_id != sync.unique_id
 
+
+@pytest.mark.asyncio
+async def test_seven_byte_manual_read_only_publishes_after_success():
+    device = SimpleNamespace(address=ADDR, name='ABL-100')
+    manager = WatchSession(SimpleNamespace(), ADDR)
+    steps, sync = StepsSensor(manager), LastSyncSensor(manager)
+    bad = FakeClient(header=bytes.fromhex('00 11 91 01 00 00 00'))
+    good = FakeClient(header=bytes.fromhex('00 11 90 01 00 00 00'))
+    with patch('custom_components.casio_abl100.bluetooth.async_ble_device_from_address', return_value=device), patch('custom_components.casio_abl100.establish_connection', side_effect=[bad, good]), patch('custom_components.casio_abl100.dt_util.now', return_value=datetime(2026, 8, 1)):
+        with pytest.raises(HomeAssistantError):
+            await manager.read()
+        assert manager.record is None and sync.native_value is None and not manager.fresh
+        await manager.read()
+    with patch('custom_components.casio_abl100.sensor.dt_util.now', return_value=datetime(2026, 8, 1)):
+        assert steps.native_value == 1485
+    assert manager.fresh and sync.native_value is not None
+    assert bad.disconnected and good.disconnected
+    assert bad.writes == good.writes == [(DRSP, START)]
 
 @pytest.mark.asyncio
 async def test_unreachable_or_wrong_name_keeps_last_good_value():

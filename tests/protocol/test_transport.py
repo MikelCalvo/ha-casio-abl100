@@ -69,8 +69,13 @@ async def test_second_cancellation_during_cleanup_keeps_original_cancellation():
 
 
 @pytest.mark.asyncio
-async def test_immediate_notifications_return_complete_record_without_end_write():
-    client = FakeClient()
+@pytest.mark.parametrize('header', [
+    bytes.fromhex('00 11 90 01 00'),
+    bytes.fromhex('00 11 90 01 00 00 00'),
+    bytes.fromhex('00 11 90 01 00 a5 5a'),
+])
+async def test_immediate_notifications_return_complete_record_without_end_write(header):
+    client = FakeClient(header=header)
     result = await read_record(client, timeout=0.05)
     assert result.steps == 1485
     assert client.writes == [(DRSP, START)]
@@ -78,9 +83,65 @@ async def test_immediate_notifications_return_complete_record_without_end_write(
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize('header', [
+    bytes.fromhex('00 11 90 01'),             # truncated length
+    bytes.fromhex('00 11 90 01 00 00'),       # truncated seven-byte form
+    bytes.fromhex('00 11 90 01 00 00 00 00'), # beyond bounded forms
+    bytes.fromhex('04 11 90 01 00 00 00'),    # wrong command
+    bytes.fromhex('00 12 90 01 00 00 00'),    # wrong category
+    bytes.fromhex('00 11 91 01 00 00 00'),    # wrong length
+    bytes.fromhex('00 11 90 00 01 00 00'),    # high byte contributes to length
+])
+async def test_malformed_announcements_never_return_record(header):
+    client = FakeClient(header=header)
+    with pytest.raises(ReadError):
+        await read_record(client, timeout=0.02)
+    assert client.writes == [(DRSP, START)]
+    assert client.disconnected
+
+@pytest.mark.asyncio
+async def test_duplicate_seven_byte_announcement_never_returns_record():
+    class DuplicateHeader(FakeClient):
+        async def write_gatt_char(self, uuid, payload, response=False):
+            self.writes.append((uuid, bytes(payload)))
+            assert set(self.callbacks) == {DRSP, CONVOY}
+            self.callbacks[DRSP](None, bytearray(self.header))
+            self.callbacks[DRSP](None, bytearray(self.header))
+            self.callbacks[CONVOY](None, bytearray(CAPTURE))
+
+    client = DuplicateHeader(header=bytes.fromhex('00 11 90 01 00 00 00'))
+    with pytest.raises(ReadError):
+        await read_record(client, timeout=0.02)
+    assert client.writes == [(DRSP, START)]
+    assert client.disconnected
+
+@pytest.mark.asyncio
+async def test_duplicate_seven_byte_announcement_after_complete_is_rejected():
+    class LateHeader(FakeClient):
+        async def write_gatt_char(self, uuid, payload, response=False):
+            await super().write_gatt_char(uuid, payload, response)
+            self.callbacks[DRSP](None, bytearray(self.header))
+
+    client = LateHeader(header=bytes.fromhex('00 11 90 01 00 00 00'))
+    with pytest.raises(ReadError):
+        await read_record(client, timeout=0.02)
+    assert client.writes == [(DRSP, START)]
+    assert client.disconnected
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('fragments', [[CAPTURE + b'\0'], [CAPTURE, b'\0']])
+async def test_seven_byte_announcement_rejects_overflow_and_extra_fragment(fragments):
+    client = FakeClient(fragments, bytes.fromhex('00 11 90 01 00 00 00'))
+    with pytest.raises(ReadError):
+        await read_record(client, timeout=0.02)
+    assert client.writes == [(DRSP, START)]
+    assert client.disconnected
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize('header,fragments', [
     (None, [CAPTURE]),
     (b'\x00\x11\x90\x01\x00', [CAPTURE[:-1]]),
+    (bytes.fromhex('00 11 90 01 00 00 00'), [CAPTURE[:-1]]),
     (b'\x00\x11\x90\x01\x00', [CAPTURE + b'\0']),
     (b'\x00\x11\x91\x01\x00', [CAPTURE]),
     # Duplicating the trailing half yields an invalid date header. Raw Convoy
