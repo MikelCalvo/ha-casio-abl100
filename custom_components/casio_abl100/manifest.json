@@ -1,0 +1,1 @@
+{"domain":"casio_abl100","name":"Casio ABL-100WE","version":"0.1.0","documentation":"https://github.com/izivkov/gshock_api","codeowners":[],"config_flow":true,"dependencies":["bluetooth"],"requirements":[],"iot_class":"local_push","bluetooth":[]}
