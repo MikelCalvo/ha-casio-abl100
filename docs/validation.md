@@ -19,6 +19,12 @@
 | Production Spanish device UI | One Casio device, two sensors and manual read button verified | English frontend rendering remains unverified |
 | Idle entry reload | Successful; no duplicate entities | Not an unload during a real active GATT transaction |
 
+## Public-tree verification
+
+The publication candidate was rerun with the newly constructed synthetic fixture: **47 offline tests passed** (five upstream dependency deprecation warnings) and **7 real-HA runtime tests passed**. This verifies the public test tree separately from the earlier historical-capture checks. A repeated-fragment negative case was adapted to construct an invalid date rather than relying on arbitrary capture contents; it does not claim general duplication detection in an unsequenced protocol.
+
+Production Python behavior is unchanged from the private reviewed installation. Public repository metadata points to this project; that metadata-only change has not been installed on the private HA instance. The public repository contains no raw watch capture or internal test logs.
+
 ## First physical trial
 
 The operator activated ordinary `CNCT` connection mode and reported **29 displayed steps**. One manual read was attempted through Home Assistant.

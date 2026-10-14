@@ -83,7 +83,9 @@ async def test_immediate_notifications_return_complete_record_without_end_write(
     (b'\x00\x11\x90\x01\x00', [CAPTURE[:-1]]),
     (b'\x00\x11\x90\x01\x00', [CAPTURE + b'\0']),
     (b'\x00\x11\x91\x01\x00', [CAPTURE]),
-    (b'\x00\x11\x90\x01\x00', [CAPTURE[:200], CAPTURE[:200]]),
+    # Duplicating the trailing half yields an invalid date header. Raw Convoy
+    # has no sequence numbers, so this is not general duplicate detection.
+    (b'\x00\x11\x90\x01\x00', [CAPTURE[200:], CAPTURE[200:]]),
 ])
 async def test_bad_or_incomplete_transaction_cannot_return_data(header, fragments):
     client = FakeClient(fragments, header)
