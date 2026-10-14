@@ -8,7 +8,7 @@ from homeassistant.const import Platform
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.util import dt as dt_util
 from .protocol import ProtocolError
-from .transport import ReadError, read_record
+from .transport import ReadError, disconnect_client, read_record
 
 DOMAIN = 'casio_abl100'
 PLATFORMS = (Platform.SENSOR, Platform.BUTTON)
@@ -54,16 +54,34 @@ class WatchSession:
                 name = (device.name or '').rstrip('\x00 \t\r\n') if device is not None else ''
                 if device is None or device.address.upper() != self.address or name not in ('ABL-100', 'ABL-100WE', 'CASIO ABL-100', 'CASIO ABL-100WE'):
                     raise HomeAssistantError(translation_domain=DOMAIN, translation_key='unavailable')
+                owned = []
+                base_client_class = self.client_class
+
+                class OwnedClient(base_client_class):
+                    def __init__(self, *args, **kwargs):
+                        super().__init__(*args, **kwargs)
+                        owned.append(self)
+
                 try:
                     client = await asyncio.wait_for(establish_connection(
-                        self.client_class, device, 'Casio ABL-100WE',
+                        OwnedClient, device, 'Casio ABL-100WE',
                         pair=False, max_attempts=2, timeout=10,
                     ), timeout=16)
+                    # read_record owns cleanup once the connector returns.
+                    if client in owned:
+                        owned.remove(client)
                     record = await read_record(client, timeout=12)
                     if record.record_date != dt_util.now().date():
                         raise HomeAssistantError(translation_domain=DOMAIN, translation_key='stale_date')
                 except (ReadError, ProtocolError, TimeoutError, OSError, RuntimeError, BleakError) as error:
                     raise HomeAssistantError(translation_domain=DOMAIN, translation_key='read_failed') from error
+                finally:
+                    for partial_client in owned:
+                        try:
+                            await disconnect_client(partial_client)
+                        except (Exception, asyncio.CancelledError):
+                            # The original connect outcome/cancellation takes priority.
+                            pass
                 self.record = record
                 self.last_sync = dt_util.utcnow()
                 self.fresh = True
@@ -93,5 +111,7 @@ async def async_setup_entry(hass, entry):
 
 
 async def async_unload_entry(hass, entry):
+    if not await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
+        return False
     await entry.runtime_data.shutdown()
-    return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    return True

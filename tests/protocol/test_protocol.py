@@ -26,6 +26,22 @@ def test_bad_record_is_rejected(mutation):
         parse_steps(mutation(RAW))
 
 
+def test_absent_bcd_total_keeps_valid_uint32_steps():
+    raw = bytearray(RAW)
+    raw[396:400] = b'\0' * 4
+    assert parse_steps(bytes(raw)).steps == 1485
+
+
+def test_populated_bcd_must_match_and_invalid_bcd_is_rejected():
+    raw = bytearray(RAW)
+    raw[396:400] = b'\x84\x14\0\0'  # 1484 != 1485
+    with pytest.raises(ProtocolError, match='step totals disagree'):
+        parse_steps(bytes(raw))
+    raw[396] = 0xfa
+    with pytest.raises(ProtocolError, match='invalid BCD'):
+        parse_steps(bytes(raw))
+
+
 def test_year_and_zero_are_not_special_cased():
     raw = bytearray(RAW)
     raw[0] = 0x27

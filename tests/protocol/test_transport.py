@@ -36,6 +36,38 @@ class FakeClient:
 
 
 @pytest.mark.asyncio
+async def test_second_cancellation_during_cleanup_keeps_original_cancellation():
+    class InterruptedCleanup(FakeClient):
+        def __init__(self):
+            super().__init__([], None)
+            self.started = asyncio.Event()
+            self.cancelled = False
+
+        async def disconnect(self):
+            self.started.set()
+            try:
+                await asyncio.Event().wait()
+            except asyncio.CancelledError:
+                self.cancelled = True
+                raise
+
+    client = InterruptedCleanup()
+    before = asyncio.all_tasks()
+    task = asyncio.create_task(read_record(client, timeout=10))
+    for _ in range(10):
+        if client.writes:
+            break
+        await asyncio.sleep(0)
+    assert client.writes == [(DRSP, START)]
+    task.cancel()
+    await asyncio.wait_for(client.started.wait(), 0.2)
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await asyncio.wait_for(task, 0.15)
+    assert client.cancelled and asyncio.all_tasks() == before
+
+
+@pytest.mark.asyncio
 async def test_immediate_notifications_return_complete_record_without_end_write():
     client = FakeClient()
     result = await read_record(client, timeout=0.05)
@@ -96,6 +128,51 @@ async def test_blocked_write_is_bounded_and_disconnects():
     with pytest.raises(ReadError):
         await read_record(client, timeout=0.02)
     assert client.disconnected
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('mode', ['success', 'error', 'cancel'])
+async def test_stalled_disconnect_is_bounded_without_leaving_tasks(mode):
+    class StalledDisconnect(FakeClient):
+        def __init__(self):
+            super().__init__([] if mode == 'cancel' else None,
+                             None if mode == 'cancel' else b'\x00\x11\x90\x01\x00')
+            self.disconnect_started = asyncio.Event()
+            self.write_started = asyncio.Event()
+            self.disconnect_cancelled = False
+
+        async def write_gatt_char(self, uuid, payload, response=False):
+            await super().write_gatt_char(uuid, payload, response)
+            self.write_started.set()
+
+        async def disconnect(self):
+            self.disconnect_started.set()
+            try:
+                await asyncio.Event().wait()
+            except asyncio.CancelledError:
+                self.disconnect_cancelled = True
+                raise
+
+    client = StalledDisconnect()
+    if mode == 'error':
+        client.header = b'\x00\x11\x91\x01\x00'
+    before = asyncio.all_tasks()
+    task = asyncio.create_task(read_record(client, timeout=0.02))
+    if mode == 'cancel':
+        await asyncio.wait_for(client.write_started.wait(), 0.2)
+        # Cancel while the transaction is awaiting a missing announcement.
+        task.cancel()
+    if mode == 'success':
+        with pytest.raises(ReadError, match='disconnect'):
+            await asyncio.wait_for(task, 0.15)
+    else:
+        with pytest.raises(asyncio.CancelledError if mode == 'cancel' else ReadError) as exc:
+            await asyncio.wait_for(task, 0.15)
+        if mode == 'error':
+            assert str(exc.value) == 'invalid length announcement'
+    assert client.disconnect_started.is_set() and client.disconnect_cancelled
+    assert client.writes == [(DRSP, START)]
+    assert asyncio.all_tasks() == before
 
 
 @pytest.mark.asyncio

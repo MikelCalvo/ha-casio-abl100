@@ -27,19 +27,23 @@ def parse_steps(payload: bytes) -> StepRecord:
             raise ProtocolError('invalid BCD')
         return tens * 10 + units
 
+    # First five bytes: year/month/day/hour/minute. The sixth is not
+    # necessarily seconds and is deliberately not interpreted.
+    year, month, day, hour, minute = map(bcd, payload[:5])
     try:
-        # First five bytes: year/month/day/hour/minute. The sixth is not
-        # necessarily seconds and is deliberately not interpreted.
-        year, month, day, hour, minute = map(bcd, payload[:5])
         record_date = date(2000 + year, month, day)
-        if hour > 23 or minute > 59:
-            raise ProtocolError('invalid watch time')
-        steps = int.from_bytes(payload[374:378], 'little')
-        if steps == 0xFFFFFFFE or steps > 99999999:
-            raise ProtocolError('missing step count')
-        bcd_total = sum(bcd(value) * (100 ** index) for index, value in enumerate(payload[396:400]))
-        if steps != bcd_total:
-            raise ProtocolError('step totals disagree')
     except ValueError as error:
         raise ProtocolError('invalid watch date') from error
+    if hour > 23 or minute > 59:
+        raise ProtocolError('invalid watch time')
+    steps = int.from_bytes(payload[374:378], 'little')
+    if steps == 0xFFFFFFFE or steps > 99999999:
+        raise ProtocolError('missing step count')
+    # An all-zero mirror is optional. For a zero step count it is also
+    # coherent; any populated mirror must decode and agree.
+    mirror = payload[396:400]
+    if any(mirror):
+        bcd_total = sum(bcd(value) * (100 ** index) for index, value in enumerate(mirror))
+        if steps != bcd_total:
+            raise ProtocolError('step totals disagree')
     return StepRecord(record_date, steps)

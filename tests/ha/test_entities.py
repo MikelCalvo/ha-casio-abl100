@@ -6,6 +6,9 @@ from unittest.mock import patch
 import pytest
 
 from homeassistant.exceptions import HomeAssistantError
+from bleak.backends.device import BLEDevice
+from bleak.exc import BleakError
+import bleak_retry_connector as retry
 from custom_components.casio_abl100 import WatchSession
 from custom_components.casio_abl100.sensor import StepsSensor, LastSyncSensor
 from custom_components.casio_abl100.button import ReadStepsButton
@@ -27,7 +30,8 @@ async def test_manual_read_updates_entities_only_after_success():
     with patch('custom_components.casio_abl100.bluetooth.async_ble_device_from_address', return_value=device) as lookup, patch('custom_components.casio_abl100.establish_connection', return_value=client) as connect, patch('custom_components.casio_abl100.dt_util.now', return_value=__import__('datetime').datetime(2026, 8, 1)):
         await manager.read()
     lookup.assert_called_once_with(manager.hass, ADDR, connectable=True)
-    assert connect.call_args.args[:3] == (manager.client_class, device, 'Casio ABL-100WE')
+    assert issubclass(connect.call_args.args[0], manager.client_class)
+    assert connect.call_args.args[1:] == (device, 'Casio ABL-100WE')
     assert connect.call_args.kwargs['pair'] is False
     with patch('custom_components.casio_abl100.sensor.dt_util.now', return_value=datetime(2026, 8, 1)):
         assert steps.native_value == 1485
@@ -50,6 +54,58 @@ async def test_unreachable_or_wrong_name_keeps_last_good_value():
         with patch('custom_components.casio_abl100.sensor.dt_util.now', return_value=datetime(2026, 8, 1)):
             assert steps.native_value == 23
     assert not manager.fresh
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('mode', ['cancel', 'timeout', 'failure'])
+async def test_real_retry_connector_cleans_partial_connection(mode):
+    device = BLEDevice(ADDR, 'ABL-100', {})
+    created = []
+    started = asyncio.Event()
+
+    class PartialClient:
+        def __init__(self, target, **kwargs):
+            assert target is device
+            assert kwargs['pair'] is False
+            created.append(self)
+            self.disconnected = False
+            self.disconnect_calls = 0
+
+        async def connect(self, **kwargs):
+            started.set()
+            if mode == 'failure':
+                raise BleakError('failed')
+            await asyncio.Event().wait()
+
+        async def disconnect(self):
+            self.disconnect_calls += 1
+            self.disconnected = True
+
+    async def no_devices(_device):
+        return []
+
+    async def no_cache(_device):
+        return False
+
+    async def no_backoff(*args):
+        return None
+
+    manager = WatchSession(SimpleNamespace(), ADDR)
+    manager.client_class = PartialClient
+    before = asyncio.all_tasks()
+    with patch('custom_components.casio_abl100.bluetooth.async_ble_device_from_address', return_value=device), patch.object(retry, 'get_connected_devices', side_effect=no_devices), patch.object(retry, '_has_valid_services_in_cache', side_effect=no_cache), patch.object(retry, 'wait_for_disconnect', side_effect=no_backoff), patch.object(retry, 'BLEAK_SAFETY_TIMEOUT', 0.02):
+        task = asyncio.create_task(manager.read())
+        await asyncio.wait_for(started.wait(), 1)
+        if mode == 'cancel':
+            await manager.shutdown()
+            with pytest.raises(asyncio.CancelledError):
+                await task
+        else:
+            with pytest.raises(HomeAssistantError):
+                await asyncio.wait_for(task, 1)
+    assert len(created) == 1
+    assert created[0].disconnected and created[0].disconnect_calls >= 1
+    assert asyncio.all_tasks() == before
 
 
 @pytest.mark.asyncio

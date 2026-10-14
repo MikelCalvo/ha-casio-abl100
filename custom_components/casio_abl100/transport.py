@@ -1,5 +1,6 @@
 """Per-connection read-only DRSP/Convoy framing."""
 import asyncio
+import sys
 from .protocol import parse_steps
 
 DRSP = '26eb0023-b012-49a8-b1f8-394fb2032b0f'
@@ -9,6 +10,11 @@ START = b'\x00\x11\x00\x00\x00'
 
 class ReadError(Exception):
     """Incomplete or malformed BLE transaction."""
+
+
+async def disconnect_client(client, *, timeout=1):
+    """Bound cooperative disconnect; an uncooperative backend needs its own abort."""
+    await asyncio.wait_for(client.disconnect(), timeout)
 
 
 async def read_record(client, *, timeout=12):
@@ -63,4 +69,18 @@ async def read_record(client, *, timeout=12):
     finally:
         if not complete.done():
             complete.cancel()
-        await client.disconnect()
+        failed = sys.exc_info()[0] is not None
+        try:
+            await disconnect_client(client, timeout=timeout)
+        except TimeoutError as error:
+            if not failed:
+                raise ReadError('disconnect timed out') from error
+        except Exception:
+            if not failed:
+                raise
+        except asyncio.CancelledError:
+            if not failed:
+                raise
+        # wait_for joins cooperative cancellation of the disconnect coroutine.
+        # A backend that suppresses cancellation cannot be made finite by
+        # asyncio.wait_for; that requires a backend-level abort mechanism.

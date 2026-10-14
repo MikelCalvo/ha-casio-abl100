@@ -8,6 +8,20 @@ from custom_components.casio_abl100 import DOMAIN
 
 
 @pytest.mark.asyncio
+async def test_failed_core_unload_keeps_runtime_session_open(hass: HomeAssistant, enable_custom_integrations):
+    entry = MockConfigEntry(domain=DOMAIN, title='Casio ABL-100WE', data={'address': 'AA:BB:CC:DD:EE:FF'}, source='user', options={}, unique_id='AA:BB:CC:DD:EE:FF')
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    from custom_components.casio_abl100 import async_unload_entry
+    with patch.object(hass.config_entries, 'async_unload_platforms', return_value=False):
+        assert await async_unload_entry(hass, entry) is False
+    assert not entry.runtime_data.closed
+    assert entry.runtime_data.listeners
+    assert await hass.config_entries.async_unload(entry.entry_id)
+
+
+@pytest.mark.asyncio
 async def test_core_entry_setup_creates_three_entities_without_a_ble_read(hass: HomeAssistant, enable_custom_integrations):
     entry = MockConfigEntry(domain=DOMAIN, title='Casio ABL-100WE', data={'address': 'AA:BB:CC:DD:EE:FF'}, source='user', options={}, unique_id='AA:BB:CC:DD:EE:FF')
     entry.add_to_hass(hass)
