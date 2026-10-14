@@ -1,5 +1,6 @@
 """Read-only watch sensor entities."""
 from homeassistant.components.sensor import SensorEntity, SensorEntityDescription, SensorDeviceClass
+from homeassistant.core import callback
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.event import async_track_time_change
 from homeassistant.util import dt as dt_util
@@ -16,8 +17,12 @@ class WatchSensor(SensorEntity):
     async def async_added_to_hass(self):
         self.async_on_remove(self.session.subscribe(self.async_write_ha_state))
         if isinstance(self, StepsSensor):
+            @callback
+            def refresh_date(_now):
+                self.async_write_ha_state()
+
             self.async_on_remove(async_track_time_change(
-                self.hass, lambda _now: self.async_write_ha_state(),
+                self.hass, refresh_date,
                 hour=0, minute=0, second=0,
             ))
 
