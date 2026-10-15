@@ -14,7 +14,9 @@ Seven previous-day summaries plus a separate current total are source-described 
 
 The combined history/reader candidate is **local, uninstalled and not physically validated**. The installed pilot remains alarm revision `fefd06b10375bea34e84ec060f34acc2c9cb86c5`, with manual step and alarm actions. There has been no new physical test: the accepted manual step results remain 229 and 276, and the accepted AL1–AL5/SIG snapshot does not resolve the watch's `ERR`.
 
-The standalone observer at `eed5783` has local synthetic SPEC/QUALITY checks. These do **not** establish final entry-lifecycle wiring, combined-bundle acceptance, unattended operation or hardware compatibility. Final integrated suites and independent reviews remain pending; no aggregate pass count is asserted for this candidate. Historical counts elsewhere in this document apply only to their named revisions/layers.
+The daily-history increment `986976b`, step commit guards/options at `83f9af3`, and standalone observer at `eed5783` have independent local SPEC and QUALITY approval within their respective scopes. These do **not** by themselves establish final entry-lifecycle wiring, combined-bundle acceptance, unattended operation or hardware compatibility.
+
+The composed code revision `9d8d245` passes **444 offline tests and 42 real-HA runtime tests**, with synthetic BLE and no radio hardware; a separate parent execution reproduced both results with process exit 0. The offline run reports five existing dependency deprecations. Runtime coverage includes actual manager callback deduplication and metadata-timer dispatch, entry options/reload isolation, manual-read contention, failure privacy, setup rollback and cancellation/unload cleanup. A narrowly updated ConfigEntry test double preserves the original unknown-alarm/no-read assertions while supplying HA's options/listener lifecycle APIs. Final independent reviews of the complete bundle remain pending. These counts overlap earlier layer selections and must not be summed with them; historical counts elsewhere apply only to their named revisions/layers.
 
 ### Intended behavior and evidence limits
 

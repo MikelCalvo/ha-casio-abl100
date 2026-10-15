@@ -1,6 +1,6 @@
 # [WIP] Casio ABL-100WE for Home Assistant
 
-**Experimental. Two manual step reads through an ESPHome Bluetooth proxy matched the watch display. One complete read of the five alarms and SIG on the installed alarm revision was also confirmed by the operator, although the watch displayed `ERR`; its cause is unresolved. This local branch adds a daily-history snapshot and an optional native step-window reader; neither has been installed or physically validated. Final integrated tests and reviews remain pending. Long-term reliability is not established.**
+**Experimental. Two manual step reads through an ESPHome Bluetooth proxy matched the watch display. One complete read of the five alarms and SIG on the installed alarm revision was also confirmed by the operator, although the watch displayed `ERR`; its cause is unresolved. This local branch adds a daily-history snapshot and an optional native step-window reader; neither has been installed or physically validated. Integrated local suites pass with synthetic BLE; final independent bundle reviews remain pending. Long-term reliability is not established.**
 
 A local step and alarm reader for the Casio ABL-100WE, using Home Assistant's Bluetooth stack and connectable ESPHome proxies. Manual buttons remain available; optional automatic step reads are disabled by default. No Casio account or cloud service is required.
 
@@ -10,7 +10,7 @@ A local step and alarm reader for the Casio ABL-100WE, using Home Assistant's Bl
 - The step-only revision `008f026` completed two real manual reads on 2026-10-15: **229 steps, then 276**, both matching the watch display. Both disconnected and left the proxy slot free.
 - Alarm revision `fefd06b10375bea34e84ec060f34acc2c9cb86c5` is installed in the pilot: one device and **11 entities**, with no automatic BLE read. A fresh complete snapshot of all five alarm times/enable states and SIG was confirmed by the operator. The watch displayed `ERR` despite the valid HA result; session completion and repeatability remain unresolved.
 - The local daily-history increment extends the existing step parser and the **Steps today** entity with a bounded `daily_history` attribute. It sends no additional commands and is **not installed or physically validated**.
-- The optional native step-window reader is **local, uninstalled and hardware-unvalidated**. It preserves the existing 11 entity identities and manual step/alarm buttons. Standalone observer checks are not acceptance of the final lifecycle wiring or combined history/reader bundle; final integrated tests and reviews remain pending. Historical synthetic test results in [validation details](docs/validation.md) must not be attributed to this combined candidate.
+- The optional native step-window reader is **local, uninstalled and hardware-unvalidated**. It preserves the existing 11 entity identities and manual step/alarm buttons. Composed code revision `9d8d245` passes **444 offline tests and 42 real-HA runtime tests with synthetic BLE**, independently rerun with the same results. Final independent reviews of the complete bundle remain pending. Earlier layer results in [validation details](docs/validation.md) are separate and overlapping, not additional coverage.
 - Earlier physical step attempts failed during connection, subscription or parsing. Later successes do not establish everyday reliability or prove subscription order was the sole cause. Enabled alarms and disabled SIG were compared with the watch in the accepted alarm snapshot; an activated SIG remains untested.
 - Editing alarms, synchronizing time, ordinary setting controls and watch-button events are not implemented. There is no periodic watch GATT polling, presence tracking or light automation. The optional reader observes Bluetooth metadata to request steps during a fresh window.
 
@@ -42,7 +42,7 @@ This does **not** imply seven days of full hourly detail, persistent storage, au
 
 ## Experimental installation
 
-Use only an installation you can recover and back up the existing integration/configuration first. This combined history/optional-reader candidate needs final integrated tests, independent review and separately coordinated physical acceptance; local component checks do not approve replacing an existing installation.
+Use only an installation you can recover and back up the existing integration/configuration first. This combined history/optional-reader candidate has passed integrated local tests but still needs final independent review and separately coordinated physical acceptance; synthetic checks do not approve replacing an existing installation.
 
 1. Copy `custom_components/casio_abl100` into Home Assistant's `config/custom_components/` directory.
 2. Restart Home Assistant Core.
