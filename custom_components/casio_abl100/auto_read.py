@@ -37,6 +37,7 @@ class AutoStepReader:
         self._started = False
         self._ready = False
         self._task = None
+        self._stop_cancelled_task = None
         self._cancel_callback = None
         self._cancel_timer = None
 
@@ -127,7 +128,7 @@ class AutoStepReader:
             self._task = self.entry.async_create_background_task(
                 self.hass, coroutine, 'Casio automatic step read', eager_start=False,
             )
-        except Exception:
+        except (Exception, asyncio.CancelledError):
             coroutine.close()
             _LOGGER.warning('Unable to schedule automatic step read')
 
@@ -150,7 +151,8 @@ class AutoStepReader:
         except Exception:
             _LOGGER.warning('Automatic step read failed')
         finally:
-            self._task = None
+            if self._task is asyncio.current_task():
+                self._task = None
 
     @callback
     def suspend(self):
@@ -165,7 +167,11 @@ class AutoStepReader:
         self._suspended = False
 
     async def stop(self):
-        """Remove native observers and await the owned reader's cleanup."""
+        """Remove observers; wait for cooperative cleanup even if this caller cancels.
+
+        An uncooperative session backend can still prevent completion; stopping
+        does not impose a timeout or forcibly abandon the owned reader.
+        """
         self._stopped = True
         for attribute in ('_cancel_callback', '_cancel_timer'):
             cancel = getattr(self, attribute)
@@ -177,6 +183,24 @@ class AutoStepReader:
                     _LOGGER.warning('Automatic step observer cleanup failed')
         task = self._task
         if task is not None:
-            task.cancel()
-            await asyncio.gather(task, return_exceptions=True)
-            self._task = None
+            # Claim once before yielding: concurrent stops must not re-cancel
+            # a reader already awaiting asynchronous session cleanup.
+            if self._stop_cancelled_task is not task:
+                self._stop_cancelled_task = task
+                task.cancel()
+            cancelled = None
+            while not task.done():
+                try:
+                    # wait() never forwards caller cancellation to the child,
+                    # and removes its callback when cancelled (no shield orphan).
+                    await asyncio.wait({task})
+                except asyncio.CancelledError as err:
+                    cancelled = err
+            if not task.cancelled():
+                task.exception()  # Retrieve any failure before propagating ours.
+            if self._task is task:
+                self._task = None
+            if self._stop_cancelled_task is task:
+                self._stop_cancelled_task = None
+            if cancelled is not None:
+                raise cancelled

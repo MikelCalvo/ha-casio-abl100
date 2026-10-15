@@ -328,3 +328,121 @@ async def test_cleanup_backend_cancellation_cannot_skip_other_observers(harness)
     await h.reader.stop()
     h.timer.return_value.assert_called_once()
     h.owner.read.assert_not_called()
+
+
+async def loop_checkpoint():
+    """One event-loop pump, not a timing delay; flush preceding ready callbacks."""
+    future = asyncio.get_running_loop().create_future()
+    asyncio.get_running_loop().call_soon(future.set_result, None)
+    await future
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('mode', ['normal', 'preentry', 'repeated', 'concurrent', 'private'])
+async def test_stop_preserves_held_cooperative_cleanup(harness, caplog, mode):
+    h = harness
+    entered, cleaning, release, cleaned = (asyncio.Event() for _ in range(4))
+    loop = asyncio.get_running_loop()
+    errors = []
+    previous_handler = loop.get_exception_handler()
+    loop.set_exception_handler(lambda loop, context: errors.append(context))
+    stops = []
+
+    async def read():
+        entered.set()
+        try:
+            await asyncio.Event().wait()
+        finally:
+            cleaning.set()
+            await release.wait()
+            cleaned.set()
+            if mode == 'private':
+                raise RuntimeError('PRIVATE_CANARY')
+
+    async def stop():
+        if mode == 'preentry':
+            caller = asyncio.current_task()
+            assert caller is not None
+            caller.cancel()
+        await h.reader.stop()
+
+    h.owner.read.side_effect = read
+    h.reader.start()
+    advertise(h)
+    try:
+        await asyncio.wait_for(entered.wait(), 1)
+        stops.append(asyncio.create_task(stop()))
+        await asyncio.wait_for(cleaning.wait(), 1)
+        if mode in ('repeated', 'private'):
+            stops[0].cancel()
+            await loop_checkpoint()
+            stops[0].cancel()
+        elif mode == 'concurrent':
+            stops.append(asyncio.create_task(h.reader.stop()))
+            await loop_checkpoint()
+            stops[0].cancel()
+        await loop_checkpoint()
+        held = not h.tasks[0].done() and all(not task.done() for task in stops)
+        cancel_count = h.tasks[0].cancelling()
+    finally:
+        release.set()
+        results = await asyncio.gather(*stops, return_exceptions=True)
+        await drain(h)
+        await h.reader.stop()
+        await loop_checkpoint()
+        loop.set_exception_handler(previous_handler)
+
+    assert held, 'stop caller/concurrent cancellation interrupted held cooperative cleanup'
+    assert cancel_count == 1, 'owned read must receive exactly one stop cancellation'
+    assert cleaned.is_set(), 'caller cancellation aborted cooperative read cleanup'
+    expected_cancel = mode != 'normal'
+    assert isinstance(results[0], asyncio.CancelledError) is expected_cancel
+    if mode == 'concurrent':
+        assert results[1] is None  # Each waiter retains its own cancellation priority.
+    assert not errors
+    assert 'PRIVATE_CANARY' not in caplog.text
+    h.owner.read.assert_awaited_once()
+    assert all(task.done() for task in h.tasks)
+    assert h.reader._task is None
+    h.register.return_value.assert_called_once()
+    h.timer.return_value.assert_called_once()
+    h.state.now += 100
+    advertise(h)
+    h.timer.call_args.args[1](None)
+    assert len(h.tasks) == 1
+
+
+@pytest.mark.asyncio
+async def test_scheduler_backend_cancellation_closes_owned_coroutine(harness, caplog):
+    h = harness
+    captured, propagated, callback_tasks = [], [], []
+    h.reader.start()
+
+    def create(*args, **kwargs):
+        captured.append(args[1])
+        raise asyncio.CancelledError('PRIVATE_CANARY')
+
+    def callback():
+        callback_tasks.append(asyncio.current_task())
+        try:
+            advertise(h)
+            advertise(h)
+        except asyncio.CancelledError:
+            propagated.append(True)
+
+    h.entry.async_create_background_task.side_effect = create
+    asyncio.get_running_loop().call_soon(callback)
+    await loop_checkpoint()
+    closed = captured[0].cr_frame is None
+    try:
+        assert closed, 'scheduler cancellation leaked its supplied coroutine'
+        assert not propagated
+        assert callback_tasks == [None]  # Synchronous backend fault, not caller cancellation.
+        assert h.entry.async_create_background_task.call_count == 1
+        assert caplog.text.count('Unable to schedule automatic step read') == 1
+        assert 'PRIVATE_CANARY' not in caplog.text
+        h.owner.read.assert_not_called()
+    finally:
+        for coroutine in captured:
+            coroutine.close()
+        await h.reader.stop()
