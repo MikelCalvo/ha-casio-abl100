@@ -41,8 +41,15 @@ async def test_unknown_before_manual_read_and_no_setup_poll():
     calls = []
     async def forward(*args):
         calls.append(args)
-    hass = SimpleNamespace(config_entries=SimpleNamespace(async_forward_entry_setups=forward))
-    entry = SimpleNamespace(data={'address': ADDR})
+    from unittest.mock import AsyncMock, Mock
+    cancel_update = Mock()
+    add_update_listener = Mock(return_value=cancel_update)
+    on_unload = Mock()
+    hass = SimpleNamespace(config_entries=SimpleNamespace(
+        async_forward_entry_setups=forward, async_unload_platforms=AsyncMock(return_value=True),
+    ))
+    entry = SimpleNamespace(data={'address': ADDR}, options={},
+                            add_update_listener=add_update_listener, async_on_unload=on_unload)
     with patch('custom_components.casio_abl100.establish_connection') as connect:
         await async_setup_entry(hass, entry)
         assert entry.runtime_data.alarm_snapshot is None
@@ -50,6 +57,9 @@ async def test_unknown_before_manual_read_and_no_setup_poll():
         assert entry.runtime_data.alarms_fresh is False
         connect.assert_not_called()
     assert len(calls) == 1
+    add_update_listener.assert_called_once()
+    on_unload.assert_called_once_with(cancel_update)
+    hass.config_entries.async_unload_platforms.assert_not_called()
 
 
 @pytest.mark.asyncio

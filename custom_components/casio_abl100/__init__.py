@@ -49,6 +49,7 @@ class WatchSession:
         self.listeners = set()
         self.alarm_delivery_handles = set()
         self.closed = False
+        self.auto_reader = None
 
     def subscribe(self, callback):
         self.listeners.add(callback)
@@ -240,23 +241,66 @@ class WatchSession:
         for handle in self.alarm_delivery_handles:
             handle.cancel()
         self.alarm_delivery_handles.clear()
-        tasks = set(self.tasks)
-        for task in tasks:
-            task.cancel()
-        if tasks:
-            await asyncio.gather(*tasks, return_exceptions=True)
-        self.listeners.clear()
+        try:
+            try:
+                if self.auto_reader is not None:
+                    await self.auto_reader.stop()
+            finally:
+                # The reader has already joined its owned read, including any
+                # cooperative disconnect. Do not cancel that cleanup twice.
+                tasks = set(self.tasks)
+                for task in tasks:
+                    task.cancel()
+                if tasks:
+                    await asyncio.gather(*tasks, return_exceptions=True)
+        finally:
+            self.listeners.clear()
 
 
 async def async_setup_entry(hass, entry):
     manager = WatchSession(hass, entry.data['address'])
     entry.runtime_data = manager
-    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    cancel_update = None
+    try:
+        await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+        if entry.options.get('auto_read_steps') is True:
+            from .auto_read import AutoStepReader
+
+            manager.auto_reader = AutoStepReader(hass, entry, manager)
+            manager.auto_reader.start()
+        cancel_update = entry.add_update_listener(_async_options_updated)
+        entry.async_on_unload(cancel_update)
+    except BaseException:
+        if cancel_update is not None:
+            cancel_update()
+        try:
+            await manager.shutdown()
+        finally:
+            # HA processes entry on_unload callbacks on failed setup, but does
+            # not forward platform unloads for us after partial setup.
+            await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+        raise
     return True
 
 
+async def _async_options_updated(hass, entry):
+    await hass.config_entries.async_reload(entry.entry_id)
+
+
 async def async_unload_entry(hass, entry):
-    if not await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
+    manager = entry.runtime_data
+    reader = manager.auto_reader
+    if reader is not None:
+        reader.suspend()
+    try:
+        unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    except BaseException:
+        if reader is not None:
+            reader.resume()
+        raise
+    if not unloaded:
+        if reader is not None:
+            reader.resume()
         return False
-    await entry.runtime_data.shutdown()
+    await manager.shutdown()
     return True
