@@ -450,3 +450,172 @@ async def test_invalid_response_during_failing_disconnect_remains_primary_error(
     client.fail_disconnect = True
     with pytest.raises(ReadError, match='invalid alarm transaction'):
         await read_alarms(client, timeout=0.1)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('opcode,frame,expected_writes', [
+    (b'\x15', FIRST, []),
+    (b'\x16', REMAINING, [(b'\x15', False)]),
+])
+async def test_alarm_callback_before_public_get_invocation_invalidates_without_write(
+        monkeypatch, opcode, frame, expected_writes):
+    """A callback before the write coroutine starts is not its response."""
+    import custom_components.casio_abl100.transport as transport
+    client = Client()
+    original_stage = transport._stage
+    delivered = []
+
+    async def deliver_before_write(label, operation, timeout):
+        if label == 'write alarm GET' + opcode.hex():
+            loop = asyncio.get_running_loop()
+            loop.call_soon(lambda: (delivered.append(True), client.notify(frame)))
+            await asyncio.sleep(0)  # Dispatch before invoking the GET coroutine.
+        return await original_stage(label, operation, timeout)
+
+    monkeypatch.setattr(transport, '_stage', deliver_before_write)
+    before = asyncio.all_tasks()
+    with pytest.raises(ReadError, match='invalid alarm transaction'):
+        await transport.read_alarms(client, timeout=0.1)
+    assert delivered == [True]
+    assert writes(client) == expected_writes
+    assert client.disconnected and asyncio.all_tasks() == before
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('original,duplicate,cleanup_failure', [
+    ('success', False, None),
+    ('success', True, None),
+    ('badframe', False, None),
+    ('badframe', True, 'error'),
+    ('success', True, 'error'),
+    ('success', True, 'cancel'),
+])
+async def test_caller_cancellation_during_cleanup_has_priority(
+        original, duplicate, cleanup_failure):
+    """New caller cancellation outranks invalidation, prior error, and cleanup."""
+    from custom_components.casio_abl100.transport import read_alarms
+    entered = asyncio.Event()
+
+    class HeldDisconnect(Client):
+        async def disconnect(self):
+            self.events.append(('disconnect',))
+            if duplicate:
+                self.notify(FIRST)
+            entered.set()
+            try:
+                await asyncio.Event().wait()
+            except asyncio.CancelledError:
+                if cleanup_failure == 'error':
+                    raise RuntimeError('backend cleanup failed after caller cancellation')
+                raise
+
+    client = HeldDisconnect(first=b'\x15' if original == 'badframe' else FIRST)
+    before = asyncio.all_tasks()
+    task = asyncio.create_task(read_alarms(client, timeout=0.2))
+    try:
+        await asyncio.wait_for(entered.wait(), 0.1)
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await asyncio.wait_for(task, 0.1)
+        assert writes(client) == ([(b'\x15', False)] if original == 'badframe'
+                                  else [(b'\x15', False), (b'\x16', False)])
+        assert asyncio.all_tasks() == before
+    finally:
+        task.cancel()
+        await asyncio.gather(task, return_exceptions=True)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('original,duplicate,cleanup_failure,expected', [
+    ('success', True, 'cancel', 'invalid alarm transaction'),
+    ('badframe', True, 'cancel', 'invalid alarm response'),
+    ('badframe', True, 'error', 'invalid alarm response'),
+])
+async def test_backend_cleanup_failure_without_caller_cancel_preserves_priority(
+        original, duplicate, cleanup_failure, expected):
+    """A backend CancelledError is not itself a caller task cancellation."""
+    from custom_components.casio_abl100.transport import read_alarms
+
+    class BrokenDisconnect(Client):
+        async def disconnect(self):
+            self.events.append(('disconnect',))
+            if duplicate:
+                self.notify(FIRST)
+            if cleanup_failure == 'cancel':
+                raise asyncio.CancelledError()
+            raise RuntimeError('backend cleanup failed')
+
+    client = BrokenDisconnect(first=b'\x15' if original == 'badframe' else FIRST)
+    before = asyncio.all_tasks()
+    with pytest.raises(ReadError, match=expected):
+        await read_alarms(client, timeout=0.1)
+    assert asyncio.all_tasks() == before
+
+
+@pytest.mark.asyncio
+async def test_spurious_backend_cleanup_cancellation_is_not_caller_cancellation():
+    from custom_components.casio_abl100.transport import read_alarms
+
+    class SpuriousCancel(Client):
+        async def disconnect(self):
+            self.events.append(('disconnect',))
+            raise asyncio.CancelledError()
+
+    client = SpuriousCancel()
+    before = asyncio.all_tasks()
+    with pytest.raises(ReadError, match='alarm disconnect cancelled'):
+        await read_alarms(client, timeout=0.1)
+    assert writes(client) == [(b'\x15', False), (b'\x16', False)]
+    assert asyncio.all_tasks() == before
+
+
+@pytest.mark.asyncio
+async def test_caller_cancel_converted_by_write_backend_remains_cancellation():
+    """A backend's ordinary error after swallowing cancel cannot replace caller cancel."""
+    from custom_components.casio_abl100.transport import read_alarms
+    entered = asyncio.Event()
+
+    class MaskedWrite(Client):
+        async def write_gatt_char(self, characteristic, data, response=False):
+            self.events.append(('write', characteristic, bytes(data), response))
+            entered.set()
+            try:
+                await asyncio.Event().wait()
+            except asyncio.CancelledError:
+                raise RuntimeError('backend masked caller cancellation')
+
+    client = MaskedWrite()
+    before = asyncio.all_tasks()
+    task = asyncio.create_task(read_alarms(client, timeout=0.2))
+    try:
+        await asyncio.wait_for(entered.wait(), 0.1)
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await asyncio.wait_for(task, 0.1)
+        assert writes(client) == [(b'\x15', False)] and client.disconnected
+        assert asyncio.all_tasks() == before
+    finally:
+        task.cancel()
+        await asyncio.gather(task, return_exceptions=True)
+
+
+@pytest.mark.asyncio
+async def test_post_invocation_same_opcode_callback_cannot_prove_freshness():
+    """Characterization: no public transaction token separates these histories."""
+    from custom_components.casio_abl100.transport import read_alarms
+
+    class Ambiguous(Client):
+        async def write_gatt_char(self, characteristic, data, response=False):
+            if bytes(data) != b'\x16':
+                await super().write_gatt_char(characteristic, data, response)
+                return
+            self.events.append(('entered16',))
+            self.notify(REMAINING)  # Indistinguishable old frame, after invocation.
+            await asyncio.sleep(0)  # Synthetic backend pre-send suspension.
+            self.events.append(('write', characteristic, bytes(data), response))
+
+    client = Ambiguous()
+    assert len((await read_alarms(client, timeout=0.1)).alarms) == 5
+    assert [e[0] for e in client.events] == [
+        'subscribe', 'write', 'entered16', 'write', 'disconnect',
+    ]

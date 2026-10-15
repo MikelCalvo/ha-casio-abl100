@@ -167,13 +167,20 @@ def _alarm_query_characteristic(client):
 
 
 async def read_alarms(client, *, timeout=12):
-    """Manually query five alarm slots through the primary notify channel."""
+    """Manually query five alarm slots with local phase correlation only.
+
+    Bleak notifications contain no transaction ID: a queued old frame delivered
+    after public write invocation is indistinguishable from a fresh response.
+    Neither local phase gating nor write completion proves peripheral causality.
+    """
     loop = asyncio.get_running_loop()
     first = loop.create_future()
     remaining = loop.create_future()
     phase = 'initializing'
     invalid = False
     closed = False
+    task = asyncio.current_task()
+    initial_cancels = task.cancelling() if task is not None else 0
 
     def fail(message):
         nonlocal invalid
@@ -204,20 +211,28 @@ async def read_alarms(client, *, timeout=12):
             return
         target.set_result(raw)
 
+    async def issue_query(opcode):
+        nonlocal phase
+        # This coroutine runs inside wait_for's task. Check and arm in the
+        # same uninterrupted turn as entry into the public write operation.
+        if invalid:
+            raise ReadError('invalid alarm transaction')
+        phase = 'waiting15' if opcode == 0x15 else 'waiting16'
+        await client.write_gatt_char(query, bytes((opcode,)), response=False)
+
     try:
         primary = _primary_characteristic(client)
         query = _alarm_query_characteristic(client)
         await _stage('start_notify ALL_FEATURES alarms', client.start_notify(primary, on_alarm), timeout)
         if invalid:
             raise ReadError('invalid alarm transaction')
-        phase = 'waiting15'  # Arm before write: a response may precede its await.
-        await _stage('write alarm GET15', client.write_gatt_char(query, b'\x15', response=False), timeout)
+        await _stage('write alarm GET15', issue_query(0x15), timeout)
         first_frame = await _stage('await alarm GET15', first, timeout)
         await asyncio.sleep(0)  # Drain callbacks queued next to the response.
         if invalid:
             raise ReadError('invalid alarm transaction')
-        phase = 'waiting16'
-        await _stage('write alarm GET16', client.write_gatt_char(query, b'\x16', response=False), timeout)
+        phase = 'between queries'
+        await _stage('write alarm GET16', issue_query(0x16), timeout)
         second_frame = await _stage('await alarm GET16', remaining, timeout)
         await asyncio.sleep(0)
         if invalid:
@@ -226,18 +241,13 @@ async def read_alarms(client, *, timeout=12):
     except TimeoutError as error:
         raise ReadError('alarm read timed out') from error
     finally:
-        failed = sys.exc_info()[0] is not None
-        cleanup_failed = False
+        original_error = sys.exc_info()[1]
+        cleanup_cancels = task.cancelling() if task is not None else 0
+        cleanup_error = None
         try:
             await _stage('disconnect alarms', client.disconnect(), timeout)
-        except TimeoutError as error:
-            cleanup_failed = True
-            if not failed and not invalid:
-                raise ReadError('alarm disconnect timed out') from error
-        except (Exception, asyncio.CancelledError):
-            cleanup_failed = True
-            if not failed and not invalid:
-                raise
+        except BaseException as error:
+            cleanup_error = error
         finally:
             closed = True
             for future in (first, remaining):
@@ -245,8 +255,20 @@ async def read_alarms(client, *, timeout=12):
                     future.cancel()
                 elif not future.cancelled():
                     future.exception()  # Consume failures even when a write failed first.
-        if cleanup_failed and invalid and not failed:
-            raise ReadError('invalid alarm transaction')
+        # Resolve once, after cleanup: caller cancellation (at any stage)
+        # outranks ordinary errors, invalidation and backend cleanup failures.
+        if task is not None and task.cancelling() > initial_cancels:
+            if task.cancelling() > cleanup_cancels or not isinstance(original_error, asyncio.CancelledError):
+                raise asyncio.CancelledError
+        if original_error is None:
+            if invalid:
+                raise ReadError('invalid alarm transaction')
+            if isinstance(cleanup_error, TimeoutError):
+                raise ReadError('alarm disconnect timed out') from cleanup_error
+            if isinstance(cleanup_error, asyncio.CancelledError):
+                raise ReadError('alarm disconnect cancelled') from cleanup_error
+            if cleanup_error is not None:
+                raise cleanup_error
     if invalid:
         raise ReadError('invalid alarm transaction')
     return snapshot
