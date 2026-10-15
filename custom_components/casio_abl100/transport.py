@@ -180,7 +180,6 @@ async def read_alarms(client, *, timeout=12):
     invalid = False
     closed = False
     task = asyncio.current_task()
-    initial_cancels = task.cancelling() if task is not None else 0
 
     def fail(message):
         nonlocal invalid
@@ -242,7 +241,6 @@ async def read_alarms(client, *, timeout=12):
         raise ReadError('alarm read timed out') from error
     finally:
         original_error = sys.exc_info()[1]
-        cleanup_cancels = task.cancelling() if task is not None else 0
         cleanup_error = None
         try:
             await _stage('disconnect alarms', client.disconnect(), timeout)
@@ -255,13 +253,12 @@ async def read_alarms(client, *, timeout=12):
                     future.cancel()
                 elif not future.cancelled():
                     future.exception()  # Consume failures even when a write failed first.
-        # Resolve once, after cleanup: caller cancellation (at any stage)
-        # outranks ordinary errors, invalidation and backend cleanup failures.
-        if task is not None and task.cancelling() > initial_cancels:
-            if task.cancelling() > cleanup_cancels or not isinstance(original_error, asyncio.CancelledError):
-                raise asyncio.CancelledError
-        if (isinstance(original_error, asyncio.CancelledError)
-                and (task is None or task.cancelling() <= initial_cancels)):
+        # Any outstanding public Task.cancel request, including one already
+        # pending at entry, outranks backend cancellation and cleanup failures.
+        # Never uncancel the caller; a backend-only CancelledError has count 0.
+        if task is not None and task.cancelling():
+            raise asyncio.CancelledError
+        if isinstance(original_error, asyncio.CancelledError):
             # A backend or response future can cancel itself without cancelling
             # this caller. Classify that failure at the transaction boundary.
             raise ReadError('alarm read cancelled by backend') from original_error

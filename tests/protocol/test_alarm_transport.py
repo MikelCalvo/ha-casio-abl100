@@ -717,6 +717,52 @@ async def test_real_caller_cancel_during_cleanup_overrides_backend_only_cancel()
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize('cancel_count', [1, 2])
+@pytest.mark.parametrize('outcome', ['normal', 'write_error', 'cleanup_error',
+                                     'cleanup_cancel', 'cleanup_invalid', 'later_cancel'])
+async def test_pending_caller_cancel_at_alarm_entry_outlasts_transaction_failures(
+        cancel_count, outcome):
+    """Task.cancel immediately before entry is real, even without a later count rise."""
+    from custom_components.casio_abl100.transport import read_alarms
+
+    class FaultingClient(Client):
+        async def write_gatt_char(self, characteristic, data, response=False):
+            await super().write_gatt_char(characteristic, data, response)
+            if outcome == 'write_error':
+                raise RuntimeError('write fault before cancellation delivery')
+
+        async def disconnect(self):
+            self.events.append(('disconnect',))
+            if outcome == 'cleanup_invalid':
+                self.notify(FIRST)
+            if outcome == 'cleanup_error':
+                raise RuntimeError('cleanup fault')
+            if outcome == 'cleanup_cancel':
+                raise asyncio.CancelledError()
+            self.disconnected = True
+
+    client = FaultingClient()
+    before = asyncio.all_tasks()
+
+    async def cancel_before_entry():
+        task = asyncio.current_task()
+        assert task is not None
+        for _ in range(cancel_count):
+            task.cancel()
+        if outcome == 'later_cancel':
+            asyncio.get_running_loop().call_soon(task.cancel)
+        await read_alarms(client, timeout=1)
+
+    task = asyncio.create_task(cancel_before_entry())
+    with pytest.raises(asyncio.CancelledError):
+        await asyncio.wait_for(task, 0.2)
+    assert task.cancelling() == cancel_count + (outcome == 'later_cancel')  # No uncancel.
+    assert client.events[-1] == ('disconnect',)
+    assert [e[0] for e in client.events[:2]] == ['subscribe', 'write']
+    assert asyncio.all_tasks() == before
+
+
+@pytest.mark.asyncio
 async def test_post_invocation_same_opcode_callback_cannot_prove_freshness():
     """Characterization: no public transaction token separates these histories."""
     from custom_components.casio_abl100.transport import read_alarms
