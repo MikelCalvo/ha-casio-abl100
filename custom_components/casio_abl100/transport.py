@@ -260,6 +260,11 @@ async def read_alarms(client, *, timeout=12):
         if task is not None and task.cancelling() > initial_cancels:
             if task.cancelling() > cleanup_cancels or not isinstance(original_error, asyncio.CancelledError):
                 raise asyncio.CancelledError
+        if (isinstance(original_error, asyncio.CancelledError)
+                and (task is None or task.cancelling() <= initial_cancels)):
+            # A backend or response future can cancel itself without cancelling
+            # this caller. Classify that failure at the transaction boundary.
+            raise ReadError('alarm read cancelled by backend') from original_error
         if original_error is None:
             if invalid:
                 raise ReadError('invalid alarm transaction')

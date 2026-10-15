@@ -600,6 +600,123 @@ async def test_caller_cancel_converted_by_write_backend_remains_cancellation():
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize('stage,expected_writes', [
+    ('metadata', []), ('subscribe', []), ('write15', [(b'\x15', False)]),
+    ('reply15', [(b'\x15', False)]),
+    ('write16', [(b'\x15', False), (b'\x16', False)]),
+    ('reply16', [(b'\x15', False), (b'\x16', False)]),
+    ('disconnect', [(b'\x15', False), (b'\x16', False)]),
+])
+@pytest.mark.parametrize('cleanup_failure', [None, 'error', 'cancel'])
+async def test_backend_only_cancel_at_each_stage_is_read_failure(
+        monkeypatch, stage, expected_writes, cleanup_failure):
+    """Backend/future cancellation without task.cancel never cancels the caller."""
+    import custom_components.casio_abl100.transport as transport
+
+    class CancelledBackend(Client):
+        @property
+        def services(self):
+            if stage == 'metadata':
+                raise asyncio.CancelledError()
+            return self._services
+
+        @services.setter
+        def services(self, value):
+            self._services = value
+
+        async def start_notify(self, characteristic, callback):
+            if stage == 'subscribe':
+                raise asyncio.CancelledError()
+            await super().start_notify(characteristic, callback)
+
+        async def write_gatt_char(self, characteristic, data, response=False):
+            await super().write_gatt_char(characteristic, data, response)
+            if stage == 'write' + data.hex():
+                raise asyncio.CancelledError()
+
+        async def disconnect(self):
+            self.events.append(('disconnect',))
+            if stage == 'disconnect' or cleanup_failure == 'cancel':
+                raise asyncio.CancelledError()
+            if cleanup_failure == 'error':
+                raise RuntimeError('cleanup fault')
+            self.disconnected = True
+
+    client = CancelledBackend(first=None if stage == 'reply15' else FIRST,
+                              remaining=None if stage == 'reply16' else REMAINING)
+    original_stage = transport._stage
+
+    async def cancelled_future(label, operation, timeout):
+        if label == 'await alarm GET' + stage[-2:] and stage.startswith('reply'):
+            operation.cancel()  # Cancel only the response future, not its caller.
+        return await original_stage(label, operation, timeout)
+
+    monkeypatch.setattr(transport, '_stage', cancelled_future)
+    before = asyncio.all_tasks()
+    current = asyncio.current_task()
+    initial_cancels = current.cancelling()
+    with pytest.raises(ReadError):
+        await transport.read_alarms(client, timeout=0.1)
+    assert current.cancelling() == initial_cancels
+    assert writes(client) == expected_writes
+    assert client.events[-1] == ('disconnect',)
+    assert asyncio.all_tasks() == before
+
+
+@pytest.mark.asyncio
+async def test_backend_child_self_cancel_does_not_cancel_parent():
+    from custom_components.casio_abl100.transport import read_alarms
+
+    class ChildSelfCancel(Client):
+        async def start_notify(self, characteristic, callback):
+            async def child():
+                asyncio.current_task().cancel()
+                await asyncio.sleep(0)
+            await asyncio.create_task(child())
+
+    client = ChildSelfCancel()
+    parent = asyncio.current_task()
+    before = asyncio.all_tasks()
+    cancels = parent.cancelling()
+    with pytest.raises(ReadError):
+        await read_alarms(client, timeout=0.1)
+    assert parent.cancelling() == cancels
+    assert client.events == [('disconnect',)] and asyncio.all_tasks() == before
+
+
+@pytest.mark.asyncio
+async def test_real_caller_cancel_during_cleanup_overrides_backend_only_cancel():
+    """A later real cancellation overrides the original backend-only failure."""
+    from custom_components.casio_abl100.transport import read_alarms
+    entered = asyncio.Event()
+
+    class BackendAndCaller(Client):
+        async def start_notify(self, characteristic, callback):
+            raise asyncio.CancelledError()
+
+        async def disconnect(self):
+            self.events.append(('disconnect',))
+            entered.set()
+            try:
+                await asyncio.Event().wait()
+            except asyncio.CancelledError:
+                raise RuntimeError('backend masked real cancellation')
+
+    client = BackendAndCaller()
+    before = asyncio.all_tasks()
+    task = asyncio.create_task(read_alarms(client, timeout=0.2))
+    try:
+        await asyncio.wait_for(entered.wait(), 0.1)
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await asyncio.wait_for(task, 0.1)
+        assert asyncio.all_tasks() == before
+    finally:
+        task.cancel()
+        await asyncio.gather(task, return_exceptions=True)
+
+
+@pytest.mark.asyncio
 async def test_post_invocation_same_opcode_callback_cannot_prove_freshness():
     """Characterization: no public transaction token separates these histories."""
     from custom_components.casio_abl100.transport import read_alarms
