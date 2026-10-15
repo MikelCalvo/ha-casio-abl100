@@ -133,8 +133,13 @@ class WatchSession:
                         except (Exception, asyncio.CancelledError):
                             # The original connect outcome/cancellation takes priority.
                             pass
+                if self.closed or (task is not None and task.cancelling()):
+                    raise asyncio.CancelledError
+                synced_at = dt_util.utcnow()
+                if self.closed or (task is not None and task.cancelling()):
+                    raise asyncio.CancelledError
                 self.record = record
-                self.last_sync = dt_util.utcnow()
+                self.last_sync = synced_at
                 self.fresh = True
                 self._notify()
         except (HomeAssistantError, asyncio.CancelledError):
