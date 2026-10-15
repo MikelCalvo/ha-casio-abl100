@@ -18,6 +18,18 @@ MODEL = 'ABL-100WE'
 _LOGGER = logging.getLogger(__name__)
 
 
+class _AlarmReadFailed(HomeAssistantError):
+    """Safe fallback text when HA translation context is unavailable."""
+
+    def __str__(self):
+        try:
+            return super().__str__()
+        except HomeAssistantError:
+            # A standalone reader has no HA translation context; do not
+            # replace the stable public error with a context-lookup failure.
+            return 'Unable to read a complete alarm snapshot'
+
+
 class WatchSession:
     """Entry-owned state and tasks; no global client or per-watch shared futures."""
 
@@ -50,7 +62,6 @@ class WatchSession:
         """Queue observer work outside the read task; never change its result."""
         if self.closed:
             return
-        loop = getattr(self.hass, 'loop', None) or asyncio.get_running_loop()
         handle = None
 
         def deliver():
@@ -69,7 +80,14 @@ class WatchSession:
                     # contain private watch values or BLE addresses.
                     _LOGGER.warning('Alarm observer callback failed')
 
-        handle = loop.call_soon(deliver)
+        try:
+            loop = getattr(self.hass, 'loop', None) or asyncio.get_running_loop()
+            handle = loop.call_soon(deliver)
+        except (Exception, asyncio.CancelledError):
+            # Scheduling is best-effort, including backend-only CancelledError.
+            # Never log scheduler details or insert a handle that was not queued.
+            _LOGGER.warning('Alarm observer scheduling failed')
+            return
         self.alarm_delivery_handles.add(handle)
 
     async def read(self):
@@ -136,6 +154,7 @@ class WatchSession:
         # Registration precedes every await, including the shared-lock wait,
         # so entry shutdown also reaches queued manual reads.
         self.tasks.add(task)
+        unavailable = None  # Only this particular validation error may escape.
         try:
             if task is not None and task.cancelling():
                 raise asyncio.CancelledError
@@ -148,7 +167,10 @@ class WatchSession:
                 name = (device.name or '').rstrip('\x00 \t\r\n') if device is not None else ''
                 if (device is None or device.address.upper() != self.address
                         or name not in ('ABL-100', 'ABL-100WE', 'CASIO ABL-100', 'CASIO ABL-100WE')):
-                    raise HomeAssistantError(translation_domain=DOMAIN, translation_key='unavailable')
+                    unavailable = HomeAssistantError(
+                        translation_domain=DOMAIN, translation_key='unavailable'
+                    )
+                    raise unavailable
 
                 # The retry connector may construct a client and then fail before
                 # returning it; only that partial client is ours to disconnect.
@@ -197,11 +219,11 @@ class WatchSession:
             # errors, even when a backend converts CancelledError to RuntimeError.
             if self.closed or (task is not None and task.cancelling()):
                 raise asyncio.CancelledError from None
-            if isinstance(error, HomeAssistantError):
+            if error is unavailable:
                 raise
             # Backend fault details stay only in the causal chain, never in
             # public args/placeholders or logs.
-            raise HomeAssistantError(
+            raise _AlarmReadFailed(
                 translation_domain=DOMAIN, translation_key='alarm_read_failed'
             ) from error
         finally:

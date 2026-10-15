@@ -875,6 +875,258 @@ async def test_reentrant_unsubscribe_suppresses_future_delivery(manager):
     assert seen.count('first') == 1 and seen.count('other') == 2
 
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize('scheduler_fault', [RuntimeError('PRIVATE_SCHEDULER'), asyncio.CancelledError('PRIVATE_SCHEDULER')])
+@pytest.mark.parametrize('outcome', ['success', 'read_failure', 'backend_cancel', 'caller_cancel', 'preentry_cancel'])
+async def test_enqueue_fault_never_changes_alarm_transaction(manager, caplog, scheduler_fault, outcome):
+    owner, _ = manager
+    old, stamp = object(), object()
+    owner.alarm_snapshot, owner.alarm_last_sync, owner.alarms_fresh = old, stamp, True
+    delivered = []
+    owner.subscribe(lambda: delivered.append(owner.alarm_snapshot))
+    attempts = []
+
+    class BrokenLoop:
+        def call_soon(self, callback):
+            attempts.append(callback)
+            raise scheduler_fault
+
+    owner.hass.loop = BrokenLoop()
+    client = Client()
+    entered = asyncio.Event()
+
+    async def connector(*args, **kwargs):
+        if outcome == 'read_failure':
+            raise BleakError('PRIVATE_CONNECT')
+        if outcome == 'backend_cancel':
+            raise asyncio.CancelledError('PRIVATE_BACKEND')
+        if outcome == 'caller_cancel':
+            entered.set()
+            await asyncio.Event().wait()
+        return client
+
+    async def preentry():
+        asyncio.current_task().cancel()
+        await owner.read_alarms()
+
+    with patch('custom_components.casio_abl100.establish_connection', side_effect=connector) as connect:
+        if outcome == 'caller_cancel':
+            task = asyncio.create_task(owner.read_alarms())
+            try:
+                await asyncio.wait_for(entered.wait(), 1)
+                task.cancel()
+                with pytest.raises(asyncio.CancelledError):
+                    await asyncio.wait_for(task, 1)
+            finally:
+                task.cancel()
+                await asyncio.gather(task, return_exceptions=True)
+        elif outcome == 'preentry_cancel':
+            task = asyncio.create_task(preentry())
+            with pytest.raises(asyncio.CancelledError):
+                await task
+            connect.assert_not_called()
+        elif outcome == 'success':
+            await owner.read_alarms()
+        else:
+            with pytest.raises(HomeAssistantError) as error:
+                await owner.read_alarms()
+            assert_error(error)
+    await asyncio.sleep(0)
+    assert (owner.alarm_snapshot is old) == (outcome != 'success')
+    assert (owner.alarm_last_sync is stamp) == (outcome != 'success')
+    assert owner.alarms_fresh is (outcome == 'success')
+    assert len(attempts) == 1 and delivered == []
+    assert not owner.alarm_delivery_handles and not owner.tasks and not owner.lock.locked()
+    assert 'PRIVATE_' not in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_scheduler_fault_drops_one_delivery_but_future_delivery_and_shutdown_work(manager):
+    owner, _ = manager
+    loop = asyncio.get_running_loop()
+    attempts = []
+
+    class SometimesBrokenLoop:
+        def call_soon(self, callback):
+            attempts.append(callback)
+            if len(attempts) == 1:
+                raise RuntimeError('PRIVATE_ONCE')
+            return loop.call_soon(callback)
+
+    owner.hass.loop = SometimesBrokenLoop()
+    observed = []
+    owner.subscribe(lambda: observed.append(owner.alarms_fresh))
+    with patch('custom_components.casio_abl100.establish_connection', return_value=Client()):
+        await owner.read_alarms()
+        assert owner.alarms_fresh and not owner.alarm_delivery_handles
+        await owner.read_alarms()
+        assert len(owner.alarm_delivery_handles) == 1
+    await owner.shutdown()
+    await asyncio.sleep(0)
+    assert len(attempts) == 2 and not observed and not owner.alarm_delivery_handles
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('fault', [RuntimeError('PRIVATE_LOOP'), asyncio.CancelledError('PRIVATE_LOOP')])
+async def test_loop_lookup_fault_cannot_mask_failed_alarm_read(manager, caplog, fault):
+    owner, _ = manager
+
+    class FaultingHass:
+        @property
+        def loop(self):
+            raise fault
+
+    owner.hass = FaultingHass()
+    with patch('custom_components.casio_abl100.establish_connection', side_effect=BleakError('PRIVATE_CONNECT')):
+        with pytest.raises(HomeAssistantError) as error:
+            await owner.read_alarms()
+    assert_error(error)
+    assert not owner.alarm_delivery_handles and not owner.tasks
+    assert 'PRIVATE_' not in caplog.text
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('origin', ['lookup', 'connector', 'transport', 'partial_cleanup'])
+@pytest.mark.parametrize('lookalike', [False, True])
+async def test_foreign_home_assistant_error_never_escapes_alarm_boundary(manager, caplog, origin, lookalike):
+    owner, lookup = manager
+    old, stamp = object(), object()
+    owner.alarm_snapshot, owner.alarm_last_sync, owner.alarms_fresh = old, stamp, True
+    private = 'PRIVATE_BLE_ADDRESS_AA_BB'
+    kwargs = ({'translation_domain': 'casio_abl100', 'translation_key': 'unavailable',
+               'translation_placeholders': {'address': private}} if lookalike else {})
+    failure = HomeAssistantError(private, **kwargs)
+    delivered = []
+    owner.subscribe(lambda: delivered.append(owner.alarms_fresh))
+    partials = []
+
+    class PartialClient:
+        def __init__(self, *args, **kwargs):
+            partials.append(self)
+            self.disconnect_calls = 0
+        async def disconnect(self):
+            self.disconnect_calls += 1
+            raise failure
+
+    async def connector(cls, *args, **kwargs):
+        if origin == 'connector':
+            raise failure
+        if origin == 'partial_cleanup':
+            cls()
+            return Client()
+        return Client()
+
+    if origin == 'partial_cleanup':
+        owner.client_class = PartialClient
+    if origin == 'transport':
+        class FaultingClient(Client):
+            async def start_notify(self, characteristic, callback):
+                raise failure
+        connector_result = FaultingClient()
+    else:
+        connector_result = None
+    with patch('custom_components.casio_abl100.establish_connection', side_effect=connector if connector_result is None else None, return_value=connector_result) as connect:
+        if origin == 'lookup':
+            lookup.side_effect = failure
+        with pytest.raises(HomeAssistantError) as error:
+            await owner.read_alarms()
+    assert_error(error)
+    assert private not in repr(error.value.args)
+    assert private not in repr(error.value.translation_placeholders)
+    assert private not in caplog.text
+    assert private not in str(error.value)
+    assert owner.alarm_snapshot is old and owner.alarm_last_sync is stamp
+    assert owner.alarms_fresh is False and not owner.tasks and not owner.lock.locked()
+    await asyncio.sleep(0)
+    assert delivered == [False]
+    if origin == 'lookup':
+        connect.assert_not_called()
+    if origin == 'partial_cleanup':
+        assert len(partials) == 1 and partials[0].disconnect_calls == 1
+
+
+@pytest.mark.asyncio
+async def test_caller_cancel_during_lookup_overrides_external_ha_error(manager):
+    owner, lookup = manager
+    previous, stamp = object(), object()
+    owner.alarm_snapshot, owner.alarm_last_sync, owner.alarms_fresh = previous, stamp, True
+
+    def cancel_then_fail(*args, **kwargs):
+        current = asyncio.current_task()
+        assert current is not None
+        current.cancel()
+        raise HomeAssistantError('PRIVATE_LOOKUP')
+
+    lookup.side_effect = cancel_then_fail
+    async def caller():
+        await owner.read_alarms()
+
+    task = asyncio.create_task(caller())
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    assert task.cancelling() > 0
+    assert owner.alarm_snapshot is previous and owner.alarm_last_sync is stamp
+    assert not owner.alarms_fresh and not owner.tasks
+
+
+@pytest.mark.asyncio
+async def test_foreign_same_domain_error_is_not_session_owned(manager):
+    owner, lookup = manager
+    # Matching public fields do not establish origin at the lookup boundary.
+    lookup.side_effect = HomeAssistantError(
+        'PRIVATE_LOOKUP', translation_domain='casio_abl100', translation_key='unavailable'
+    )
+    with pytest.raises(HomeAssistantError) as error:
+        await owner.read_alarms()
+    assert_error(error)
+    assert 'PRIVATE_LOOKUP' not in repr(error.value.args)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('original', ['foreign_error', 'caller_cancel'])
+async def test_partial_cleanup_foreign_ha_error_preserves_original_priority(manager, original):
+    owner, _ = manager
+    entered = asyncio.Event()
+    partials = []
+
+    class PartialClient:
+        def __init__(self, *args, **kwargs):
+            partials.append(self)
+        async def disconnect(self):
+            entered.set()
+            try:
+                if original == 'caller_cancel':
+                    await asyncio.Event().wait()
+            except asyncio.CancelledError:
+                pass
+            raise HomeAssistantError('PRIVATE_CLEANUP', translation_domain='casio_abl100', translation_key='closed')
+
+    owner.client_class = PartialClient
+
+    async def connector(cls, *args, **kwargs):
+        cls()
+        raise HomeAssistantError('PRIVATE_ORIGINAL') if original == 'foreign_error' else RuntimeError('PRIVATE_ORIGINAL')
+
+    with patch('custom_components.casio_abl100.establish_connection', side_effect=connector):
+        if original == 'caller_cancel':
+            task = asyncio.create_task(owner.read_alarms())
+            try:
+                await asyncio.wait_for(entered.wait(), 1)
+                task.cancel()
+                with pytest.raises(asyncio.CancelledError):
+                    await asyncio.wait_for(task, 2)
+            finally:
+                task.cancel()
+                await asyncio.gather(task, return_exceptions=True)
+        else:
+            with pytest.raises(HomeAssistantError) as error:
+                await owner.read_alarms()
+            assert_error(error)
+            assert isinstance(error.value.__cause__, HomeAssistantError)
+            assert error.value.__cause__.args == ('PRIVATE_ORIGINAL',)
+    assert len(partials) == 1 and not owner.tasks and owner.alarm_snapshot is None
+
+
 def test_alarm_exception_translations_are_human_and_private_free():
     from pathlib import Path
     root = Path(__file__).resolve().parents[2] / 'custom_components/casio_abl100'
