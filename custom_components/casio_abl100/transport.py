@@ -5,6 +5,7 @@ import sys
 from time import monotonic
 from uuid import UUID
 from .protocol import parse_steps
+from .alarms import parse_alarms
 
 _LOGGER = logging.getLogger(__name__)
 FEATURES_SERVICE = '26eb000d-b012-49a8-b1f8-394fb2032b0f'
@@ -147,3 +148,105 @@ async def read_record(client, *, timeout=12):
         # wait_for joins cooperative cancellation of the disconnect coroutine.
         # A backend that suppresses cancellation cannot be made finite by
         # asyncio.wait_for; that requires a backend-level abort mechanism.
+
+
+ALARM_QUERY = '26eb002c-b012-49a8-b1f8-394fb2032b0f'
+
+
+def _alarm_query_characteristic(client):
+    """Resolve GET's write-without-response characteristic in the feature service."""
+    services = client.services
+    service = services.get_service(FEATURES_SERVICE) if services is not None else None
+    if service is None:
+        raise ReadError('alarm service missing')
+    characteristic = next((char for char in service.characteristics
+                           if char.uuid.lower() == ALARM_QUERY), None)
+    if characteristic is None or 'write-without-response' not in characteristic.properties:
+        raise ReadError('alarm query characteristic missing or not writable without response')
+    return characteristic
+
+
+async def read_alarms(client, *, timeout=12):
+    """Manually query five alarm slots through the primary notify channel."""
+    loop = asyncio.get_running_loop()
+    first = loop.create_future()
+    remaining = loop.create_future()
+    phase = 'initializing'
+    invalid = False
+    closed = False
+
+    def fail(message):
+        nonlocal invalid
+        invalid = True
+        pending = first if phase == 'waiting15' else remaining
+        if not pending.done():
+            pending.set_exception(ReadError(message))
+
+    def on_alarm(_characteristic, value):
+        if closed or invalid:
+            return
+        raw = bytes(value)
+        if not raw or raw[0] == 0xff:
+            fail('malformed alarm notification')
+            return
+        if raw[0] not in (0x15, 0x16):
+            return  # Other feature notifications are not alarm responses.
+        if (phase == 'waiting15' and raw[0] == 0x15 and not first.done()):
+            target, expected = first, 5
+        elif (phase == 'waiting16' and raw[0] == 0x16 and not remaining.done()):
+            target, expected = remaining, 17
+        else:
+            fail('unexpected or duplicate alarm response')
+            return
+        if (len(raw) != expected or any(raw[i] > 23 or raw[i + 1] > 59
+                                        for i in range(3, expected, 4))):
+            fail('invalid alarm response')
+            return
+        target.set_result(raw)
+
+    try:
+        primary = _primary_characteristic(client)
+        query = _alarm_query_characteristic(client)
+        await _stage('start_notify ALL_FEATURES alarms', client.start_notify(primary, on_alarm), timeout)
+        if invalid:
+            raise ReadError('invalid alarm transaction')
+        phase = 'waiting15'  # Arm before write: a response may precede its await.
+        await _stage('write alarm GET15', client.write_gatt_char(query, b'\x15', response=False), timeout)
+        first_frame = await _stage('await alarm GET15', first, timeout)
+        await asyncio.sleep(0)  # Drain callbacks queued next to the response.
+        if invalid:
+            raise ReadError('invalid alarm transaction')
+        phase = 'waiting16'
+        await _stage('write alarm GET16', client.write_gatt_char(query, b'\x16', response=False), timeout)
+        second_frame = await _stage('await alarm GET16', remaining, timeout)
+        await asyncio.sleep(0)
+        if invalid:
+            raise ReadError('invalid alarm transaction')
+        snapshot = parse_alarms(first_frame, second_frame)
+    except TimeoutError as error:
+        raise ReadError('alarm read timed out') from error
+    finally:
+        failed = sys.exc_info()[0] is not None
+        cleanup_failed = False
+        try:
+            await _stage('disconnect alarms', client.disconnect(), timeout)
+        except TimeoutError as error:
+            cleanup_failed = True
+            if not failed and not invalid:
+                raise ReadError('alarm disconnect timed out') from error
+        except (Exception, asyncio.CancelledError):
+            cleanup_failed = True
+            if not failed and not invalid:
+                raise
+        finally:
+            closed = True
+            for future in (first, remaining):
+                if not future.done():
+                    future.cancel()
+                elif not future.cancelled():
+                    future.exception()  # Consume failures even when a write failed first.
+        if cleanup_failed and invalid and not failed:
+            raise ReadError('invalid alarm transaction')
+    if invalid:
+        raise ReadError('invalid alarm transaction')
+    return snapshot
