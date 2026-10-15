@@ -44,7 +44,14 @@ class StepsSensor(WatchSensor):
     def extra_state_attributes(self):
         if self.session.record is None:
             return None
-        return {'record_date': self.session.record.record_date.isoformat(), 'fresh': self.session.fresh}
+        return {
+            'record_date': self.session.record.record_date.isoformat(),
+            'fresh': self.session.fresh,
+            'daily_history': {
+                day.record_date.isoformat(): day.steps
+                for day in self.session.record.daily_history
+            },
+        }
 
 
 class LastSyncSensor(WatchSensor):

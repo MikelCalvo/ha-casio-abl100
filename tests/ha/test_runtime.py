@@ -14,6 +14,77 @@ from custom_components.casio_abl100 import DOMAIN
 from custom_components.casio_abl100.alarms import parse_alarms
 from custom_components.casio_abl100 import sensor as sensors
 from custom_components.casio_abl100.protocol import StepRecord
+from tests.protocol.test_daily_history import history_record
+from tests.protocol.test_transport import FakeClient
+from custom_components.casio_abl100.transport import DRSP, START
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('language', ['en', 'es'])
+async def test_step_history_real_service_keeps_ids_commands_failure_and_reload_boundaries(
+    hass: HomeAssistant, enable_custom_integrations, language,
+):
+    """Runtime characterization of the test-first parser/entity increment."""
+    from homeassistant.helpers import entity_registry as er
+    hass.config.language = language
+    address = 'AA:BB:CC:DD:EE:FF'
+    entry = MockConfigEntry(domain=DOMAIN, title='Casio ABL-100WE',
+                            data={'address': address}, source='user', unique_id=address)
+    entry.add_to_hass(hass)
+    raw = history_record()
+    bad = bytearray(raw)
+    bad[396] = 0xFA
+    clients = [FakeClient([raw]), FakeClient([bytes(bad)])]
+    device = SimpleNamespace(address=address, name='CASIO ABL-100WE\0')
+    with patch('custom_components.casio_abl100.bluetooth.async_ble_device_from_address',
+               return_value=device), patch('custom_components.casio_abl100.establish_connection',
+               side_effect=clients) as connect, patch.object(
+                   sensors.dt_util, 'now', return_value=datetime(2026, 8, 1)):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+        registry = er.async_get(hass)
+        def entity_ids():
+            return {entity.unique_id.removeprefix(address + '_'): entity.entity_id
+                    for entity in registry.entities.values()
+                    if entity.config_entry_id == entry.entry_id}
+        ids = entity_ids()
+        assert len(ids) == 11
+        connect.assert_not_called()
+        step_id = ids['steps_today']
+        assert hass.states.get(step_id).state == 'unavailable'
+        assert 'daily_history' not in hass.states.get(step_id).attributes
+        await hass.services.async_call('button', 'press',
+                                       {'entity_id': ids['read_steps']}, blocking=True)
+        await hass.async_block_till_done()
+        state = hass.states.get(step_id)
+        expected = {
+            '2026-07-31': 1234, '2026-07-30': 0, '2026-07-29': None,
+            '2026-07-28': 7654, '2026-07-27': 42, '2026-07-26': 99999999,
+            '2026-07-25': 1,
+        }
+        assert state.state == '1485' and state.attributes['fresh'] is True
+        assert 'daily_history' in state.attributes
+        assert state.attributes['daily_history'] == expected
+        stamp = hass.states.get(ids['last_sync']).state
+        assert stamp not in ('unknown', 'unavailable')
+        assert hass.states.get(ids['last_alarm_read']).state == 'unavailable'
+        with pytest.raises(HomeAssistantError):
+            await hass.services.async_call('button', 'press',
+                                           {'entity_id': ids['read_steps']}, blocking=True)
+        await hass.async_block_till_done()
+        state = hass.states.get(step_id)
+        assert state.state == '1485' and state.attributes['fresh'] is False
+        assert state.attributes['daily_history'] == expected
+        assert hass.states.get(ids['last_sync']).state == stamp
+        assert connect.call_count == 2
+        assert all(client.writes == [(DRSP, START)] for client in clients)
+        assert all(client.disconnected for client in clients)
+        assert await hass.config_entries.async_reload(entry.entry_id)
+        await hass.async_block_till_done()
+        assert entity_ids() == ids and connect.call_count == 2
+        assert hass.states.get(step_id).state == 'unavailable'
+        assert 'daily_history' not in hass.states.get(step_id).attributes
+        assert await hass.config_entries.async_unload(entry.entry_id)
 
 
 @pytest.mark.asyncio

@@ -3,7 +3,7 @@
 86b76d93, independently decoded; no casiosync code is included.
 """
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
 
 
 class ProtocolError(ValueError):
@@ -11,9 +11,18 @@ class ProtocolError(ValueError):
 
 
 @dataclass(frozen=True)
+class DailySteps:
+    """One previous-day slot, including an explicitly unknown total."""
+
+    record_date: date
+    steps: int | None
+
+
+@dataclass(frozen=True)
 class StepRecord:
     record_date: date
     steps: int
+    daily_history: tuple[DailySteps, ...] = ()
 
 
 def parse_steps(payload: bytes) -> StepRecord:
@@ -46,4 +55,13 @@ def parse_steps(payload: bytes) -> StepRecord:
         bcd_total = sum(bcd(value) * (100 ** index) for index, value in enumerate(mirror))
         if steps != bcd_total:
             raise ProtocolError('step totals disagree')
-    return StepRecord(record_date, steps)
+    # Seven previous-day totals, newest first. Missing slots retain their
+    # original dates; distance words are outside this read-only subset.
+    history = []
+    for days_ago in range(1, 8):
+        offset = 318 + (days_ago - 1) * 8
+        previous_steps = int.from_bytes(payload[offset:offset + 4], 'little')
+        if previous_steps == 0xFFFFFFFE or previous_steps > 99999999:
+            previous_steps = None
+        history.append(DailySteps(record_date - timedelta(days=days_ago), previous_steps))
+    return StepRecord(record_date, steps, tuple(history))

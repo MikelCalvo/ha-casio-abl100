@@ -1,5 +1,15 @@
 # Pilot validation
 
+## Current acceptance boundary
+
+This document retains historical implementation/review gates below. Since those gates, alarm revision `fefd06b10375bea34e84ec060f34acc2c9cb86c5` was installed with 13 component-file hashes verified. One fresh complete read of AL1–AL5 and SIG on 2026-10-15 was confirmed by the operator: enabled and disabled alarms, and disabled SIG, matched the watch. The watch still showed `ERR`; the detailed capture had already ended before that successful read, so its cause is unknown. A SIG-on test, separate-session alarm repeatability and general reliability remain open. No watch setting/time or pairing change was made.
+
+The separate **daily-history increment** changes only the parser and existing step entity's snapshot attributes. It has not been installed or physically verified, and has no independent SPEC/QUALITY approval yet because reviewer dispatch failed before execution. Its local gates passed **386 offline cases** (the same five dependency deprecations as the pristine baseline) and **13 real-HA runtime cases**, all with synthetic BLE. The pristine alarm baseline was rerun separately: **351 offline and 11 runtime cases passed**. These counts overlap and must not be added as independent coverage.
+
+The new focused tests first failed at the missing API, then at substantive empty-history and absent-attribute assertions before decoding/wiring. The full first regression run exposed one obsolete SimpleNamespace fixture lacking the new StepRecord field; it was replaced with the actual backward-compatible StepRecord type, without weakening the existing date/unavailability assertion. The saved failing run is retained privately. Two additional runtime cases exercise English/Spanish actual `button.press`, exact unchanged START-only command, disconnect, seven dated totals with a missing slot and a real zero, failure retention, timestamp independence and reload identity. They characterize the integrated test-first increment; they are not a physical read or an independent review.
+
+Seven previous-day summaries plus a separate current total are source-described protocol capacity, not a manufacturer retention guarantee. `daily_history` is a bounded snapshot attribute, not persistent history or retrospective Recorder/statistics import. The transport, session logic, existing IDs and diagnostics whitelist are unchanged. No automatic synchronization, settings editing or `ERR` fix is claimed.
+
 ## Physical step results on installed revision `008f026`
 
 On **2026-10-15**, the installed ALL_FEATURES-first implementation at commit [`008f026d6177a8a29592a872987b560dd9b723db`](https://github.com/MikelCalvo/ha-casio-abl100/commit/008f026d6177a8a29592a872987b560dd9b723db) completed one explicitly initiated physical read through Home Assistant and an ESPHome Bluetooth proxy. Home Assistant published **229 steps**, dated **2026-10-15**, and the operator confirmed **229 on the watch display**.
@@ -79,7 +89,7 @@ Earlier revisions did not produce valid steps:
 
 These failures remain part of the evidence. Two successful ALL_FEATURES-first sessions do not retroactively diagnose their exact causes, and no reliability percentage is claimed.
 
-## Local alarm-reader candidate (not installed)
+## Historical alarm-reader candidate gate (before installation)
 
 The code candidate is `3ae255ae8ea27505ee2adcae4c17622ef86cdeda`. It retains the accepted step reader and adds an explicitly initiated **read-only** alarm snapshot. Subsequent documentation-only commits do not change those component files. No physical alarm query, settings write, installation or restart was performed to validate this candidate.
 
@@ -120,7 +130,7 @@ Home Assistant `2026.9.4`, ESPHome `2026.9.1`, Bleak `3.0.2`, bleak-retry-connec
 
 - Continue assessing separated sessions and changing counts over time before claiming everyday reliability. The initial two-session check passed; record any future failures as well as successes, rather than retrying until success.
 - Longer-term reconnect behavior and unload/cancellation during an actual connected transaction remain unverified.
-- A separately reviewed alarm-query candidate is implemented locally, but still needs authorized reversible installation and physical comparison of all five slots and SIG before hardware support is claimed.
+- The alarm query is installed and one complete snapshot has been compared, as recorded at the top. Separate-session repeatability, enabled SIG and the watch-side `ERR` remain unverified. The local daily-history increment still needs independent review and physical comparison; it has not replaced the installed alarm revision.
 - Alarm editing, clock/settings writes and watch-button events are not implemented. Each needs its own source validation, tests, explicit setting/gesture target and coordinated physical acceptance.
 
 The operator also reports Android CasioGShockSmartSync phone actions working. That is a useful independent session reference, not proof of our unimplemented features. Raw logs, device addresses, credentials, registry backups and third-party captures are intentionally excluded from this repository.

@@ -1,16 +1,17 @@
 # [WIP] Casio ABL-100WE for Home Assistant
 
-**Experimental. Two manual step reads through an ESPHome Bluetooth proxy matched the watch display. The alarm reader is implemented and tested locally with synthetic BLE, but has not been installed or physically verified. Long-term reliability is not established.**
+**Experimental. Two manual step reads through an ESPHome Bluetooth proxy matched the watch display. One complete read of the five alarms and SIG on the installed alarm revision was also confirmed by the operator, although the watch displayed `ERR`; its cause is unresolved. This branch adds a daily-history snapshot tested only with synthetic BLE and has not been installed. Long-term reliability is not established.**
 
 A local, manual step and alarm reader for the Casio ABL-100WE, using Home Assistant's Bluetooth stack and connectable ESPHome proxies. No Casio account or cloud service is required.
 
 ## Current status
 
 - UI configuration and English/Spanish entity names are implemented.
-- The installed step-only revision `008f026` completed two real manual reads on 2026-10-15: **229 steps, then 276**, both matching the watch display. Both disconnected and left the proxy slot free. This installation has one device and three entities.
-- The local alarm-reader candidate `3ae255ae8ea27505ee2adcae4c17622ef86cdeda` adds five alarm observations, the hourly time signal setting, an independent last-alarm-read timestamp and a manual **Read alarms** button. Real HA test fixtures create one device and **11 entities**, with no automatic BLE read. **This candidate has not been installed in the pilot.**
-- **351 offline tests and 11 real-HA runtime tests pass with synthetic BLE clients.** The runtime tests exercise `button.press` through the session and protocol, EN/ES names, failures, reload and date rollover. They are not watch-hardware tests.
-- Earlier physical step attempts failed during connection, subscription or parsing. Two later successes do not establish everyday reliability or prove subscription order was the sole cause. No physical alarm read has been performed, and enabled/SIG bit interpretations still need comparison with the watch.
+- The step-only revision `008f026` completed two real manual reads on 2026-10-15: **229 steps, then 276**, both matching the watch display. Both disconnected and left the proxy slot free.
+- Alarm revision `fefd06b10375bea34e84ec060f34acc2c9cb86c5` is installed in the pilot: one device and **11 entities**, with no automatic BLE read. A fresh complete snapshot of all five alarm times/enable states and SIG was confirmed by the operator. The watch displayed `ERR` despite the valid HA result; session completion and repeatability remain unresolved.
+- This separate daily-history branch extends the existing step parser and the **Steps today** entity with a bounded `daily_history` attribute. It sends no additional commands and is **not installed or physically validated**.
+- **386 offline tests and 13 real-HA runtime tests pass with synthetic BLE clients.** The runtime tests exercise `button.press` through the session and protocol, EN/ES names, failures, reload and date rollover. They are not watch-hardware tests. Independent review of the new history increment remains pending.
+- Earlier physical step attempts failed during connection, subscription or parsing. Later successes do not establish everyday reliability or prove subscription order was the sole cause. Enabled alarms and disabled SIG were compared with the watch in the accepted alarm snapshot; an activated SIG remains untested.
 - Editing alarms, synchronizing time, ordinary setting controls and watch-button events are not implemented. There is no automatic polling, presence tracking or light automation.
 
 See [validation details](docs/validation.md) for exact revision boundaries and remaining acceptance. This is not an official Casio or Home Assistant integration, is not in the HACS default catalog and has no stable release.
@@ -31,9 +32,17 @@ Names below omit the device prefix, which Home Assistant adds once. Entity IDs d
 
 Alarm and step observations have independent timestamps and freshness. Before a successful read the corresponding observations are unavailable, not zero or off. A failed refresh retains the last good values and marks that feature's `fresh` attribute false. Disabled alarms still show their observed time. Step data for another date is unavailable; alarm times do not expire at midnight. Neither observation survives an integration reload in this pilot.
 
+## Daily-history snapshot (local, not installed)
+
+The source-described 400-byte ABL-100WE block contains **seven previous-day summary slots, plus today's separate total**. This is reverse-engineered protocol evidence, not a retention guarantee stated in the official manual. The seven slots are eight bytes each at offsets 318–373; their uint32 step total is followed by a distance word that this increment deliberately ignores. Slot dates are anchored to the validated watch record date: yesterday through seven days ago, newest first.
+
+On a successful current-date step read, `Steps today` exposes `daily_history`, mapping those seven ISO dates to totals or `null`. A legitimate zero remains zero. Missing sentinel `0xFFFFFFFE` or a count above the existing conservative 99,999,999-step parser bound becomes unknown for that slot without shifting later dates or invalidating a valid today total. The history is an immutable in-memory snapshot; each attribute call returns a new mapping. A failed read retains the last good snapshot and timestamp with `fresh: false`. Date rollover does not relabel its dates, but the **Steps today** entity itself still becomes unavailable until a valid current-date read.
+
+This does **not** imply seven days of full hourly detail, persistent storage, automatic synchronization, or backfilling past dates into Home Assistant Recorder/statistics. It adds no entities, transport writes, setting changes or background tasks. A reload clears the in-memory observation. Synthetic records demonstrate decoding and HA behavior only; the physical watch's historical totals have not been compared.
+
 ## Experimental installation
 
-Use only an installation you can recover and back up the existing integration/configuration first. The alarm candidate needs separately coordinated physical acceptance; its local tests do not approve installing it into an existing system.
+Use only an installation you can recover and back up the existing integration/configuration first. This history candidate needs independent review and separately coordinated physical acceptance; its local tests do not approve replacing an existing installation.
 
 1. Copy `custom_components/casio_abl100` into Home Assistant's `config/custom_components/` directory.
 2. Restart Home Assistant Core.
@@ -53,7 +62,7 @@ The step transaction subscribes to ALL_FEATURES `26eb002d-b012-49a8-b1f8-394fb20
 
 The alarm-only transaction validates the discovered service, primary notify/CCCD metadata and read-request characteristic `26eb002c-b012-49a8-b1f8-394fb2032b0f`. After enabling primary notifications, its only application-level writes are the **single-byte queries `15`, then `16`**, to that read-request characteristic with `response=False`. It waits for a valid `15` response before the second query, parses exact five- and seventeen-byte responses into five slots, and disconnects before publishing. It does not subscribe DRSP/Convoy or request steps during an alarm read.
 
-Each alarm entry is `[flags, auxiliary, hour, minute]`, with numeric hours/minutes. Enable mask `0x40` and SIG in AL1 mask `0x80` are source-derived interpretations, **not yet physically confirmed activated states for the pilot watch**. Unknown flags/auxiliary bytes stay in memory, not diagnostics. Malformed, missing, duplicate or locally unrequested alarm responses fail rather than becoming disabled/default alarms.
+Each alarm entry is `[flags, auxiliary, hour, minute]`, with numeric hours/minutes. Enable mask `0x40` and SIG in AL1 mask `0x80` are source-derived interpretations; one pilot snapshot confirmed enabled/disabled alarm states and disabled SIG. An enabled SIG and repeatability remain unverified. Unknown flags/auxiliary bytes stay in memory, not diagnostics. Malformed, missing, duplicate or locally unrequested alarm responses fail rather than becoming disabled/default alarms.
 
 Notifications contain no transaction ID. Local phase guards reject responses delivered before the public query invocation, but cannot universally distinguish a stale same-opcode notification delivered afterward from a genuine immediate reply. Neither write completion nor `fresh: true` proves radio-level causality; freshness here means the last complete locally validated read succeeded.
 

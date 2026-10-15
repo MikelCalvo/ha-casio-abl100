@@ -6,6 +6,7 @@ import pytest
 from custom_components.casio_abl100.config_flow import CasioConfigFlow
 from custom_components.casio_abl100.sensor import StepsSensor
 from custom_components.casio_abl100 import WatchSession
+from custom_components.casio_abl100.protocol import StepRecord
 
 
 @pytest.mark.asyncio
@@ -24,7 +25,7 @@ async def test_discovered_address_selection_works_without_manual_entry():
 
 def test_yesterday_count_not_labeled_today():
     manager = WatchSession(SimpleNamespace(), 'AA:BB:CC:DD:EE:FF')
-    manager.record = SimpleNamespace(steps=45, record_date=date(2026, 8, 1))
+    manager.record = StepRecord(date(2026, 8, 1), 45)
     sensor = StepsSensor(manager)
     with patch('custom_components.casio_abl100.sensor.dt_util.now', return_value=datetime(2026, 8, 2)):
         assert sensor.native_value is None
