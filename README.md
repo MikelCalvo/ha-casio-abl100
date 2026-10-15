@@ -1,16 +1,16 @@
 # [WIP] Casio ABL-100WE for Home Assistant
 
-**Experimental. Not ready for everyday use. The first physical step read is currently blocked by a Bluetooth notification-subscription timeout.**
+**Experimental. One real manual step read through an ESPHome Bluetooth proxy has succeeded and matched the watch display. Reliability across separate sessions is not yet established.**
 
 A local, manual step reader for the Casio ABL-100WE, using Home Assistant's Bluetooth stack and connectable ESPHome proxies. No Casio account or cloud service is required.
 
 ## Current status
 
 - UI configuration, Spanish/English entity translations, a daily-step sensor, last-sync sensor and manual **Read steps** button are implemented.
-- An experimental private installation loads in Home Assistant 2026.9.4. Spanish device UI and idle integration reload have been checked.
-- Offline parsing/transport tests and real-HA lifecycle tests pass with **synthetic BLE data**. They do not establish hardware compatibility.
-- The first physical trial on the installed baseline connected over GATT, but timed out enabling DRSP notifications before requesting the step record. **No successful physical step read yet; this variant has not been installed or tested against the watch.**
-- An **uninstalled, experimental** variant subscribes to Casio ALL_FEATURES first, awaiting that subscription before DRSP and Convoy. Offline tests cannot establish whether it fixes the physical CCCD timeout.
+- The experimental installation loads in Home Assistant 2026.9.4 with one device and three entities. Spanish device UI and earlier idle integration reload have been checked.
+- **73 offline tests and 7 real-HA runtime tests pass with synthetic BLE clients.** These test layers are separate from the physical result below.
+- The installed ALL_FEATURES-first implementation at `008f026` completed a real manual read through an ESPHome proxy on 2026-10-15: **229 steps in HA, independently confirmed as 229 on the watch display**. Disconnect completed and the proxy slot was free afterward.
+- Earlier attempts failed during connection, notification subscription or announcement parsing. Those failures remain documented; one successful session does not establish reliable everyday operation or prove that subscription order was the sole cause.
 - Time synchronization, alarm configuration and watch-button events are planned, not implemented. There is no automatic polling, presence tracking or light automation.
 
 See [validation details](docs/validation.md) for measured results and remaining acceptance checks. This repository is not an official Casio or Home Assistant integration, is not in the HACS default catalog, and has no stable release.
@@ -25,7 +25,7 @@ Only use a test installation or an installation you can recover. Back up your co
 4. Select a discovered watch or enter its exact Bluetooth address. No watch is preconfigured.
 5. Use a **connectable** ESPHome Bluetooth proxy. A scanner that only forwards advertisements is insufficient.
 
-For a coordinated connection test, put the watch near the proxy and hold **C/MODE, lower left, for at least three seconds**, until `CNCT` and the Bluetooth icon flash. Temporarily disabling the phone's Bluetooth can avoid connection contention. Do not unpair or reset the watch. Press **Read steps** while the connection window is open; this is presently expected to encounter the blocker described above on the tested setup.
+For a coordinated connection test, put the watch near the proxy and hold **C/MODE, lower left, for at least three seconds**, until `CNCT` and the Bluetooth icon flash. Temporarily disabling the phone's Bluetooth can avoid connection contention. Do not unpair or reset the watch. Press **Read steps** once while the connection window is open. Avoid concurrent reads from another browser or automation. Reconnection reliability remains experimental; preserve the last error rather than repeatedly retrying until success.
 
 No read happens automatically during setup. Sensors have no value before a successful read. A failed read retains the last good same-day value with `fresh: false`; prior-day steps become unavailable after midnight. Last synchronization means the time of a valid read, not a heartbeat. Data does not persist across integration reloads in this pilot.
 
