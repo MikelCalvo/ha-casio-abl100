@@ -3,6 +3,7 @@ import re
 import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.components import bluetooth
+from homeassistant.core import callback
 from homeassistant.helpers import selector
 from . import DOMAIN
 
@@ -24,6 +25,12 @@ def watch_name(name):
 
 class CasioConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     VERSION = 1
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(config_entry):
+        """Return the standard HA options flow for this entry."""
+        return CasioOptionsFlow()
 
     async def async_step_user(self, user_input=None):
         if user_input is not None:
@@ -59,3 +66,27 @@ class CasioConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             description_placeholders = {'discovered': '—'}
         return self.async_show_form(step_id='user', data_schema=schema, errors=errors,
                                     description_placeholders=description_placeholders)
+
+
+class CasioOptionsFlow(config_entries.OptionsFlow):
+    """Configure optional automatic reads without changing watch identity."""
+
+    async def async_step_init(self, user_input=None):
+        errors = {}
+        if user_input is not None:
+            if type(user_input.get('auto_read_steps')) is not bool:
+                errors['auto_read_steps'] = 'invalid_boolean'
+            else:
+                return self.async_create_entry(title='', data={
+                    **self.config_entry.options,
+                    'auto_read_steps': user_input['auto_read_steps'],
+                })
+        return self.async_show_form(
+            step_id='init',
+            data_schema=vol.Schema({
+                vol.Required('auto_read_steps', default=self.config_entry.options.get(
+                    'auto_read_steps', False,
+                )): bool,
+            }),
+            errors=errors,
+        )

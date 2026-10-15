@@ -1,1 +1,100 @@
-{"config":{"step":{"user":{"title":"Casio ABL-100WE","description":"Select a discovered watch or enter its exact Bluetooth address. Discovered: {discovered}","data":{"address":"Bluetooth address (manual)","discovered_address":"Discovered watch"}}},"error":{"invalid_address":"Enter a valid Bluetooth MAC address"},"abort":{"already_configured":"This watch is already configured"}},"entity":{"sensor":{"steps_today":{"name":"Steps today","state_attributes":{"record_date":{"name":"Record date"},"fresh":{"name":"Last read succeeded"}}},"last_sync":{"name":"Last synchronization"},"alarm_1":{"name":"Alarm 1"},"alarm_2":{"name":"Alarm 2"},"alarm_3":{"name":"Alarm 3"},"alarm_4":{"name":"Alarm 4"},"alarm_5":{"name":"Alarm 5"},"last_alarm_read":{"name":"Last alarm read"}},"binary_sensor":{"hourly_signal":{"name":"Hourly time signal"}},"button":{"read_steps":{"name":"Read steps"},"read_alarms":{"name":"Read alarms"}}},"exceptions":{"closed":{"message":"The watch entry is no longer active"},"unavailable":{"message":"Watch unavailable or model unverified; enable watch Bluetooth and a connectable proxy"},"stale_date":{"message":"Watch record is not dated today; no steps were updated"},"read_failed":{"message":"Unable to read a complete watch record"},"alarm_read_failed":{"message":"Unable to read a complete alarm snapshot"}}}
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Casio ABL-100WE",
+        "description": "Select a discovered watch or enter its exact Bluetooth address. Discovered: {discovered}",
+        "data": {
+          "address": "Bluetooth address (manual)",
+          "discovered_address": "Discovered watch"
+        }
+      }
+    },
+    "error": {
+      "invalid_address": "Enter a valid Bluetooth MAC address"
+    },
+    "abort": {
+      "already_configured": "This watch is already configured"
+    }
+  },
+  "entity": {
+    "sensor": {
+      "steps_today": {
+        "name": "Steps today",
+        "state_attributes": {
+          "record_date": {
+            "name": "Record date"
+          },
+          "fresh": {
+            "name": "Last read succeeded"
+          }
+        }
+      },
+      "last_sync": {
+        "name": "Last synchronization"
+      },
+      "alarm_1": {
+        "name": "Alarm 1"
+      },
+      "alarm_2": {
+        "name": "Alarm 2"
+      },
+      "alarm_3": {
+        "name": "Alarm 3"
+      },
+      "alarm_4": {
+        "name": "Alarm 4"
+      },
+      "alarm_5": {
+        "name": "Alarm 5"
+      },
+      "last_alarm_read": {
+        "name": "Last alarm read"
+      }
+    },
+    "binary_sensor": {
+      "hourly_signal": {
+        "name": "Hourly time signal"
+      }
+    },
+    "button": {
+      "read_steps": {
+        "name": "Read steps"
+      },
+      "read_alarms": {
+        "name": "Read alarms"
+      }
+    }
+  },
+  "exceptions": {
+    "closed": {
+      "message": "The watch entry is no longer active"
+    },
+    "unavailable": {
+      "message": "Watch unavailable or model unverified; enable watch Bluetooth and a connectable proxy"
+    },
+    "stale_date": {
+      "message": "Watch record is not dated today; no steps were updated"
+    },
+    "read_failed": {
+      "message": "Unable to read a complete watch record"
+    },
+    "alarm_read_failed": {
+      "message": "Unable to read a complete alarm snapshot"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Casio ABL-100WE",
+        "description": "Optional experimental trigger: try reading steps during a Bluetooth advertising window. This does not recognize CNCT mode, maintain a permanent connection, or write the watch time.",
+        "data": {
+          "auto_read_steps": "Read steps when watch becomes available"
+        }
+      }
+    },
+    "error": {
+      "invalid_boolean": "Select a boolean value"
+    }
+  }
+}
