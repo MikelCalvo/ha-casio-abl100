@@ -9,7 +9,8 @@ A local, manual step reader for the Casio ABL-100WE, using Home Assistant's Blue
 - UI configuration, Spanish/English entity translations, a daily-step sensor, last-sync sensor and manual **Read steps** button are implemented.
 - An experimental private installation loads in Home Assistant 2026.9.4. Spanish device UI and idle integration reload have been checked.
 - Offline parsing/transport tests and real-HA lifecycle tests pass with **synthetic BLE data**. They do not establish hardware compatibility.
-- The first physical trial connected over GATT, but timed out enabling DRSP notifications before requesting the step record. **No successful physical step read yet.**
+- The first physical trial on the installed baseline connected over GATT, but timed out enabling DRSP notifications before requesting the step record. **No successful physical step read yet; this variant has not been installed or tested against the watch.**
+- An **uninstalled, experimental** variant subscribes to Casio ALL_FEATURES first, awaiting that subscription before DRSP and Convoy. Offline tests cannot establish whether it fixes the physical CCCD timeout.
 - Time synchronization, alarm configuration and watch-button events are planned, not implemented. There is no automatic polling, presence tracking or light automation.
 
 See [validation details](docs/validation.md) for measured results and remaining acceptance checks. This repository is not an official Casio or Home Assistant integration, is not in the HACS default catalog, and has no stable release.
@@ -30,7 +31,7 @@ No read happens automatically during setup. Sensors have no value before a succe
 
 ## Protocol and safety
 
-The only application-level watch write is `00 11 00 00 00` to DRSP `26eb0023-b012-49a8-b1f8-394fb2032b0f`, after subscribing to DRSP and Convoy `26eb0024-b012-49a8-b1f8-394fb2032b0f`. The reader accepts bounded five- and seven-byte DRSP announcements with command `00`, category `11` and a 24-bit little-endian length of 400 in bytes 2–4. The final two bytes of the seven-byte form are not part of the length; their meaning is not established, so they are not required to be zero. The reader concatenates exactly 400 raw Convoy bytes, validates the date and daily-step fields, then disconnects.
+The only application-level watch write is `00 11 00 00 00` to DRSP `26eb0023-b012-49a8-b1f8-394fb2032b0f`, after the experimental ALL_FEATURES `26eb002d-b012-49a8-b1f8-394fb2032b0f` notification registration returns, followed by DRSP and Convoy `26eb0024-b012-49a8-b1f8-394fb2032b0f` subscriptions. The ALL_FEATURES payload is discarded; it is not a source of steps, actions or settings. The reader accepts bounded five- and seven-byte DRSP announcements with command `00`, category `11` and a 24-bit little-endian length of 400 in bytes 2–4. The final two bytes of the seven-byte form are not part of the length; their meaning is not established, so they are not required to be zero. The reader concatenates exactly 400 raw Convoy bytes, validates the date and daily-step fields, then disconnects.
 
 It deliberately does **not** send the end request `04 11 00 00 00`, which can clear hourly details. It does not change time, alarms, pairing or other settings. GATT subscription itself writes the notification configuration descriptor; it is distinct from a watch-setting command. Notification order and cooperative backend cancellation have limits; these tests are not a guarantee against every firmware/backend behavior.
 

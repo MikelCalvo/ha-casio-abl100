@@ -1,11 +1,36 @@
 """In-memory BLE client fake: never touches hardware or a local adapter."""
 import asyncio
+import logging
 import pytest
+from bleak.backends.service import (
+    BleakGATTServiceCollection, BleakGATTService,
+    BleakGATTCharacteristic, BleakGATTDescriptor,
+)
 
 from custom_components.casio_abl100.transport import read_record, ReadError, DRSP, CONVOY, START
 from custom_components.casio_abl100.protocol import ProtocolError
-
 from tests.protocol.fixtures import SYNTHETIC_RECORD
+
+FEATURES_SERVICE = '26eb000d-b012-49a8-b1f8-394fb2032b0f'
+ALL_FEATURES = '26eb002d-b012-49a8-b1f8-394fb2032b0f'
+
+
+def feature_services(*, service_uuid=FEATURES_SERVICE, properties=('notify',),
+                     descriptor_uuid='00002902-0000-1000-8000-00805f9b34fb',
+                     include_characteristic=True, include_descriptor=True):
+    """Real Bleak metadata with non-fixed handles; no production lookup adapter."""
+    services = BleakGATTServiceCollection()
+    service = BleakGATTService(None, 70, service_uuid)
+    services.add_service(service)
+    if include_characteristic:
+        characteristic = BleakGATTCharacteristic(
+            None, 71, ALL_FEATURES, list(properties), lambda: 20, service,
+        )
+        services.add_characteristic(characteristic)
+        if include_descriptor:
+            services.add_descriptor(BleakGATTDescriptor(None, 73, descriptor_uuid, characteristic))
+    return services
+
 
 CAPTURE = SYNTHETIC_RECORD  # Synthetic bytes, never a captured hardware result.
 
@@ -13,6 +38,7 @@ CAPTURE = SYNTHETIC_RECORD  # Synthetic bytes, never a captured hardware result.
 class FakeClient:
     def __init__(self, fragments=None, header=b'\x00\x11\x90\x01\x00'):
         self.callbacks = {}
+        self.services = feature_services()
         self.fragments = fragments if fragments is not None else [CAPTURE[:200], CAPTURE[200:]]
         self.header = header
         self.writes = []
@@ -20,11 +46,11 @@ class FakeClient:
         self.block = None
 
     async def start_notify(self, uuid, callback):
-        self.callbacks[uuid] = callback
+        self.callbacks[getattr(uuid, 'uuid', uuid)] = callback
 
     async def write_gatt_char(self, uuid, payload, response=False):
         self.writes.append((uuid, bytes(payload)))
-        assert set(self.callbacks) == {DRSP, CONVOY}  # subscribe first
+        assert set(self.callbacks) == {ALL_FEATURES, DRSP, CONVOY}  # subscribe first
         if self.header is not None:
             self.callbacks[DRSP](None, bytearray(self.header))
         for fragment in self.fragments:
@@ -34,6 +60,139 @@ class FakeClient:
 
     async def disconnect(self):
         self.disconnected = True
+
+
+@pytest.mark.asyncio
+async def test_primary_ack_gates_drsp_convoy_and_only_then_start():
+    class AckGated(FakeClient):
+        def __init__(self):
+            super().__init__()
+            self.services = feature_services()
+            self.primary_entered = asyncio.Event()
+            self.primary_ack = asyncio.Event()
+            self.order = []
+
+        async def start_notify(self, uuid, callback):
+            name = getattr(uuid, 'uuid', uuid)
+            self.order.append(name)
+            if name == ALL_FEATURES:
+                assert uuid is self.services.get_characteristic(ALL_FEATURES)
+                self.primary_entered.set()
+                await self.primary_ack.wait()
+            await super().start_notify(uuid, callback)
+
+    client = AckGated()
+    task = asyncio.create_task(read_record(client))
+    try:
+        await asyncio.wait_for(client.primary_entered.wait(), 0.2)
+        assert client.order == [ALL_FEATURES]
+        assert client.writes == []
+        client.primary_ack.set()
+        result = await asyncio.wait_for(task, 0.2)
+        assert result.steps == 1485
+        assert client.order == [ALL_FEATURES, DRSP, CONVOY]
+        assert client.writes == [(DRSP, START)]
+        assert client.disconnected
+    finally:
+        task.cancel()
+        await asyncio.gather(task, return_exceptions=True)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('services', [
+    None,
+    feature_services(service_uuid='26eb000e-b012-49a8-b1f8-394fb2032b0f'),
+    feature_services(include_characteristic=False),
+    feature_services(properties=('read',)),
+    feature_services(include_descriptor=False),
+    feature_services(descriptor_uuid='00002901-0000-1000-8000-00805f9b34fb'),
+])
+async def test_invalid_primary_metadata_stops_before_any_gatt_operation(services, caplog):
+    client = FakeClient()
+    client.services = services
+    with caplog.at_level(logging.DEBUG, logger='custom_components.casio_abl100.transport'):
+        with pytest.raises(ReadError, match='ALL_FEATURES'):
+            await read_record(client)
+    assert 'resolve ALL_FEATURES failed elapsed=' in caplog.text
+    assert 'error_class=ReadError' in caplog.text
+    assert client.callbacks == {} and client.writes == []
+    assert client.disconnected
+
+
+@pytest.mark.asyncio
+async def test_primary_failure_blocks_all_later_operations_and_disconnects(caplog):
+    class PrimaryFailure(FakeClient):
+        async def start_notify(self, uuid, callback):
+            if getattr(uuid, 'uuid', uuid) == ALL_FEATURES:
+                raise RuntimeError('SECRET_ADDRESS_PRIVATE')
+            await super().start_notify(uuid, callback)
+
+    client = PrimaryFailure()
+    with caplog.at_level(logging.DEBUG, logger='custom_components.casio_abl100.transport'):
+        with pytest.raises(RuntimeError):
+            await read_record(client)
+    assert client.callbacks == {} and client.writes == [] and client.disconnected
+    assert 'SECRET_ADDRESS_PRIVATE' not in caplog.text
+    assert 'RuntimeError' in caplog.text and 'ALL_FEATURES' in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_primary_cancellation_disconnects_without_later_operations():
+    class PrimaryBlocked(FakeClient):
+        def __init__(self):
+            super().__init__()
+            self.entered = asyncio.Event()
+
+        async def start_notify(self, uuid, callback):
+            if getattr(uuid, 'uuid', uuid) == ALL_FEATURES:
+                self.entered.set()
+                await asyncio.Event().wait()
+            await super().start_notify(uuid, callback)
+
+    client = PrimaryBlocked()
+    task = asyncio.create_task(read_record(client))
+    try:
+        await asyncio.wait_for(client.entered.wait(), 0.2)
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+        assert client.callbacks == {} and client.writes == [] and client.disconnected
+    finally:
+        task.cancel()
+        await asyncio.gather(task, return_exceptions=True)
+
+
+@pytest.mark.asyncio
+async def test_drsp_failure_after_primary_blocks_convoy_and_start():
+    class DrspFailure(FakeClient):
+        async def start_notify(self, uuid, callback):
+            if uuid == DRSP:
+                raise RuntimeError('DRSP unavailable')
+            await super().start_notify(uuid, callback)
+
+    client = DrspFailure()
+    with pytest.raises(RuntimeError):
+        await read_record(client)
+    assert set(client.callbacks) == {ALL_FEATURES}
+    assert client.writes == [] and client.disconnected
+
+
+@pytest.mark.asyncio
+async def test_primary_payload_is_discarded_and_diagnostic_never_leaks_it(caplog):
+    class PrimaryPayload(FakeClient):
+        async def start_notify(self, uuid, callback):
+            await super().start_notify(uuid, callback)
+            if getattr(uuid, 'uuid', uuid) == ALL_FEATURES:
+                callback(uuid, b'SECRET_NOTIFY_CANARY')
+
+    client = PrimaryPayload(header=bytes.fromhex('00 11 90 01 00 42 73'))
+    with caplog.at_level(logging.DEBUG, logger='custom_components.casio_abl100.transport'):
+        result = await read_record(client)
+    assert result.steps == 1485 and client.disconnected
+    assert client.writes == [(DRSP, START)]
+    assert 'SECRET_NOTIFY_CANARY' not in caplog.text
+    assert 'handle=71 properties=' in caplog.text and 'cccd_handle=73' in caplog.text
+    assert all(word in caplog.text for word in ('ALL_FEATURES', 'DRSP', 'Convoy', 'START', 'record', 'disconnect'))
 
 
 @pytest.mark.asyncio
@@ -104,7 +263,7 @@ async def test_duplicate_seven_byte_announcement_never_returns_record():
     class DuplicateHeader(FakeClient):
         async def write_gatt_char(self, uuid, payload, response=False):
             self.writes.append((uuid, bytes(payload)))
-            assert set(self.callbacks) == {DRSP, CONVOY}
+            assert set(self.callbacks) == {ALL_FEATURES, DRSP, CONVOY}
             self.callbacks[DRSP](None, bytearray(self.header))
             self.callbacks[DRSP](None, bytearray(self.header))
             self.callbacks[CONVOY](None, bytearray(CAPTURE))

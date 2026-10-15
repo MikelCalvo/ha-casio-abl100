@@ -11,8 +11,8 @@
 
 | Layer | Result | Boundary |
 | --- | --- | --- |
-| Offline protocol and integration tests | 62 passed; five upstream dependency deprecation warnings | Synthetic BLE clients, not a physical watch |
-| Real Home Assistant 2026.9.4 runtime | 7 passed | Actual HA setup, registries, unload and job-dispatched date rollover; synthetic BLE |
+| Offline protocol and integration tests | Installed baseline: 62 passed; uninstalled ALL_FEATURES-first candidate: 73 passed; five upstream dependency deprecation warnings | Synthetic BLE clients, not a physical watch |
+| Real Home Assistant 2026.9.4 runtime | 7 passed on installed baseline and uninstalled candidate | Actual HA setup, registries, unload and job-dispatched date rollover; synthetic BLE |
 | Independent source review | SPEC PASS and QUALITY APPROVED for installed revision | Offline review, not hardware acceptance |
 | ESPHome room proxy | OTA installed; one connectable GATT slot; temperature and humidity still reporting | Does not by itself establish a watch read |
 | Production integration loading | Configuration check passed; Core restarted once; entry loaded | No automatic watch read |
@@ -25,7 +25,9 @@ The original publication candidate was rerun with the newly constructed syntheti
 
 A later, uninstalled protocol correction accepts both the original five-byte DRSP length announcement and the seven-byte `00 11 90 01 00 00 00` form visible in upstream `izivkov/gshock_api` ABL btsnoop examples (`ae817310`, `test_data/btsnoop_hci_ABL.txt` and `test_data/btsnoop_hci_ABL_2.txt`). Android GShockAPI `1.7.6` (`5b1043a`, `StepCounterIO.onDrspReceived`) reads command, category and the 24-bit little-endian length from the first five bytes when at least five bytes are available. The two extra bytes are not length bytes; their purpose remains unknown. This integration accepts only five or seven total bytes, requires command `00`, category `11` and length 400, and still rejects duplicates, missing/extra fragments and overflow. **62 offline tests passed** (five dependency deprecation warnings) and **7 real-HA runtime tests passed** with synthetic BLE clients on this candidate. The 1485-step fixture is not a watch result. Neither the upstream example nor this offline correction proves that the physical DRSP subscription will complete.
 
-The private reviewed installation and the original public revision shared production Python behavior. This newer public candidate changes only DRSP announcement validation and has **not** been installed on the private HA instance. Public repository metadata also differs from the installed private revision. The public repository contains no raw watch capture or internal test logs.
+The public candidate now tests an **experimental ALL_FEATURES-first subscription**, still **uninstalled and not physically verified**. Public Android GShockAPI `1.7.6` (`5b1043a`) and Python `gshock_api` (`ae817310`) subscribe to ALL_FEATURES before DRSP and Convoy, and four historical SmartSync ABL session orders agree. The reader resolves `26eb002d-b012-49a8-b1f8-394fb2032b0f` inside Casio features service `26eb000d-b012-49a8-b1f8-394fb2032b0f`, requires notify and CCCD metadata, discards its payload, awaits its `start_notify` return before DRSP and Convoy, and only then writes the unchanged start request. This is a single sequencing variable, not evidence that ALL_FEATURES is indispensable or that the proxy CCCD blocker has been fixed. The installed baseline remains `4c63c50471ea3ff9bf49d062a9bee90873aa163c`; the physical failure below still describes that baseline. Offline tests use synthetic BLE clients and do not prove a physical read. Stage diagnostics, when explicitly enabled at debug level for this integration, include fixed stage names, monotonic durations, error classes and primary characteristic/CCCD handles, never raw payloads or exception text.
+
+The private reviewed installation and the original public revision shared production Python behavior. The newer public candidates have **not** been installed on the private HA instance. Public repository metadata also differs from the installed private revision. The public repository contains no raw watch capture or internal test logs.
 
 ## First physical trial
 
