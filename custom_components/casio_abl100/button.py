@@ -17,5 +17,24 @@ class ReadStepsButton(ButtonEntity):
         await self.session.read()
 
 
+class ReadAlarmsButton(ButtonEntity):
+    """Explicitly initiate one complete read; never write watch settings."""
+    _attr_has_entity_name = True
+    entity_description = ButtonEntityDescription(
+        key='read_alarms', translation_key='read_alarms', icon='mdi:sync',
+    )
+
+    def __init__(self, session):
+        self.session = session
+        self._attr_unique_id = f'{session.address}_read_alarms'
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, session.address)}, name='Casio ABL-100WE',
+            model=MODEL, manufacturer='Casio',
+        )
+
+    async def async_press(self):
+        await self.session.read_alarms()
+
+
 async def async_setup_entry(hass, entry, async_add_entities):
-    async_add_entities([ReadStepsButton(entry.runtime_data)])
+    async_add_entities([ReadStepsButton(entry.runtime_data), ReadAlarmsButton(entry.runtime_data)])

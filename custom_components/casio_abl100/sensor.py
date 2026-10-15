@@ -59,5 +59,53 @@ class LastSyncSensor(WatchSensor):
         return self.session.last_sync is not None
 
 
+class AlarmSensor(WatchSensor):
+    """A slot's last observed time, including when its enable bit is off."""
+
+    def __init__(self, session, slot):
+        self.entity_description = SensorEntityDescription(
+            key=f'alarm_{slot}', translation_key=f'alarm_{slot}', icon='mdi:alarm',
+        )
+        self.slot = slot
+        super().__init__(session)
+
+    @property
+    def available(self):
+        return self.session.alarm_snapshot is not None
+
+    @property
+    def native_value(self):
+        if not self.available:
+            return None
+        alarm = self.session.alarm_snapshot.alarms[self.slot - 1]
+        return f'{alarm.hour:02d}:{alarm.minute:02d}'
+
+    @property
+    def extra_state_attributes(self):
+        if not self.available:
+            return None
+        alarm = self.session.alarm_snapshot.alarms[self.slot - 1]
+        return {'enabled': alarm.enabled, 'fresh': self.session.alarms_fresh}
+
+
+class LastAlarmReadSensor(WatchSensor):
+    entity_description = SensorEntityDescription(
+        key='last_alarm_read', translation_key='last_alarm_read',
+        device_class=SensorDeviceClass.TIMESTAMP, icon='mdi:clock-check-outline',
+    )
+
+    @property
+    def native_value(self):
+        return self.session.alarm_last_sync
+
+    @property
+    def available(self):
+        return self.session.alarm_last_sync is not None
+
+
 async def async_setup_entry(hass, entry, async_add_entities):
-    async_add_entities([StepsSensor(entry.runtime_data), LastSyncSensor(entry.runtime_data)])
+    async_add_entities([
+        StepsSensor(entry.runtime_data), LastSyncSensor(entry.runtime_data),
+        *(AlarmSensor(entry.runtime_data, slot) for slot in range(1, 6)),
+        LastAlarmReadSensor(entry.runtime_data),
+    ])

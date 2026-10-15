@@ -13,7 +13,7 @@ from .protocol import ProtocolError
 from .transport import ReadError, disconnect_client, read_record, read_alarms as read_alarm_snapshot
 
 DOMAIN = 'casio_abl100'
-PLATFORMS = (Platform.SENSOR, Platform.BUTTON)
+PLATFORMS = (Platform.SENSOR, Platform.BUTTON, Platform.BINARY_SENSOR)
 MODEL = 'ABL-100WE'
 _LOGGER = logging.getLogger(__name__)
 
