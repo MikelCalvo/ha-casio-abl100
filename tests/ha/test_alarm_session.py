@@ -75,6 +75,7 @@ async def test_real_alarm_transport_publishes_complete_snapshot_after_disconnect
     ]
     assert owner.alarm_snapshot.hourly_signal is True
     assert owner.alarm_last_sync.tzinfo is not None
+    await asyncio.sleep(0)
     assert observed == [(owner.alarm_snapshot, True, True)]
     assert writes(client) == [(b'\x15', False), (b'\x16', False)]
     assert owner.record is previous_record and owner.fresh and owner.last_sync is previous_steps_stamp
@@ -89,9 +90,11 @@ async def test_failed_refresh_retains_previous_snapshot_and_timestamp(manager):
     owner.subscribe(lambda: seen.append((owner.alarm_snapshot, owner.alarm_last_sync, owner.alarms_fresh)))
     with patch('custom_components.casio_abl100.establish_connection', side_effect=[good, bad]):
         await owner.read_alarms()
+        await asyncio.sleep(0)
         snapshot, stamp = owner.alarm_snapshot, owner.alarm_last_sync
         with pytest.raises(HomeAssistantError) as error:
             await owner.read_alarms()
+    await asyncio.sleep(0)
     assert_error(error)
     assert owner.alarm_snapshot is snapshot and owner.alarm_last_sync is stamp
     assert seen == [(snapshot, stamp, True), (snapshot, stamp, False)]
@@ -155,6 +158,7 @@ async def test_unverified_device_does_not_connect_or_replace_alarm_state(device)
             await owner.read_alarms()
     assert_error(error, 'unavailable')
     connect.assert_not_called()
+    await asyncio.sleep(0)
     assert owner.alarm_snapshot is previous_alarm and owner.alarm_last_sync is previous_stamp
     assert seen == [(previous_alarm, previous_stamp, False)] and not owner.tasks
 
@@ -195,6 +199,7 @@ async def test_backend_transport_failures_are_sanitized_even_for_spurious_cancel
             await owner.read_alarms()
     assert client.disconnected and client.events == [('disconnect',)]
     assert_error(error)
+    await asyncio.sleep(0)
     assert seen == [False] and owner.record is previous_record and owner.fresh
     assert owner.last_sync is previous_steps_stamp
     assert owner.alarm_snapshot is previous_alarm and owner.alarm_last_sync is previous_alarm_stamp
@@ -215,6 +220,7 @@ async def test_connector_failures_sanitized_and_do_not_touch_steps(manager, fail
         with pytest.raises(HomeAssistantError) as error:
             await owner.read_alarms()
     assert_error(error)
+    await asyncio.sleep(0)
     assert seen == [False] and owner.record is previous_record and owner.fresh
     assert owner.last_sync is previous_stamp
     assert owner.alarm_snapshot is None and owner.alarm_last_sync is None
@@ -237,6 +243,7 @@ async def test_success_is_withheld_until_transport_cleanup_completes(manager):
             assert owner.alarm_snapshot is None and owner.alarm_last_sync is None and seen == []
             client.disconnect_gate.set()
             await asyncio.wait_for(task, 1)
+            await asyncio.sleep(0)
         finally:
             client.disconnect_gate.set()
             task.cancel()
@@ -323,6 +330,7 @@ async def test_failed_platform_unload_keeps_alarm_entry_operable(manager):
     assert await async_unload_entry(hass, SimpleNamespace(runtime_data=owner)) is False
     with patch('custom_components.casio_abl100.establish_connection', return_value=Client()):
         await owner.read_alarms()
+    await asyncio.sleep(0)
     assert not owner.closed and seen == [True] and len(owner.listeners) == 1
 
 
@@ -561,6 +569,7 @@ async def test_preentry_cancel_preserves_prior_alarm_value_despite_valid_read(ma
         task = asyncio.create_task(pending())
         with pytest.raises(asyncio.CancelledError): await task
     connect.assert_not_called()
+    await asyncio.sleep(0)
     assert owner.alarm_snapshot is previous and owner.alarm_last_sync is stamp
     assert owner.alarms_fresh is False and seen == [False] and not owner.tasks
 
@@ -605,6 +614,7 @@ async def test_real_transport_malformed_reply_and_disconnect_fault_preserve_old_
             await owner.read_alarms()
     assert_error(error)
     assert owner.alarm_snapshot is previous and owner.alarm_last_sync is stamp
+    await asyncio.sleep(0)
     assert seen == [False] and writes(bad) == [(b'\x15', False)]
     assert bad.events[-1] == ('disconnect',) and not owner.tasks
 
@@ -725,6 +735,144 @@ async def test_partial_disconnect_timeout_is_sanitized_and_releases_lock(manager
     assert_error(error)
     assert len(created) == 1 and created[0].attempts == 1 and created[0].cancelled
     assert not owner.lock.locked() and not owner.tasks
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('failure', [RuntimeError('PRIVATE_OBSERVER'), asyncio.CancelledError()])
+async def test_success_observer_fault_cannot_change_committed_read_or_block_other_observers(manager, caplog, failure):
+    owner, _ = manager
+    old, stamp = object(), object()
+    owner.alarm_snapshot, owner.alarm_last_sync = old, stamp
+    seen = []
+    def broken():
+        seen.append(('broken', owner.alarm_snapshot, owner.alarms_fresh))
+        raise failure
+    def healthy():
+        seen.append(('healthy', owner.alarm_snapshot, owner.alarms_fresh))
+    owner.subscribe(broken)
+    owner.subscribe(healthy)
+    with patch('custom_components.casio_abl100.establish_connection', return_value=Client()):
+        await owner.read_alarms()
+    assert seen == []  # Delivery is never inline in the reader transaction.
+    assert owner.alarm_snapshot is not old and owner.alarm_last_sync is not stamp
+    assert owner.alarms_fresh is True
+    await asyncio.sleep(0)
+    assert len(seen) == 2 and {item[0] for item in seen} == {'broken', 'healthy'}
+    assert all(item[1] is owner.alarm_snapshot and item[2] is True for item in seen)
+    assert 'PRIVATE_OBSERVER' not in caplog.text
+    assert not owner.tasks and not owner.lock.locked()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('failure', [RuntimeError('PRIVATE_OBSERVER'), asyncio.CancelledError()])
+async def test_failure_observer_fault_does_not_mask_read_failure(manager, failure, caplog):
+    owner, _ = manager
+    old, stamp = object(), object()
+    owner.alarm_snapshot, owner.alarm_last_sync, owner.alarms_fresh = old, stamp, True
+    seen = []
+    def broken():
+        seen.append('broken')
+        raise failure
+    owner.subscribe(broken)
+    owner.subscribe(lambda: seen.append('healthy'))
+    with patch('custom_components.casio_abl100.establish_connection', side_effect=BleakError('PRIVATE_BACKEND')):
+        with pytest.raises(HomeAssistantError) as error:
+            await owner.read_alarms()
+    assert_error(error)
+    assert owner.alarm_snapshot is old and owner.alarm_last_sync is stamp
+    assert owner.alarms_fresh is False and seen == []
+    await asyncio.sleep(0)
+    assert set(seen) == {'broken', 'healthy'} and len(seen) == 2
+    assert 'PRIVATE_' not in caplog.text and not owner.tasks
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('failure', [RuntimeError('PRIVATE_OBSERVER'), asyncio.CancelledError()])
+async def test_caller_cancel_observer_fault_does_not_mask_cancellation(manager, failure, caplog):
+    owner, _ = manager
+    old, stamp = object(), object()
+    owner.alarm_snapshot, owner.alarm_last_sync, owner.alarms_fresh = old, stamp, True
+    entered = asyncio.Event()
+    seen = []
+    def broken():
+        seen.append('broken')
+        raise failure
+    owner.subscribe(broken)
+    owner.subscribe(lambda: seen.append('healthy'))
+    async def connect(*args, **kwargs):
+        entered.set()
+        await asyncio.Event().wait()
+    with patch('custom_components.casio_abl100.establish_connection', side_effect=connect):
+        task = asyncio.create_task(owner.read_alarms())
+        try:
+            await asyncio.wait_for(entered.wait(), 1)
+            task.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await asyncio.wait_for(task, 1)
+        finally:
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+    assert owner.alarm_snapshot is old and owner.alarm_last_sync is stamp
+    assert owner.alarms_fresh is False
+    await asyncio.sleep(0)
+    assert set(seen) == {'broken', 'healthy'} and len(seen) == 2
+    assert 'PRIVATE_' not in caplog.text and not owner.tasks
+
+
+@pytest.mark.asyncio
+async def test_delivery_is_not_reader_and_late_cancel_cannot_undo_commit(manager):
+    owner, _ = manager
+    observed = []
+    reader = {}
+    def listener():
+        task = reader['task']
+        observed.append((asyncio.current_task(), task.done(), owner.alarm_snapshot, owner.alarms_fresh))
+        task.cancel()  # Explicitly late; cannot retroactively undo an observation.
+    owner.subscribe(listener)
+    with patch('custom_components.casio_abl100.establish_connection', return_value=Client()):
+        reader['task'] = asyncio.create_task(owner.read_alarms())
+        await reader['task']
+    await asyncio.sleep(0)
+    assert len(observed) == 1 and observed[0][0] is not reader['task'] and observed[0][1] is True
+    assert observed[0][2] is owner.alarm_snapshot and observed[0][3] is True
+    assert owner.alarms_fresh and not owner.tasks and not owner.lock.locked()
+
+
+@pytest.mark.asyncio
+async def test_unsubscribe_and_shutdown_suppress_pending_alarm_delivery(manager):
+    owner, _ = manager
+    seen = []
+    unsubscribe = owner.subscribe(lambda: seen.append('unsubscribed'))
+    owner.subscribe(lambda: seen.append('active'))
+    with patch('custom_components.casio_abl100.establish_connection', return_value=Client()):
+        await owner.read_alarms()
+    unsubscribe()
+    await asyncio.sleep(0)
+    assert seen == ['active']
+    with patch('custom_components.casio_abl100.establish_connection', return_value=Client()):
+        await owner.read_alarms()
+    assert seen == ['active'] and len(owner.alarm_delivery_handles) == 1
+    await owner.shutdown()
+    await asyncio.sleep(0)
+    assert seen == ['active'] and owner.closed and not owner.listeners
+    assert not owner.tasks and not owner.alarm_delivery_handles
+
+
+@pytest.mark.asyncio
+async def test_reentrant_unsubscribe_suppresses_future_delivery(manager):
+    owner, _ = manager
+    seen = []
+    def first():
+        seen.append('first')
+        unsubscribe()
+    unsubscribe = owner.subscribe(first)
+    owner.subscribe(lambda: seen.append('other'))
+    with patch('custom_components.casio_abl100.establish_connection', return_value=Client()):
+        await owner.read_alarms()
+        await asyncio.sleep(0)
+        await owner.read_alarms()
+    await asyncio.sleep(0)
+    assert seen.count('first') == 1 and seen.count('other') == 2
 
 
 def test_alarm_exception_translations_are_human_and_private_free():

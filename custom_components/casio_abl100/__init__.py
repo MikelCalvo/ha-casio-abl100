@@ -1,5 +1,6 @@
 """Casio ABL-100WE read-only, explicitly initiated BLE session."""
 import asyncio
+import logging
 import sys
 from datetime import date
 from bleak.exc import BleakError
@@ -14,6 +15,7 @@ from .transport import ReadError, disconnect_client, read_record, read_alarms as
 DOMAIN = 'casio_abl100'
 PLATFORMS = (Platform.SENSOR, Platform.BUTTON)
 MODEL = 'ABL-100WE'
+_LOGGER = logging.getLogger(__name__)
 
 
 class WatchSession:
@@ -33,6 +35,7 @@ class WatchSession:
         self.lock = asyncio.Lock()
         self.tasks = set()
         self.listeners = set()
+        self.alarm_delivery_handles = set()
         self.closed = False
 
     def subscribe(self, callback):
@@ -42,6 +45,32 @@ class WatchSession:
     def _notify(self):
         for listener in tuple(self.listeners):
             listener()
+
+    def _schedule_alarm_delivery(self):
+        """Queue observer work outside the read task; never change its result."""
+        if self.closed:
+            return
+        loop = getattr(self.hass, 'loop', None) or asyncio.get_running_loop()
+        handle = None
+
+        def deliver():
+            self.alarm_delivery_handles.discard(handle)
+            if self.closed:
+                return
+            for listener in tuple(self.listeners):
+                if self.closed:
+                    break
+                if listener not in self.listeners:
+                    continue
+                try:
+                    listener()
+                except (Exception, asyncio.CancelledError):
+                    # Do not log an observer's message or traceback: both may
+                    # contain private watch values or BLE addresses.
+                    _LOGGER.warning('Alarm observer callback failed')
+
+        handle = loop.call_soon(deliver)
+        self.alarm_delivery_handles.add(handle)
 
     async def read(self):
         if self.closed:
@@ -161,10 +190,9 @@ class WatchSession:
                 self.alarm_snapshot = snapshot
                 self.alarm_last_sync = synced_at
                 self.alarms_fresh = True
-                self._notify()
         except BaseException as error:
             self.alarms_fresh = False
-            self._notify()
+            self._schedule_alarm_delivery()
             # shutdown or a caller cancellation outranks backend and cleanup
             # errors, even when a backend converts CancelledError to RuntimeError.
             if self.closed or (task is not None and task.cancelling()):
@@ -178,9 +206,13 @@ class WatchSession:
             ) from error
         finally:
             self.tasks.discard(task)
+        self._schedule_alarm_delivery()
 
     async def shutdown(self):
         self.closed = True
+        for handle in self.alarm_delivery_handles:
+            handle.cancel()
+        self.alarm_delivery_handles.clear()
         tasks = set(self.tasks)
         for task in tasks:
             task.cancel()
