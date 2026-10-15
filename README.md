@@ -99,14 +99,15 @@ From the repository root, with `PYTHON` pointing to that environment's interpret
 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 PYTHONPATH="$PWD" "$PYTHON" -m pytest \
   -p pytest_asyncio.plugin -q tests/protocol tests/ha \
   --ignore=tests/ha/test_runtime.py \
+  --ignore=tests/ha/test_auto_options_runtime.py \
   --ignore=tests/ha/test_auto_runtime.py \
   --ignore=tests/ha/test_auto_lifecycle_runtime.py
 
 # Actual HA registries, service calls, translations, reload and scheduler.
 # BLE lookup, connector and client remain synthetic: no hardware test.
 PYTHONPATH="$PWD" "$PYTHON" -m pytest -o asyncio_mode=auto \
-  -q tests/ha/test_runtime.py tests/ha/test_auto_runtime.py \
-  tests/ha/test_auto_lifecycle_runtime.py
+  -q tests/ha/test_runtime.py tests/ha/test_auto_options_runtime.py \
+  tests/ha/test_auto_runtime.py tests/ha/test_auto_lifecycle_runtime.py
 ```
 
 Public fixtures are constructed synthetic data, not captured watch records. Their example step counts, alarm times and flags are not hardware results. Raw logs, credentials and deployment/device identifiers are excluded; BLE addresses in tests are synthetic placeholders.
