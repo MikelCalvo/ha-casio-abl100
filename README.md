@@ -1,6 +1,6 @@
 # [WIP] Casio ABL-100WE for Home Assistant
 
-**Experimental. One real manual step read through an ESPHome Bluetooth proxy has succeeded and matched the watch display. Reliability across separate sessions is not yet established.**
+**Experimental. Two manual step reads in separate sessions through an ESPHome Bluetooth proxy have succeeded and matched the watch display. Long-term reliability is not yet established.**
 
 A local, manual step reader for the Casio ABL-100WE, using Home Assistant's Bluetooth stack and connectable ESPHome proxies. No Casio account or cloud service is required.
 
@@ -9,8 +9,8 @@ A local, manual step reader for the Casio ABL-100WE, using Home Assistant's Blue
 - UI configuration, Spanish/English entity translations, a daily-step sensor, last-sync sensor and manual **Read steps** button are implemented.
 - The experimental installation loads in Home Assistant 2026.9.4 with one device and three entities. Spanish device UI and earlier idle integration reload have been checked.
 - **73 offline tests and 7 real-HA runtime tests pass with synthetic BLE clients.** These test layers are separate from the physical result below.
-- The installed ALL_FEATURES-first implementation at `008f026` completed a real manual read through an ESPHome proxy on 2026-10-15: **229 steps in HA, independently confirmed as 229 on the watch display**. Disconnect completed and the proxy slot was free afterward.
-- Earlier attempts failed during connection, notification subscription or announcement parsing. Those failures remain documented; one successful session does not establish reliable everyday operation or prove that subscription order was the sole cause.
+- The installed ALL_FEATURES-first implementation at `008f026` completed two real manual reads in separate sessions through an ESPHome proxy on 2026-10-15: **229 steps, then 276**, both matching the watch display. The second session reconnected using cached services and updated the count rather than retaining the earlier value. Both disconnected and left the proxy slot free.
+- Earlier attempts failed during connection, notification subscription or announcement parsing. Those failures remain documented; two successful sessions do not establish reliable everyday operation or prove that subscription order was the sole cause.
 - Time synchronization, alarm configuration and watch-button events are planned, not implemented. There is no automatic polling, presence tracking or light automation.
 
 See [validation details](docs/validation.md) for measured results and remaining acceptance checks. This repository is not an official Casio or Home Assistant integration, is not in the HACS default catalog, and has no stable release.
