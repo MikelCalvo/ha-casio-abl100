@@ -13,7 +13,7 @@ from custom_components.casio_abl100.protocol import StepRecord
 async def test_discovered_address_selection_works_without_manual_entry():
     flow = CasioConfigFlow()
     flow.hass = SimpleNamespace()
-    flow._async_current_entries = lambda: []
+    flow._async_current_entries = lambda *, include_ignore=False: []
     device = SimpleNamespace(address='AA:BB:CC:DD:EE:FF', name='CASIO ABL-100WE\0')
     with patch('custom_components.casio_abl100.config_flow.bluetooth.async_discovered_service_info', return_value=[device]):
         form = await flow.async_step_user()

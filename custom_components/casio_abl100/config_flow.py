@@ -68,7 +68,7 @@ class CasioConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Reserve both immutable identities and current transport addresses."""
         return any(
             address in (normalize_address(entry.unique_id), normalize_address(entry.data.get('address')))
-            for entry in self._async_current_entries() if entry is not exclude_entry
+            for entry in self._async_current_entries(include_ignore=True) if entry is not exclude_entry
         )
 
     def _selected_address(self, user_input):

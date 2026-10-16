@@ -417,3 +417,72 @@ async def test_reconfigured_auto_off_ignores_both_addresses_then_manual_steps_us
         assert hass.states.get(before[f'{OLD}_steps_today'][0]).state == '1485'
         assert entities(hass, entry) == before
         assert await hass.config_entries.async_unload(entry.entry_id)
+
+
+def _reservation_snapshot(hass):
+    """Include native ignored entries, whose public producer stores no data."""
+    return [(entry.entry_id, entry.unique_id, entry.title, dict(entry.data),
+             dict(entry.options), entry.source, entry.disabled_by)
+            for entry in hass.config_entries.async_entries(DOMAIN, include_ignore=True)]
+
+
+@pytest.mark.parametrize('source', ['user', SOURCE_RECONFIGURE])
+async def test_native_ignored_identity_is_reserved_without_replacing_entry(
+    hass, enable_custom_integrations, source,
+):
+    from homeassistant.config_entries import SOURCE_IGNORE
+    entry = entry_for(hass)
+    with patch('custom_components.casio_abl100.config_flow.bluetooth.async_discovered_service_info',
+               return_value=[]), patch('custom_components.casio_abl100.establish_connection') as connect:
+        created = await hass.config_entries.flow.async_init(
+            DOMAIN, context={'source': SOURCE_IGNORE},
+            data={'unique_id': NEW, 'title': 'Ignored watch'},
+        )
+        assert created['type'] is FlowResultType.CREATE_ENTRY
+        ignored = created['result']
+        assert ignored.source == SOURCE_IGNORE and ignored.unique_id == NEW
+        assert dict(ignored.data) == {}
+        before = _reservation_snapshot(hass)
+        context = {'source': source}
+        if source == SOURCE_RECONFIGURE:
+            context['entry_id'] = entry.entry_id
+        form = await hass.config_entries.flow.async_init(DOMAIN, context=context)
+        result = await hass.config_entries.flow.async_configure(form['flow_id'], {'address': NEW})
+        await clean_loaded(hass)
+        assert result['type'] is FlowResultType.ABORT
+        assert result['reason'] == 'already_configured'
+        assert _reservation_snapshot(hass) == before
+        assert hass.config_entries.async_get_entry(ignored.entry_id) is ignored
+        connect.assert_not_called()
+
+
+@pytest.mark.parametrize('source', ['user', SOURCE_RECONFIGURE])
+@pytest.mark.parametrize('field', ['address', 'identity'])
+@pytest.mark.parametrize('ignored', [False, True])
+async def test_ignored_and_disabled_entries_keep_both_address_reservations(
+    hass, enable_custom_integrations, source, field, ignored,
+):
+    from homeassistant.config_entries import SOURCE_IGNORE, ConfigEntryDisabler
+    entry = entry_for(hass)
+    other = MockConfigEntry(
+        domain=DOMAIN, title='Reserved other watch',
+        source=SOURCE_IGNORE if ignored else 'user',
+        data={'address': NEW if field == 'address' else OTHER, 'keep': [1]},
+        unique_id=NEW if field == 'identity' else OTHER,
+        disabled_by=None if ignored else ConfigEntryDisabler.USER,
+    )
+    other.add_to_hass(hass)
+    before = _reservation_snapshot(hass)
+    with patch('custom_components.casio_abl100.config_flow.bluetooth.async_discovered_service_info',
+               return_value=[]), patch('custom_components.casio_abl100.establish_connection') as connect:
+        context = {'source': source}
+        if source == SOURCE_RECONFIGURE:
+            context['entry_id'] = entry.entry_id
+        form = await hass.config_entries.flow.async_init(DOMAIN, context=context)
+        result = await hass.config_entries.flow.async_configure(form['flow_id'], {'address': NEW})
+        await clean_loaded(hass)
+        assert result['type'] is FlowResultType.ABORT
+        assert result['reason'] == 'already_configured'
+        assert _reservation_snapshot(hass) == before
+        assert hass.config_entries.async_get_entry(other.entry_id) is other
+        connect.assert_not_called()

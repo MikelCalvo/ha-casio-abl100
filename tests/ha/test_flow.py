@@ -22,7 +22,7 @@ def test_normalized_names_only_exact_casio_watch():
 async def test_manual_flow_does_not_connect_and_rejects_duplicate():
     flow = CasioConfigFlow()
     flow.hass = SimpleNamespace()
-    flow._async_current_entries = lambda: [SimpleNamespace(unique_id='AA:BB:CC:DD:EE:FF', data={'address':'AA:BB:CC:DD:EE:FF'})]
+    flow._async_current_entries = lambda *, include_ignore=False: [SimpleNamespace(unique_id='AA:BB:CC:DD:EE:FF', data={'address':'AA:BB:CC:DD:EE:FF'})]
     with patch.object(flow, 'async_set_unique_id', return_value=None):
         result = await flow.async_step_user({'address': 'aa:bb:cc:dd:ee:ff'})
     assert result['type'] == 'abort' and result['reason'] == 'already_configured'
@@ -33,7 +33,7 @@ async def test_user_flow_can_select_only_matching_discovered_device():
     devices = [SimpleNamespace(address='AA:BB:CC:DD:EE:FF', name='CASIO ABL-100WE\0'), SimpleNamespace(address='11:22:33:44:55:66', name='Unrelated')]
     flow = CasioConfigFlow()
     flow.hass = SimpleNamespace()
-    flow._async_current_entries = lambda: []
+    flow._async_current_entries = lambda *, include_ignore=False: []
     with patch('custom_components.casio_abl100.config_flow.bluetooth.async_discovered_service_info', return_value=devices):
         form = await flow.async_step_user()
         assert form['type'] == 'form'
