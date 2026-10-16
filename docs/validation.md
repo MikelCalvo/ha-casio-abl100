@@ -1,6 +1,20 @@
 # Pilot validation
 
-## Current acceptance boundary
+## Native address reconfiguration: local review candidate
+
+This increment is based on exact local baseline `fd6228bc28586f385ab130a03cc4f7fa32e5099f`. The original worktree was clean and is left unchanged. Its retained baseline rerun passed **444 offline tests (five dependency deprecations) and 42 real-HA runtime tests**, with synthetic BLE. The final increment adds **28 runtime cases**; the combined selection passes **444 offline and 70 runtime cases**. These are overlapping replacement-suite counts, not additional physical reads.
+
+Causal RED snapshots retain source/test bytes, command/environment, raw output and actual exits before production changes: divergent transport/identity produced the wrong 11 unique IDs; the missing native reconfigure API was asserted explicitly before implementing the step; subsequent behavioral RED cases showed absent duplicate-address, auto-off, missing-identity, stale-selection and ASCII-normalization guards; the EN/ES UI catalog failed before translations were added. Existing correct rejection/fallback cases and later lifecycle/isolation assertions are characterization, not independent proof of RED. Initial harness errors and secondary teardown failures were retained and rerun correctly, not counted as causal evidence.
+
+Runtime tests exercise actual HA flows, entry mutation and reload, all 11 entity-registry IDs/unique IDs/internal IDs on the same device-registry ID, EN/ES translation loading, two-entry isolation, default-off/explicit-off options, rejected validation without mutation, both other-entry transport and identity conflicts, and conflict/option changes while a form is open. Explicit `button.press` requests use the new address through the unchanged real session, transport and parser against synthetic BLE. Synthetic old/new advertisements plus real HA timer dispatch do not trigger a read while auto remains off. A held manual transaction is cancelled/cleaned before the new entry session becomes usable.
+
+HA 2026.9.4 calls existing update listeners for data changes and warns against separately scheduling another reload. Loaded entries therefore use native `async_update_and_abort` with the existing update listener; unloaded entries use `async_update_reload_and_abort`. Runtime assertions verify exactly one reload in both paths. Only `data.address` is updated; there is no new persisted key, migration, unique-ID rewrite, raw-storage edit or name-based auto-rebind. An entry without a unique ID still loads with address-based compatibility identity, but reconfiguration is refused because preserving its identity would otherwise require a separate migration.
+
+The obsolete offline ConfigEntry double now supplies its real `unique_id` field; original no-read and unknown-observation assertions are unchanged. The previous temporary interpreter had been pruned. Tests reuse pinned HA/Bluetooth packages already retained in the local wheel cache through isolated `PYTHONPATH` entries; no package install or network fetch was performed. The runtime suite disables IP sockets and uses the HA plugin's synthetic Bluetooth boundary. Five offline dependency warnings match the recovered pristine baseline; no runtime warnings were reported.
+
+No live HA, ESPHome, ADB, SSH, watch or deployment operation was performed. Independent review, deployment authorization and physical acceptance remain separate gates. See [English procedure](../README.md#native-bluetooth-address-reconfiguration-local-candidate) and [procedimiento en español](reconfigure.es.md).
+
+## Historical acceptance boundary retained from the base
 
 This document retains historical implementation/review gates below. Since those gates, alarm revision `fefd06b10375bea34e84ec060f34acc2c9cb86c5` was installed with 13 component-file hashes verified. One fresh complete read of AL1–AL5 and SIG on 2026-10-15 was confirmed by the operator: enabled and disabled alarms, and disabled SIG, matched the watch. The watch still showed `ERR`; the detailed capture had already ended before that successful read, so its cause is unknown. A SIG-on test, separate-session alarm repeatability and general reliability remain open. No watch setting/time or pairing change was made.
 

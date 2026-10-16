@@ -13,9 +13,9 @@ class HourlySignalSensor(BinarySensorEntity):
 
     def __init__(self, session):
         self.session = session
-        self._attr_unique_id = f'{session.address}_hourly_signal'
+        self._attr_unique_id = f'{session.identity}_hourly_signal'
         self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, session.address)}, name='Casio ABL-100WE',
+            identifiers={(DOMAIN, session.identity)}, name='Casio ABL-100WE',
             model=MODEL, manufacturer='Casio',
         )
 

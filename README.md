@@ -1,5 +1,7 @@
 # [WIP] Casio ABL-100WE for Home Assistant
 
+**This reconfiguration worktree is a local review candidate based on `fd6228bc28586f385ab130a03cc4f7fa32e5099f`. No deployment, restart or live-device check was performed for it. Installation-status statements in the historical sections below describe earlier gates, not a fresh inventory of the pilot.**
+
 **Experimental. Two manual step reads through an ESPHome Bluetooth proxy matched the watch display. One complete read of the five alarms and SIG on the installed alarm revision was also confirmed by the operator, although the watch displayed `ERR`; its cause is unresolved. This local branch adds a daily-history snapshot and an optional native step-window reader; neither has been installed or physically validated. Integrated local suites pass with synthetic BLE; final independent bundle reviews remain pending. Long-term reliability is not established.**
 
 A local step and alarm reader for the Casio ABL-100WE, using Home Assistant's Bluetooth stack and connectable ESPHome proxies. Manual buttons remain available; optional automatic step reads are disabled by default. No Casio account or cloud service is required.
@@ -68,6 +70,17 @@ The entry-owned observer uses Home Assistant's public Bluetooth API, a **PASSIVE
 
 Only steps are requested, including the existing seven dated `daily_history` snapshot slots when a valid record is received. This does not backfill Recorder/statistics. The reader does not query alarms, time, settings or AppInfo; change pairing or firmware; or send END. The existing read-only DRSP START operation is unchanged. Unattended reliability and resolution of the watch-side `ERR` are **not established**.
 
+## Native Bluetooth-address reconfiguration (local candidate)
+
+If the **same physical watch** advertises a different Bluetooth address after a pairing reset, use the existing entry's **⋮ → Reconfigure** action in **Settings → Devices & services**. Do not remove/re-add the integration or edit Home Assistant storage. This feature is prepared locally for review; it has not been deployed or physically accepted. [Procedimiento en español](docs/reconfigure.es.md).
+
+1. Turn **Read steps when watch becomes available** off under **Configure** first. Reconfiguration refuses to proceed while it is enabled, including if it is enabled while the form is open. It never silently changes options.
+2. Confirm which physical watch owns the new address. Select that exact discovered address or type a full ASCII MAC such as `AA:BB:CC:DD:EE:FF`. A typed address takes precedence. Discovery is a convenience, not proof of ownership; matching a model name never automatically rebinds an entry. A disappeared selection must be selected again or entered explicitly.
+3. Submit the form. Only the selected entry's `data.address` changes. Its entry ID, retained unique ID, title, options, existing device registry ID and all 11 entity registry identities remain unchanged. Another entry's current address **or retained identity** is reserved and cannot be reused. An entry without a stable unique ID is refused rather than migrated implicitly.
+4. The selected entry is reloaded through native HA APIs. In-memory observations reset to unavailable, and owned reads/listeners are cleaned up. Neither the flow nor setup initiates a BLE connection. Automatic reading stays off (or absent/default-off); it can be enabled separately only when ready. Reconfiguration does not itself verify a successful BLE link or resolve `ERR` or a previous native connection error.
+
+The local tests use actual HA config-entry flow management, registries, translation loading, reload/unload and `button.press`, with synthetic BLE. They verify a later explicit manual step/alarm read routes to the new address while retaining the old identity. No pairing, protocol, settings, firmware or connection-parameter change is included. Automatic reading remains a product requirement; the temporary off prerequisite isolates reconfiguration, not a replacement with manual-only behavior.
+
 ## Protocol and safety
 
 ### Steps
@@ -101,13 +114,15 @@ PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 PYTHONPATH="$PWD" "$PYTHON" -m pytest \
   --ignore=tests/ha/test_runtime.py \
   --ignore=tests/ha/test_auto_options_runtime.py \
   --ignore=tests/ha/test_auto_runtime.py \
-  --ignore=tests/ha/test_auto_lifecycle_runtime.py
+  --ignore=tests/ha/test_auto_lifecycle_runtime.py \
+  --ignore=tests/ha/test_reconfigure_runtime.py
 
 # Actual HA registries, service calls, translations, reload and scheduler.
 # BLE lookup, connector and client remain synthetic: no hardware test.
 PYTHONPATH="$PWD" "$PYTHON" -m pytest -o asyncio_mode=auto \
   -q tests/ha/test_runtime.py tests/ha/test_auto_options_runtime.py \
-  tests/ha/test_auto_runtime.py tests/ha/test_auto_lifecycle_runtime.py
+  tests/ha/test_auto_runtime.py tests/ha/test_auto_lifecycle_runtime.py \
+  tests/ha/test_reconfigure_runtime.py
 ```
 
 Public fixtures are constructed synthetic data, not captured watch records. Their example step counts, alarm times and flags are not hardware results. Raw logs, credentials and deployment/device identifiers are excluded; BLE addresses in tests are synthetic placeholders.

@@ -35,9 +35,11 @@ class WatchSession:
 
     client_class = BleakClientWithServiceCache
 
-    def __init__(self, hass, address):
+    def __init__(self, hass, address, identity=None):
         self.hass = hass
         self.address = address
+        # Registry identity is immutable; the BLE transport address may change.
+        self.identity = identity or address
         self.record = None
         self.last_sync = None
         self.fresh = False
@@ -258,7 +260,7 @@ class WatchSession:
 
 
 async def async_setup_entry(hass, entry):
-    manager = WatchSession(hass, entry.data['address'])
+    manager = WatchSession(hass, entry.data['address'], identity=entry.unique_id)
     entry.runtime_data = manager
     cancel_update = None
     try:

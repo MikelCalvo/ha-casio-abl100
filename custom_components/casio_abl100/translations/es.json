@@ -8,13 +8,25 @@
           "address": "Dirección Bluetooth (manual)",
           "discovered_address": "Reloj detectado"
         }
+      },
+      "reconfigure": {
+        "title": "Cambiar la dirección Bluetooth del reloj",
+        "description": "Continúa solo si es el mismo reloj físico con una dirección Bluetooth nueva. Selecciónalo expresamente o introduce su dirección exacta; la dirección escrita tiene prioridad. Se conservan las identidades del dispositivo y de las entidades. La lectura automática de pasos debe estar desactivada y seguirá desactivada; actívala por separado solo cuando estés listo. Este formulario no se conecta al reloj ni verifica que sea tuyo. Detectados: {discovered}",
+        "data": {
+          "address": "Nueva dirección Bluetooth (manual)",
+          "discovered_address": "Reloj con la dirección nueva"
+        }
       }
     },
     "error": {
-      "invalid_address": "Introduce una dirección MAC Bluetooth válida"
+      "invalid_address": "Introduce una dirección MAC Bluetooth válida",
+      "invalid_selection": "El reloj ya no aparece entre los detectados. Vuelve a seleccionarlo o introduce su dirección Bluetooth exacta."
     },
     "abort": {
-      "already_configured": "Este reloj ya está configurado"
+      "already_configured": "Esta dirección Bluetooth corresponde a otro reloj configurado o a su identidad conservada.",
+      "reconfigure_successful": "Dirección Bluetooth actualizada. Se conservan las entidades y el dispositivo existentes.",
+      "auto_read_enabled": "Desactiva la lectura automática de pasos en Configurar antes de cambiar la dirección Bluetooth. No se ha modificado la configuración.",
+      "missing_identity": "Esta entrada no tiene una identidad estable. No se puede cambiar su dirección Bluetooth de forma segura sin una reparación revisada por separado."
     }
   },
   "entity": {

@@ -11,8 +11,8 @@ class WatchSensor(SensorEntity):
     _attr_has_entity_name = True
     def __init__(self, session):
         self.session = session
-        self._attr_unique_id = f'{session.address}_{self.entity_description.key}'
-        self._attr_device_info = DeviceInfo(identifiers={(DOMAIN, session.address)}, name='Casio ABL-100WE', model=MODEL, manufacturer='Casio')
+        self._attr_unique_id = f'{session.identity}_{self.entity_description.key}'
+        self._attr_device_info = DeviceInfo(identifiers={(DOMAIN, session.identity)}, name='Casio ABL-100WE', model=MODEL, manufacturer='Casio')
 
     async def async_added_to_hass(self):
         self.async_on_remove(self.session.subscribe(self.async_write_ha_state))

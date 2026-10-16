@@ -11,7 +11,7 @@ MAC = re.compile(r'^[0-9A-F]{2}(?::[0-9A-F]{2}){5}$')
 
 
 def normalize_address(value):
-    if not isinstance(value, str):
+    if not isinstance(value, str) or not value.isascii():
         return None
     result = value.strip().upper()
     return result if MAC.fullmatch(result) else None
@@ -34,23 +34,65 @@ class CasioConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def async_step_user(self, user_input=None):
         if user_input is not None:
-            address = normalize_address(user_input.get('address') or user_input.get('discovered_address'))
-            if address is None:
-                return self._form({'address': 'invalid_address'})
-            if any(address == (entry.unique_id or entry.data.get('address', '')).upper()
-                   for entry in self._async_current_entries()):
+            address, errors = self._selected_address(user_input)
+            if errors:
+                return self._form(errors)
+            if self._address_in_use(address):
                 return self.async_abort(reason='already_configured')
             await self.async_set_unique_id(address)
             self._abort_if_unique_id_configured()
             return self.async_create_entry(title='Casio ABL-100WE', data={'address': address})
         return self._form({})
 
-    def _form(self, errors):
+    async def async_step_reconfigure(self, user_input=None):
+        """Explicitly replace only the selected entry's BLE transport address."""
+        entry = self._get_reconfigure_entry()
+        if not entry.unique_id:
+            return self.async_abort(reason='missing_identity')
+        if entry.options.get('auto_read_steps') is True:
+            return self.async_abort(reason='auto_read_enabled')
+        if user_input is not None:
+            address, errors = self._selected_address(user_input)
+            if errors:
+                return self._form(errors, step_id='reconfigure')
+            if self._address_in_use(address, exclude_entry=entry):
+                return self.async_abort(reason='already_configured')
+            # HA 2026.9 invokes our existing update listener to reload. Do not
+            # also schedule a second reload with async_update_reload_and_abort.
+            if entry.update_listeners:
+                return self.async_update_and_abort(entry, data_updates={'address': address})
+            return self.async_update_reload_and_abort(entry, data_updates={'address': address})
+        return self._form({}, step_id='reconfigure')
+
+    def _address_in_use(self, address, exclude_entry=None):
+        """Reserve both immutable identities and current transport addresses."""
+        return any(
+            address in (normalize_address(entry.unique_id), normalize_address(entry.data.get('address')))
+            for entry in self._async_current_entries() if entry is not exclude_entry
+        )
+
+    def _selected_address(self, user_input):
+        """Typed MAC takes precedence; discovery requires explicit selection."""
+        if user_input.get('address'):
+            address = normalize_address(user_input['address'])
+            return address, {} if address else {'address': 'invalid_address'}
+        if user_input.get('discovered_address'):
+            address = normalize_address(user_input['discovered_address'])
+            if address and address in self._discovered_watches():
+                return address, {}
+            return None, {'discovered_address': 'invalid_selection'}
+        return None, {'address': 'invalid_address'}
+
+    def _discovered_watches(self):
         found = {}
         for info in bluetooth.async_discovered_service_info(self.hass):
             address = normalize_address(info.address)
             if address and watch_name(info.name):
                 found[address] = f'{info.name.rstrip(chr(0))} ({address})'
+        return found
+
+    def _form(self, errors, step_id='user'):
+        found = self._discovered_watches()
         if found:
             schema = vol.Schema({
                 vol.Optional('discovered_address'): selector.SelectSelector(
@@ -64,7 +106,7 @@ class CasioConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         else:
             schema = vol.Schema({vol.Required('address'): str})
             description_placeholders = {'discovered': '—'}
-        return self.async_show_form(step_id='user', data_schema=schema, errors=errors,
+        return self.async_show_form(step_id=step_id, data_schema=schema, errors=errors,
                                     description_placeholders=description_placeholders)
 
 

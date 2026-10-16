@@ -48,7 +48,7 @@ async def test_unknown_before_manual_read_and_no_setup_poll():
     hass = SimpleNamespace(config_entries=SimpleNamespace(
         async_forward_entry_setups=forward, async_unload_platforms=AsyncMock(return_value=True),
     ))
-    entry = SimpleNamespace(data={'address': ADDR}, options={},
+    entry = SimpleNamespace(data={'address': ADDR}, unique_id=ADDR, options={},
                             add_update_listener=add_update_listener, async_on_unload=on_unload)
     with patch('custom_components.casio_abl100.establish_connection') as connect:
         await async_setup_entry(hass, entry)

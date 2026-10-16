@@ -10,8 +10,8 @@ class ReadStepsButton(ButtonEntity):
 
     def __init__(self, session):
         self.session = session
-        self._attr_unique_id = f'{session.address}_read_steps'
-        self._attr_device_info = DeviceInfo(identifiers={(DOMAIN, session.address)}, name='Casio ABL-100WE', model=MODEL, manufacturer='Casio')
+        self._attr_unique_id = f'{session.identity}_read_steps'
+        self._attr_device_info = DeviceInfo(identifiers={(DOMAIN, session.identity)}, name='Casio ABL-100WE', model=MODEL, manufacturer='Casio')
 
     async def async_press(self):
         await self.session.read()
@@ -26,9 +26,9 @@ class ReadAlarmsButton(ButtonEntity):
 
     def __init__(self, session):
         self.session = session
-        self._attr_unique_id = f'{session.address}_read_alarms'
+        self._attr_unique_id = f'{session.identity}_read_alarms'
         self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, session.address)}, name='Casio ABL-100WE',
+            identifiers={(DOMAIN, session.identity)}, name='Casio ABL-100WE',
             model=MODEL, manufacturer='Casio',
         )
 
