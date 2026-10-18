@@ -1,6 +1,13 @@
 # Native steps/history validation candidate
 
-## Status: locally tested; independent SPEC and QUALITY pending
+> Historical implementation gate. The accepted native step source was subsequently
+> installed at `1efd372`, where a manual read returned 809 steps confirmed by the
+> operator. The later installed joint source `e3690ff` returned 1,807 steps along
+> with the other supported groups. See [current validation](validation.md).
+> This document retains its original local-candidate boundaries below; its old
+> pending/uninstalled labels are not the current installation status.
+
+## Historical status: locally tested; independent SPEC and QUALITY then pending
 
 Read steps now uses the generation-bound native ESPHome connection for selected
 native sources. This candidate has **not** been installed or physically exercised.

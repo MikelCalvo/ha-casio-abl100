@@ -1,4 +1,4 @@
-# Native unified read (local Unit A)
+# Native unified read (installed experimental pilot)
 
 `button.press` on **Read watch data** (`read_all`, Spanish **Leer datos del reloj**)
 starts one explicitly initiated native ESPHome transaction. Setup does not contact
@@ -114,9 +114,30 @@ are synthetic. The decisive fake feeds request-provided append/completion
 predicates, including wrong address/handle and service-DONE replies; two entries
 share one wire. Separate offline suites exercise borrowed-group framing.
 
-This candidate composes the intended UX. It does **not** claim to repair the
-observed physical ALL_FEATURES CCCD response timeout. Physical alarm success,
-terminal watch ERR, later pre-START step CCCD timeout and synthetic source
-validation are distinct evidence. No live probe or deployment was performed.
-Independent SPEC, then QUALITY, and separately authorized combined physical
-acceptance remain required before treating expanded data as accepted.
+## Physical pilot and remaining limits
+
+Component revision `e3690ff299d907b2867d19c65287fc9e19cce392` passed independent
+SPEC and QUALITY review, was installed reversibly, and completed one coordinated
+joint physical request on 2026-10-18. HA published alarms/SIG, 1,807 current-date
+steps with history, zone configuration, basic settings and encoded timer data.
+The operator affirmed the read and later reported 1,854 steps; that later count
+was not another synchronization. Session and cleanup succeeded; the four manual
+owners returned idle, the proxy was free and complete postflight passed.
+
+The external operational result is a **narrow partial acceptance**: five groups
+were observable and fresh, while automatic-time adjustment remained unavailable
+and **unverifiable** because HA suppressed its extra metadata. Full-data and
+full-trial acceptance remained false. This does not prove a new unknown flag,
+minute, freshness or persistence for that setting. Group enums alone do not
+provide the missing evidence. Newly added settings were not individually
+compared on the watch display.
+
+The watch ended in **ERR despite those published observations**. Its cause,
+everyday reliability and the earlier connection/CCCD failures remain unresolved;
+this transaction is not presented as their fix. The historical failures are not
+erased by a later useful sample. See [validation](validation.md) for the exact
+installed boundary, values, unknown history and retained historical gates.
+
+Automatic unified dispatch is still a separate, unimplemented opt-in consumer;
+`auto_read_steps` retains its step-only meaning and stays off in the pilot. No
+physical test or automatic work is armed by this documentation.

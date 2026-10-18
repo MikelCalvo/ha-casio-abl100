@@ -1,191 +1,130 @@
 # [WIP] Casio ABL-100WE for Home Assistant
 
-**Experimental pilot, updated 2026-10-18.** Component revision `a897b0078a73deeaafbec0c1265be4848592f343` is installed. One physical manual alarm read through HA's existing ESPHome API connection published a fresh complete snapshot to the existing entities. Two earlier standalone native reads also detected an operator-controlled alarm change. These are distinct evidence layers, not a reliability certification.
+**Experimental pilot, updated 2026-10-18.** Component revision `e3690ff299d907b2867d19c65287fc9e19cce392` is installed. One coordinated **Read watch data** request through Home Assistant's existing ESPHome API connection refreshed alarms/SIG, steps/history, zone configuration, basic settings and encoded timer configuration in one owned session. The five externally verifiable groups passed the postflight checks. Automatic-time adjustment remained unavailable and **unverifiable**, not disabled or fully accepted.
 
-The installed bundle includes daily-history decoding, an optional automatic step reader and identity-preserving address reconfiguration. Automatic reading remains **off**; physical daily-history and automatic-read acceptance remain open. Earlier watch-side `ERR` results are unresolved, and the terminal screen of the latest HA trial was not reported.
+The watch ended in **ERR despite the received data**. Its cause and everyday reliability remain unresolved. Automatic reading is **off** in the pilot. There is no automatic combined-read mode yet; the existing optional automatic reader still requests only steps.
 
-A local step and alarm reader for the Casio ABL-100WE, using Home Assistant's Bluetooth stack and connectable ESPHome proxies. Manual buttons remain available; optional automatic step reads are disabled by default. No Casio account or cloud service is required.
+No Casio account or cloud service is required. This is not an official Casio or Home Assistant integration, is not in the HACS default catalog and has no stable release.
 
 ## Current status
 
-- UI configuration and English/Spanish entity names are implemented.
-- The step-only revision `008f026` completed two real manual reads on 2026-10-15: **229 steps, then 276**, both matching the watch display. Both disconnected and left the proxy slot free.
-- Native alarm revision `a897b00` preserves **11 entity identities and customizations**. On 2026-10-18 one HA **Read alarms** request published all five alarm times/enable states, SIG and an independent last-read timestamp. The request ended at `idle`, its wait window closed, and postflight verified a free proxy slot and continued temperature/humidity reports. No watch-setting writes were made.
-- Daily-history decoding extends **Steps today** with a bounded `daily_history` attribute and sends no additional commands. It is installed as part of this bundle but **not physically validated**; the latest alarm test did not refresh steps or their timestamp.
-- The optional native step-window reader is installed but **disabled and physically unvalidated**. Final component tests passed **449 offline and 143 real-HA runtime cases**, with synthetic native IO. Exact-artifact SPEC and QUALITY reviews passed before deployment. These counts overlap earlier layer results and are not additional hardware reads.
-- Earlier physical step attempts failed during connection, subscription or parsing. Later successes do not establish everyday reliability or prove subscription order was the sole cause. Enabled alarms and disabled SIG were compared with the watch in the accepted alarm snapshot; an activated SIG remains untested.
-- Editing alarms, synchronizing time, ordinary setting controls and watch-button events are not implemented. There is no periodic watch GATT polling, presence tracking or light automation. The optional reader observes Bluetooth metadata to request steps during a fresh window.
+- **Read watch data / Leer datos del reloj** requests all implemented source-backed read groups over one HA-owned native ESPHome connection, alarm-first. Individual read buttons remain available for diagnostics and compatibility.
+- The joint physical trial published **1,807 steps** and fresh alarms, zones, basic settings and encoded timer data. The operator confirmed the read and subsequently reported **1,854 steps** on the watch. That later number was not another HA synchronization.
+- Five alarms at `00:00`, only the first enabled, and SIG off were received. Basic settings reported 12-hour format, button tone on and short light mode. The encoded timer components were `00:10:00`. These added settings were received but not individually compared on the watch display.
+- Primary zone configuration reported a standard offset of UTC+1, a configured 60-minute DST increment and DST on/automatic; secondary configuration reported UTC+9 with no DST increment. These are configuration fields, **not current running-clock readings or inferred city names**.
+- The step snapshot included yesterday's zero and six unknown (`null`) historical totals. Unknown is not zero. Receipt of the snapshot does not validate every historical value against the watch.
+- Installation preserved the original **11 entity identities** and added exactly **8**, for **19 entities** on the existing device. One necessary Core restart, source equality, selected entries, a free proxy slot and continuing temperature/humidity reports were checked. No watch settings or firmware were changed.
+- The accepted source passed **1,256 offline and 479 real-HA runtime cases**, with external native IO synthetic, plus focused link-lifetime regressions and independent SPEC/QUALITY review. Counts overlap narrower selections and are not hardware-read counts.
+- Alarm editing, time synchronization, editable settings, watch-button events and a persistent interactive connection are not implemented in this branch. The next increment is an explicit opt-in automatic combined read during a fresh watch connection opportunity, not another scheduler or an implicit change to the old steps option.
 
-See [validation details](docs/validation.md) for exact revision boundaries and remaining acceptance. This is not an official Casio or Home Assistant integration, is not in the HACS default catalog and has no stable release.
+See [current and historical validation](docs/validation.md), [unified transaction details](docs/native-unified-sync.md), [zone semantics](docs/native-zones.md) and [read-only settings contracts](docs/settings-read-contract.md). A successful read and the watch's terminal screen are separate observations.
 
 ## Read-only entities
 
-Names below omit the device prefix, which Home Assistant adds once. Entity IDs depend on the selected UI language; unique-ID suffixes are stable.
+Names omit the device prefix, which Home Assistant adds once. Entity IDs depend on UI language; unique-ID suffixes remain stable.
 
 | Observation or action | English name | Spanish name | Meaning |
 | --- | --- | --- | --- |
-| Daily steps | Steps today | Pasos de hoy | Last valid current-date total |
+| Daily steps | Steps today | Pasos de hoy | Last valid current-date total, with seven dated history slots |
 | Step timestamp | Last synchronization | Última sincronización | Last successful step read, not a heartbeat |
 | Manual step query | Read steps | Leer pasos | One explicitly requested step session |
-| Five alarm slots | Alarm 1–5 | Alarma 1–5 | Last observed `HH:MM`, with `enabled` and `fresh` attributes |
-| Hourly signal | Hourly time signal | Señal horaria | Last observed SIG setting, not an alarm-ringing event |
-| Alarm timestamp | Last alarm read | Última lectura de alarmas | Last successful complete alarm snapshot |
-| Manual alarm query | Read alarms | Leer alarmas | One explicitly requested read of all five slots and SIG |
+| Five alarm slots | Alarm 1–5 | Alarma 1–5 | Observed `HH:MM`, with independent `enabled` and `fresh` attributes |
+| Hourly signal | Hourly time signal | Señal horaria | SIG setting, not an alarm-ringing event |
+| Alarm timestamp | Last alarm read | Última lectura de alarmas | Last complete alarm read |
+| Manual alarm query | Read alarms | Leer alarmas | All five slots and SIG |
+| Primary standard offset | Home standard UTC offset | Desfase UTC estándar principal | Standard offset in minutes, with separate DST configuration |
+| Secondary standard offset | Secondary standard UTC offset | Desfase UTC estándar secundario | Standard offset in minutes, with separate DST configuration |
+| Zone timestamp | Last time zone read | Última lectura de zonas horarias | Last complete zone-configuration read |
+| Manual zone query | Read time zones | Leer zonas horarias | Configuration, not current clock values |
+| Combined query | Read watch data | Leer datos del reloj | All supported groups in one owned native session |
+| Basic settings | Time format | Formato horario | `12h`/`24h`, tone and short/long light attributes |
+| Auto-time configuration | Automatic time adjustment | Ajuste automático de hora | Enabled/disabled when known; unavailable when unknown |
+| Encoded timer | Timer encoded duration | Duración codificada del temporizador | Encoded seconds and hour/minute/second components, not a running countdown |
 
-Alarm and step observations have independent timestamps and freshness. Before a successful read the corresponding observations are unavailable, not zero or off. A failed refresh retains the last good values and marks that feature's `fresh` attribute false. Disabled alarms still show their observed time. Step data for another date is unavailable; alarm times do not expire at midnight. Neither observation survives an integration reload in this pilot.
+Each group has independent observation time and freshness. Before a successful read it is unavailable, not zero or off. A failed refresh retains last-good values/time and marks the affected group not fresh. A later group failure in a combined read does not erase earlier completed groups; whole-session and cleanup outcomes are separate. HA can omit extra attributes while a sensor is unavailable, so unknown auto-time has no externally verifiable freshness or last-read metadata.
 
-## Native manual alarm route (installed experimental pilot)
+Observations are **in memory and reset on integration reload/Core restart**. Registry identities are preserved. Step data for another date becomes unavailable; alarm times do not expire at midnight.
 
-[Procedimiento y explicación en español](docs/native-alarms.es.md).
+## Manual combined read
 
-**Read alarms / Leer alarmas** now borrows the existing loaded ESPHome entry's
-API connection when the cached Bluetooth device identifies that proxy. It does
-not create a second API client, disable ESPHome, or send advertisement subscription
-requests. With no cached source after a Core restart, only one unambiguous loaded,
-available, connectable, RAW-capable ESPHome proxy is accepted. A missing selected
-source, ambiguous proxy, occupied target or unavailable proxy is refused. Devices
-positively identified on non-ESPHome scanners retain the previous Bleak route.
+1. Keep the watch near a connectable ESPHome Bluetooth proxy and prevent the phone or other clients from connecting automatically. Do not unpair or reset it.
+2. Press **Read watch data / Leer datos del reloj** once in HA.
+3. Wait until that button reports `phase: waiting` and a future UTC `wait_expires_at`.
+4. Open the watch's `CNCT` window by holding **C/MODE, lower left, for at least three seconds**. Do not also press an individual HA read button.
+5. Inspect each group's values/freshness and the combined button's `result`, `group_results` and `cleanup_result`. Watch-side ERR alone does not decide whether data arrived.
 
-For this native route, **press Read alarms once first**, then inspect that existing
-button's attributes: `phase: waiting` and a future UTC `wait_expires_at` mean that
-the captured proxy generation, free capacity, local RAW handler and deadline have
-been checked. Only then open the watch's `CNCT` window (C/MODE, lower left, held
-at least three seconds). Keep phone Bluetooth/other clients from connecting and
-use only one initiating actor. The request remains in progress while waiting for
-the next exact-target RAW advertisement, for **at most 360 seconds**, then reads
-once with its actual advertised address type. It does not replay cached packets
-or automatically retry a connection. `phase: reading` clears the wait expiry;
-terminal success/failure returns to `idle`, and entry shutdown clears it to
-`closed`. No extra entity or diagnostic service is added. Do not press both
-manual buttons or enqueue repeated requests; they share the existing watch lock.
+The native reader waits at most **360 seconds** for a fresh exact-target RAW advertisement on the captured proxy generation, then connects using its actual advertised address type. It does not replay a cached packet or retry a failed unified operation. The shared lock serializes manual requests; use one initiating actor rather than queueing them.
 
-Connection uses the native 30-second connect / five-second disconnect budgets,
-without the old 16-second Bleak wrapper. A positive `connected=true,error=0` reply
-is mandatory before services (10 seconds), notify and CCCD `0100`, and the unchanged
-GET15/GET16 transport (12-second stages). No time, zone, pairing, AppInfo, END,
-scanner-mode or watch-setting command is added. A complete snapshot is published
-to the existing five alarm sensors, SIG and last-read timestamp only after link
-cleanup and final ownership checks. Failure retains the last good alarm values
-and timestamp with `fresh: false`; steps are independent.
+The combined route borrows the loaded ESPHome entry's API connection. It creates no second API client or advertisement subscription and does not disable ESPHome. Cold-start selection accepts only one unambiguous usable native proxy; ambiguous, missing or occupied sources are refused. There is no Bleak fallback for the combined action. Individual actions retain their compatibility routes.
 
-The native method facade borrows the installed aioesphomeapi BLE implementations
-but binds *all* internal submissions, including cancellation cleanup inside
-`bluetooth_device_connect`, to the captured connection. It neither mutates the
-shared client nor shares its notify map. Notify acquisition is shielded and
-joined through the backend's finite 10-second timeout, including repeated caller
-cancellation; owned original callbacks are removed even if acquisition fails or
-the API reconnects. No GATT is submitted to a replacement generation. Cleanup is
-cooperative: an arbitrarily uncooperative backend cannot be forcibly terminated.
+The fixed sequence is alarms/SIG (`15`, `16`), steps/history (DRSP `0011000000`), zones (`1D00`, `1E00`, `1E01`), basic settings (`13`), auto-time configuration (`11`), then encoded timer (`18`). One primary notification acquisition is shared across groups; DRSP/Convoy are acquired for steps. There is one outer disconnect. No setting SET, clock synchronization, AppInfo/scratchpad initialization, END, pairing or reset is introduced.
 
-Local real-HA tests exercise entry setup, the actual `button.press` service,
-listeners, all 11 existing registry identities, publication, failures,
-cancellation, unload and API replacement with only native connection IO faked.
-Those synthetic tests are separate from the subsequent **one successful physical
-HA-owned read** on the same component revision. Earlier standalone native reads
-are another layer. See the [final trial findings](docs/native-alarm-validation.md)
-for the exact publication, cleanup and remaining acceptance boundaries.
+Timeouts and cleanup are cooperative, not forced termination of an unresponsive backend. The conservative envelope is in [the transaction documentation](docs/native-unified-sync.md#cooperative-timing-envelope); a controller must not impose a shorter deadline and call its timeout a watch failure. For individual native alarms, see [Spanish instructions](docs/native-alarms.es.md) and [historical findings](docs/native-alarm-validation.md).
 
-## Daily-history snapshot (installed, physically unvalidated)
+## Daily-history snapshot
 
-The source-described 400-byte ABL-100WE block contains **seven previous-day summary slots, plus today's separate total**. This is reverse-engineered protocol evidence, not a retention guarantee stated in the official manual. The seven slots are eight bytes each at offsets 318–373; their uint32 step total is followed by a distance word that this increment deliberately ignores. Slot dates are anchored to the validated watch record date: yesterday through seven days ago, newest first.
+The source-described 400-byte ABL-100WE block contains **seven previous-day summary slots plus today's separate total**, not seven days of full hourly detail. This is reverse-engineered capacity, not an official retention guarantee. Dates are anchored to the validated record date, yesterday through seven days ago.
 
-On a successful current-date step read, `Steps today` exposes `daily_history`, mapping those seven ISO dates to totals or `null`. A legitimate zero remains zero. Missing sentinel `0xFFFFFFFE` or a count above the existing conservative 99,999,999-step parser bound becomes unknown for that slot without shifting later dates or invalidating a valid today total. The history is an immutable in-memory snapshot; each attribute call returns a new mapping. A failed read retains the last good snapshot and timestamp with `fresh: false`. Date rollover does not relabel its dates, but the **Steps today** entity itself still becomes unavailable until a valid current-date read.
-
-This does **not** imply seven days of full hourly detail, persistent storage, automatic synchronization, or backfilling past dates into Home Assistant Recorder/statistics. The history decoder itself adds no entities, transport writes, setting changes or background tasks; the optional reader below has its own observer and metadata timer. A reload clears the in-memory observation. Synthetic records demonstrate decoding and HA behavior only; the physical watch's historical totals have not been compared.
+`daily_history` maps ISO dates to totals or `null`. A legitimate zero remains zero; missing sentinel `0xFFFFFFFE` or an out-of-range count becomes unknown for that slot without shifting later dates. Failed reads retain last-good data with `fresh: false`. This is not persistent storage, automatic backfill or historical Recorder/statistics import. The joint trial received the snapshot but did not compare all seven historical totals on the device.
 
 ## Experimental installation
 
-Use only an installation you can recover and back up the existing integration/configuration first. This bundle has local test/review approval and one physical HA-owned alarm-read result on the pilot. That does not establish history decoding, automatic operation, other installations or general reliability. Leave automatic reads off until separately tested.
+Back up the integration and configuration and use only a recoverable installation. Local reviews and one useful joint physical sample do not certify other installations or everyday reliability. Leave automatic reads off until separately tested.
 
 1. Copy `custom_components/casio_abl100` into Home Assistant's `config/custom_components/` directory.
 2. Restart Home Assistant Core.
-3. Add **Casio ABL-100WE** under **Settings → Devices & services → Add integration**.
+3. Add **Casio ABL-100WE** under **Settings → Devices & services → Add integration**, or retain the existing entry when updating.
 4. Select a discovered watch or enter its exact Bluetooth address. No watch is preconfigured.
 5. Use a **connectable** ESPHome Bluetooth proxy. Advertisement forwarding alone is insufficient.
 
-For a coordinated **step or non-ESPHome** manual read, put the watch near the proxy and hold **C/MODE, lower left, for at least three seconds**, until `CNCT` and the Bluetooth icon flash. Temporarily disabling the phone's Bluetooth can avoid connection contention; do not unpair or reset the watch. Press the selected read button **once** during that connection window. Step and alarm reads are separate transactions, serialized per watch; do not launch them concurrently from multiple actors. Preserve any failure instead of retrying until success and calling that reliable.
+Existing identities are retained; new read groups add entities. Reloading resets observations until a fresh read. Do not delete/re-add the watch just to update code.
 
-## Optional native step-window reader (installed, disabled in pilot)
+## Optional native step-window reader
 
-Under **Settings → Devices & services → Casio ABL-100WE → Configure**, the standard integration options expose the English/Spanish boolean `auto_read_steps`, **off by default**. Enabling or disabling it reloads only the selected entry. Observations are in memory: a reload clears step/history and alarm observations, which remain unavailable until their respective fresh reads. No new entity or identity is added.
+Under **Configure**, `auto_read_steps` is an English/Spanish boolean, **off by default**. It still means **steps only**, including history on a valid record. Enabling/disabling reloads only the selected entry. Automatic combined reads are not implemented yet.
 
-With the option off, open `CNCT` as described above and press **Read steps** once. With it enabled, open a **fresh** `CNCT` window near the connectable proxy; the observer can request the existing step transaction without the HA button press. Avoid competing phone connections and simultaneous manual requests. Alarm reads still require **Read alarms**. This is the intended usage procedure, not a report of successful automatic physical operation.
+The entry-owned observer uses public HA Bluetooth metadata: a PASSIVE exact-address connectable callback and a one-second cached-metadata timer, because unchanged payloads may suppress callbacks while timestamps advance. It is not watch GATT polling or a second ESPHome scanner. Cached setup bursts are consumed without reading. Fresh opportunities are at most five seconds old; timestamp gaps of at least 30 seconds can separate bursts. Busy/stale/failed opportunities are consumed without a queued automatic retry.
 
-The entry-owned observer uses Home Assistant's public Bluetooth API, a **PASSIVE**, exact-address, connectable matcher and a **one-second timer reading public cached Bluetooth metadata**. HA can deduplicate callbacks for identical advertising payloads while packet timestamps continue advancing, so callbacks alone are insufficient. The timer does not connect to or poll the watch over GATT, and there is no second ESPHome scanner/subscription.
+This is a **timestamp heuristic, not a physical CNCT identifier**. Phone, FIND or automatic time-connection windows can also qualify. There is no evidence of exactly one request per physical gesture or useful data transfer during automatic time windows. Disable/unload removes observers and joins cooperative cleanup. Physical automatic acceptance and unattended reliability remain open.
 
-- Cached target bursts present at setup/reload are consumed without a read. If there is no cached target, the first fresh post-setup observation can qualify.
-- At most one request is made per observed timestamp burst. Advances separated by **less than 30 seconds** belong to the same burst; a gap of **at least 30 seconds** can start another. An opportunity must be **no more than five seconds old**, including a final age check when the scheduled task starts.
-- This is a timestamp heuristic, **not a physical `CNCT` identifier**. Phone, automatic time-connection or FIND windows may also qualify. Scanner outages and missed observations make window boundaries ambiguous. There is no guarantee of exactly one request per physical gesture or evidence that automatic time windows actually transfer steps.
-- Busy, stale or failed opportunities are consumed without a queued automatic retry. The existing connector's bounded internal connection attempts (maximum two) remain; they are not another automatic window request.
-- Disable/unload unregisters the callback and timer and cancels/joins the owned read cooperatively. An uncooperative backend cannot be forced to release the connection by this guarantee.
-
-Only steps are requested, including the existing seven dated `daily_history` snapshot slots when a valid record is received. This does not backfill Recorder/statistics. The reader does not query alarms, time, settings or AppInfo; change pairing or firmware; or send END. The existing read-only DRSP START operation is unchanged. Unattended reliability and resolution of the watch-side `ERR` are **not established**.
+With the option off, use an explicit manual button as above. With it enabled, a fresh qualifying opportunity may request steps without the HA button. Do not enable it merely because manual combined reading worked.
 
 ## Native Bluetooth-address reconfiguration
 
-If the **same physical watch** advertises a different Bluetooth address after a pairing reset, use the existing entry's **⋮ → Reconfigure** action in **Settings → Devices & services**. Do not remove/re-add the integration or edit Home Assistant storage. This feature is installed; the pilot retained its existing 11 entity identities after a user-confirmed post-reset address change. Reconfiguration alone is not a successful BLE read. [Procedimiento en español](docs/reconfigure.es.md).
+If the **same physical watch** changes its Bluetooth address after a pairing reset, use the existing entry's **⋮ → Reconfigure** action. Do not remove/re-add it or edit HA storage. Turn automatic steps off first; reconfiguration is refused while that option is enabled.
 
-1. Turn **Read steps when watch becomes available** off under **Configure** first. Reconfiguration refuses to proceed while it is enabled, including if it is enabled while the form is open. It never silently changes options.
-2. Confirm which physical watch owns the new address. Select that exact discovered address or type a full ASCII MAC such as `AA:BB:CC:DD:EE:FF`. A typed address takes precedence. Discovery is a convenience, not proof of ownership; matching a model name never automatically rebinds an entry. A disappeared selection must be selected again or entered explicitly.
-3. Submit the form. Only the selected entry's `data.address` changes. Its entry ID, retained unique ID, title, options, existing device registry ID and all 11 entity registry identities remain unchanged. Another entry's current address **or retained identity** is reserved and cannot be reused. An entry without a stable unique ID is refused rather than migrated implicitly.
-4. The selected entry is reloaded through native HA APIs. In-memory observations reset to unavailable, and owned reads/listeners are cleaned up. Neither the flow nor setup initiates a BLE connection. Automatic reading stays off (or absent/default-off); it can be enabled separately only when ready. Reconfiguration does not itself verify a successful BLE link or resolve `ERR` or a previous native connection error.
+Explicitly select or type the new address after confirming the physical device. The selected entry's transport address changes while its entry/device/entity identities, title and options remain. Other entries' current addresses and retained identities remain reserved. The native reload clears observations; reconfiguration alone is not a successful read, new pairing or ERR fix. See [Spanish instructions](docs/reconfigure.es.md).
 
-The local tests use actual HA config-entry flow management, registries, translation loading, reload/unload and `button.press`, with synthetic BLE. They verify a later explicit manual step/alarm read routes to the new address while retaining the old identity. No pairing, protocol, settings, firmware or connection-parameter change is included. Automatic reading remains a product requirement; the temporary off prerequisite isolates reconfiguration, not a replacement with manual-only behavior.
+## Protocol and safety limits
 
-## Protocol and safety
-
-### Steps
-
-The step transaction subscribes to ALL_FEATURES `26eb002d-b012-49a8-b1f8-394fb2032b0f`, discarding its payload, then DRSP `26eb0023-b012-49a8-b1f8-394fb2032b0f` and Convoy `26eb0024-b012-49a8-b1f8-394fb2032b0f`. Each subscription is awaited. Its only application-level write is `00 11 00 00 00` to DRSP. It accepts bounded five- or seven-byte announcements with command `00`, category `11` and a 24-bit little-endian length of 400 in bytes 2–4, concatenates exactly 400 Convoy bytes, validates date and step fields, then disconnects. The optional two header bytes are not length; their meaning is not established.
-
-### Alarms
-
-The alarm-only transaction validates the discovered service, primary notify/CCCD metadata and read-request characteristic `26eb002c-b012-49a8-b1f8-394fb2032b0f`. After enabling primary notifications, its only application-level writes are the **single-byte queries `15`, then `16`**, to that read-request characteristic with `response=False`. It waits for a valid `15` response before the second query, parses exact five- and seventeen-byte responses into five slots, and disconnects before publishing. It does not subscribe DRSP/Convoy or request steps during an alarm read.
-
-Each alarm entry is `[flags, auxiliary, hour, minute]`, with numeric hours/minutes. Enable mask `0x40` and SIG in AL1 mask `0x80` are source-derived interpretations. An earlier pilot snapshot confirmed enabled/disabled alarms and disabled SIG; two subsequent standalone native reads detected an operator-controlled first-slot enable change, and the latest HA-owned read published that changed state. An enabled SIG and general repeatability remain unverified. Unknown flags/auxiliary bytes stay in memory, not diagnostics. Malformed, missing, duplicate or locally unrequested alarm responses fail rather than becoming disabled/default alarms.
-
-Notifications contain no transaction ID. Local phase guards reject responses delivered before the public query invocation, but cannot universally distinguish a stale same-opcode notification delivered afterward from a genuine immediate reply. Neither write completion nor `fresh: true` proves radio-level causality; freshness here means the last complete locally validated read succeeded.
-
-### Both transactions
-
-There are no watch-setting writes, time initialization, scratchpad initialization or pairing changes. Automatic step requests occur only when the optional reader is enabled; alarm requests remain manual. GATT notification subscription itself writes a CCCD; it is distinct from an application setting command. The reader deliberately does **not** send the lifelog end request `04 11 00 00 00`, which can clear hourly details.
-
-Connection/read/disconnect timeouts rely on cooperative backend cancellation. They cannot force a backend that indefinitely suppresses cancellation to terminate. For alarm reads, any positive public task-cancellation count is conservatively treated as caller cancellation, including cancellation history not cleared by the caller. A completed observation is committed before deferred HA observer delivery; delivery failure does not retroactively change that read, and pending delivery is suppressed on unload. A failure is not grounds to bypass acknowledgement, clear watch data or run a time-setting initialization helper.
-
-## Clock and second-zone limits
-
-Current primary and secondary clock readings are **not implemented or validated**.
-Source-backed `1D00`, `1E00` and `1E01` queries concern zone/DST configuration,
-not established running-clock readouts. No such queries were sent in the latest
-trial. See [clock-reading limits](docs/clock-reading-limits.md); host time plus an
-offset must not be presented as time read from the watch.
+- Current primary and secondary clock reads are **not implemented or validated**. Zone/DST configuration and step-record timestamps are not running-clock samples. See [clock-reading limits](docs/clock-reading-limits.md).
+- Encoded timer arithmetic is not proof of an active countdown. Zero is not silently converted to 60 minutes. Light mode is short/long, not an asserted measured duration.
+- Unknown auto-time enable is never replaced with disabled or a default minute. A group success enum cannot authenticate metadata that HA does not expose.
+- Notifications have no transaction ID. Local phase guards reject early/duplicate frames but cannot prove peripheral causality of an identical late response.
+- No calibrated battery percentage, step-goal read, settings write, alarm editing or watch-button event is claimed.
+- Notification setup writes a GATT CCCD, distinct from changing a watch setting. The lifelog END `0411000000`, which may clear hourly details, is deliberately not sent.
+- A later connected callback cannot revive a lost unified BLE link's authority. Cleanup stays on the original API generation, never a replacement connection.
+- Raw logs, credentials, addresses, registry backups and third-party captures remain private and are not part of this repository.
 
 ## Development and tests
 
-The tested environment uses Python 3.14, Home Assistant `2026.9.4`, `pytest-homeassistant-custom-component==0.13.367`, pytest `9.0.3`, Bleak `3.0.2` and bleak-retry-connector `4.7.0`. Use a separate virtual environment and Bluetooth dependencies matching that HA version. The integration relies on HA's Bluetooth dependency rather than imposing conflicting runtime pins.
+The tested environment uses Python 3.14, HA `2026.9.4`, `pytest-homeassistant-custom-component==0.13.367`, pytest `9.0.3` and aioesphomeapi `46.2.0`. Use an isolated environment with the target HA/Bluetooth integration requirements. Do not mix stub suites and real-HA suites in one process.
 
-From the repository root, with `PYTHON` pointing to that environment's interpreter:
+From the repository root, with `PYTHON` pointing to that environment:
 
 ```sh
-# Offline protocol and HA-boundary tests; synthetic BLE only.
-PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 PYTHONPATH="$PWD" "$PYTHON" -m pytest \
-  -p pytest_asyncio.plugin -q tests/protocol tests/ha \
-  --ignore=tests/ha/test_runtime.py \
-  --ignore=tests/ha/test_auto_options_runtime.py \
-  --ignore=tests/ha/test_auto_runtime.py \
-  --ignore=tests/ha/test_auto_lifecycle_runtime.py \
-  --ignore=tests/ha/test_native_alarm_runtime.py \
-  --ignore=tests/ha/test_reconfigure_runtime.py
+# Offline protocol and HA-boundary tests; synthetic external IO.
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH="$PWD" \
+  "$PYTHON" -B -m pytest -p pytest_asyncio.plugin -p no:cacheprovider \
+  -q tests/protocol tests/ha --ignore-glob='tests/ha/*runtime.py'
 
-# Actual HA registries, service calls, translations, reload and scheduler.
-# BLE lookup, connector and client remain synthetic: no hardware test.
-PYTHONPATH="$PWD" "$PYTHON" -m pytest -o asyncio_mode=auto \
-  -q tests/ha/test_runtime.py tests/ha/test_auto_options_runtime.py \
-  tests/ha/test_auto_runtime.py tests/ha/test_auto_lifecycle_runtime.py \
-  tests/ha/test_reconfigure_runtime.py tests/ha/test_native_alarm_runtime.py
+# Real HA registries, services, translations and lifecycle; synthetic native IO.
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH="$PWD" \
+  "$PYTHON" -B -m pytest -p no:cacheprovider -o asyncio_mode=auto \
+  -q tests/ha/*runtime.py
 ```
 
-Public fixtures are constructed synthetic data, not captured watch records. Their example step counts, alarm times and flags are not hardware results. Raw logs, credentials and deployment/device identifiers are excluded; BLE addresses in tests are synthetic placeholders.
+Public fixtures are constructed synthetic data, not captured watch records. Fixture counts are not physical results. Local tests/reviews, installed source, physical receipt, visual comparison and reliability are separate verification layers.
 
 ## References and license
 

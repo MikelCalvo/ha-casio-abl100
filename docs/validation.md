@@ -1,27 +1,67 @@
 # Pilot validation
 
-## Current installed boundary: 2026-10-18
+## Current installed boundary: joint read on 2026-10-18
 
-Installed component revision: **`a897b0078a73deeaafbec0c1265be4848592f343`**.
-The [native alarm trial findings](native-alarm-validation.md) record a real
-HA-owned read that published a fresh complete alarm/SIG snapshot at
-`2026-10-18T01:41:26+00:00`. One request, no watch-setting writes, unchanged
-11 identities, closed wait window, `phase: idle`, a free proxy slot and continued
-temperature/humidity reports were verified. The final watch screen was not reported.
+Installed component revision: **`e3690ff299d907b2867d19c65287fc9e19cce392`**.
+This supersedes the earlier alarm-only pilot below. One coordinated native
+**Read watch data** request used the existing HA-owned ESPHome API connection
+and published the implemented groups in the fixed alarm-first transaction.
+The private operational checker accepted **five observable groups**, not all
+six: unknown automatic-time configuration remained unavailable with metadata
+suppressed by HA, so that group is explicitly **unverifiable**. A successful
+integration group enum does not authenticate an unavailable setting's value,
+freshness or last-read timestamp.
 
-The exact component passed **449 offline / 143 real-HA runtime tests**, with
-external native IO synthetic, plus independent SPEC and QUALITY review.
-The separate private deployment wrapper passed 12 recovery tests after its
-staging-cleanup and interrupted-rollback defects were corrected. Those are
-operational-script tests, not additional integration tests or hardware reads.
-Deployment replaced five of 17 component files with one Core restart; its caller
-acknowledgement timed out, but completed startup/loading was verified without
-submitting another restart.
+| Real joint-read observation | Result |
+| --- | --- |
+| Steps | 1,807, current record date; operator affirmed the read and later reported 1,854 on the watch, not a second HA read |
+| Alarms/SIG | Five slots `00:00`, only first enabled; SIG off |
+| Zone configuration | Primary standard UTC+1, configured DST +60 minutes, DST on/automatic; secondary standard UTC+9, DST increment zero |
+| Basic settings | `12h`, button tone enabled, short light mode |
+| Encoded timer | 600 encoded arithmetic seconds, components `00:10:00`; no running-countdown claim |
+| Automatic-time adjustment | Unavailable and externally unverifiable; not accepted as disabled or fresh |
+| Historical daily slots | Yesterday zero; six earlier slots `null`, not fabricated zeros or independently compared historical totals |
+| Watch terminal screen | Operator confirmed **ERR**, despite the received observations |
 
-Daily-history and automatic-reader code are installed, but their physical
-acceptance remains open and `auto_read_steps=false`. No new step observation was
-produced by this alarm trial. Current primary/secondary time reads are not
+Group timestamps advanced between `2026-10-18T20:24:27Z` and
+`2026-10-18T20:24:30.519366Z`. Session result and cleanup result were success;
+all four manual owners returned to idle with explicitly null expiry. The
+worker exited zero, the proxy was free, automatic steps stayed off, and fresh
+postflight verified source, firmware lineage, selected entries, preserved
+identities and repeated temperature/humidity reports. No second watch gesture,
+watch-setting write or firmware change was made for this trial. Individual
+visual comparison of the newly added settings remains unreported.
+
+The reversible update checked target-interpreter syntax and private backups,
+installed exactly **26 component files** and preserved the original **11
+identities plus 8 allowed additions**, for 19 on the existing device. One
+necessary Core restart was acknowledged and independently correlated with the
+new container start, running Core/Supervisor and loaded selected entries. The
+historical startup stall did not recur in the observed check; its cause is not
+diagnosed. Observations reset on restart and were then populated by the new read.
+
+The exact source had independent SPEC PASS and QUALITY APPROVED, with retained
+**1,256 offline / 479 real-HA runtime** passing cases and focused link-lifetime
+regressions. External device IO in those suites was synthetic. The separately
+reviewed private operational wrapper passed 48 tests, including the real HA
+unavailable-entity formatter boundary. These are different, overlapping
+verification layers, not additional hardware reads or reliability samples.
+
+Automatic combined dispatch is **not implemented or enabled**. The legacy
+`auto_read_steps` option remains step-only and off. The next increment is an
+explicit opt-in combined consumer with one owner and no loss of the first
+qualifying advertisement. Current primary/secondary time reads are not
 established; see [clock limits](clock-reading-limits.md).
+
+### Previous installed alarm-only boundary
+
+The historical pilot at component revision `a897b0078a73deeaafbec0c1265be4848592f343`
+published a complete alarm/SIG snapshot at `2026-10-18T01:41:26+00:00`, with 11
+identities, closed window and a healthy proxy/node. Its final watch screen was
+not reported. That exact component passed 449 offline/143 real-HA runtime cases,
+with synthetic external IO, and its private deployment wrapper passed 12 recovery
+tests. Those earlier counts and unknown screen apply to that trial, not the new
+joint read or its confirmed ERR.
 
 ## Historical gates
 
@@ -193,11 +233,11 @@ Home Assistant `2026.9.4`, ESPHome `2026.9.1`, Bleak `3.0.2`, bleak-retry-connec
 
 ## Remaining acceptance (current)
 
-- Repeatability of the shared HA-owned alarm route across separate sessions, activated SIG, longer-term reconnects and real active-transfer cancellation/unload remain unverified. Keep failed samples; do not retry until success and call that reliability.
-- The cause of earlier watch-side `ERR` remains unresolved. The latest HA trial’s terminal screen is unknown, not a confirmed success or failure.
-- Physical daily-history comparison, automatic fresh-window step reads and unattended operation remain unvalidated. Automatic reading is still off. Historical manual step successes apply to their named earlier revision, not this alarm-only trial.
-- Interactive session lifetime and automatic reading remain separate product goals; this one-shot alarm read does not fulfill them.
-- Current primary/secondary clock reads lack a validated GET/decoder contract. Zone/DST configuration is a narrower source-backed proposal, not an implemented or physically tested feature.
-- Alarm editing, clock/settings writes and watch-button events are not implemented in this branch. Each needs its own contract and coordinated acceptance. No further physical work is armed by this documentation update.
+- The joint HA-owned read refreshed alarms and steps together. Separate-session repeatability, activated SIG, longer-term reconnects and real active-transfer cancellation/unload remain unverified. Keep failed samples; do not retry until success and call that reliability.
+- The latest joint trial's watch screen was **ERR** despite successful observable-group publication. Its cause remains unresolved.
+- History was received as a dated zero/null snapshot but not independently compared for all seven days. Automatic fresh-window reads and unattended operation remain unvalidated; automatic reading is still off.
+- Persistent interactive session lifetime and opt-in automatic combined reading remain separate product goals; the manual combined transaction does not fulfill them.
+- Current primary/secondary running-clock reads lack a validated GET/decoder contract. Zone/DST **configuration** was received in the joint trial but is not a running-clock sample.
+- Alarm editing, clock/settings writes and watch-button events are not implemented in this branch. Added settings were received but not individually visually compared; unknown auto-time remains unverifiable. No further physical work is armed by this documentation update.
 
 The operator also reports Android CasioGShockSmartSync phone actions working. That is a useful independent session reference, not proof of our unimplemented features. Raw logs, device addresses, credentials, registry backups and third-party captures are intentionally excluded from this repository.

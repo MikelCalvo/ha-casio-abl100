@@ -92,6 +92,12 @@ acquisition or cleanup children.
 
 ## Evidence and exclusions
 
+> The local-unit boundary below is historical. Zone configuration was subsequently
+> installed as part of `e3690ff` and received during its joint physical read.
+> Individual visual comparison and running-clock reads remain unverified. See
+> [current validation](validation.md); the joint sample does not retroactively
+> turn this unit's synthetic tests into physical tests.
+
 Field provenance and immutable decoder semantics are in
 [settings-read-contract.md](settings-read-contract.md), based on GShockAPI 1.7.6
 commit `5b1043a888ea3d97331c0c701f2da776ff638d8f` and retained source/third-party
