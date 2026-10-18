@@ -29,6 +29,14 @@ supplies every handle. No one-shot reader is called and no inner disconnect is
 hidden. No GET22/10, GET23, initialization, END, SET, time synchronization,
 pairing, reset, reconnect, retry or firmware change is introduced.
 
+For this unified invocation, the first disconnect or error after an affirmative
+BLE connection permanently ends operational authority. A later connected callback
+without another CONNECT cannot restore it or its removed notifications. No later
+requests or group commits are allowed; earlier committed groups remain intact.
+This BLE lifetime is separate from the API generation: bounded cleanup is still
+permitted on the original valid generation, never on a replacement. An initial
+unconnected callback before establishment is not itself terminal.
+
 ## Independent observations, not atomic whole-watch success
 
 Each group validates all its frames with the existing immutable parser, drains

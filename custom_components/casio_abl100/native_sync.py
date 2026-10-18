@@ -31,7 +31,17 @@ class _SyncReadFailed(HomeAssistantError):
 
 
 class _SyncAPI(NativeAPI):
-    """Observe the outer owner's actual cleanup, including suppressed faults."""
+    """Scope BLE lifetime callbacks without changing the shared native client."""
+    def __init__(self, connection, valid, operational, observe_link):
+        super().__init__(connection, valid, operational)
+        self.observe_link = observe_link
+
+    async def bluetooth_device_connect(self, address, on_state, *args, **kwargs):
+        def state(connected, mtu, error):
+            on_state(self.observe_link(connected, error), mtu, error)
+
+        return await super().bluetooth_device_connect(address, state, *args, **kwargs)
+
     async def bluetooth_device_disconnect(self, *args, **kwargs):
         try:
             result = await super().bluetooth_device_disconnect(*args, **kwargs)
@@ -45,9 +55,29 @@ class _SyncAPI(NativeAPI):
 class NativeSyncRead(NativeRead):
     def __init__(self, session, entry):
         super().__init__(session, entry)
-        self.api = _SyncAPI(self.connection, self.generation_valid, self.valid)
+        self.link_established = False
+        self.link_lost = False
+        self.api = _SyncAPI(self.connection, self.generation_valid, self.valid,
+                            self.observe_link)
         self.api.session = session
         self.execution = None
+
+    def observe_link(self, connected, error):
+        confirmed = connected is True and error == 0
+        if self.link_established and not confirmed:
+            # BLE loss is terminal, but does not revoke the original API
+            # generation's authority to release this invocation's resources.
+            self.link_lost = True
+            if self.adapter is not None:
+                self.adapter.receiver = self.adapter.step_receivers = None
+        if confirmed and not self.link_lost:
+            self.link_established = True
+        return confirmed and not self.link_lost
+
+    def valid(self):
+        # Also guards actual native submission after a scheduled acquisition,
+        # not just the adapter's earlier check or the final group commit.
+        return not self.link_lost and super().valid()
 
     async def read(self):
         # Keep the captured public owner for submission/commit authority. A
