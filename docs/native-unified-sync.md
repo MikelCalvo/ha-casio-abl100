@@ -3,9 +3,9 @@
 `button.press` on **Read watch data** (`read_all`, Spanish **Leer datos del reloj**)
 starts one explicitly initiated native ESPHome transaction. Setup does not contact
 the watch. Enable the watch's Bluetooth connection window only when coordinating
-a read. This local implementation does not enable automatic synchronization;
-`auto_read_steps` retains its existing step-only meaning. Automatic unified
-advertisement dispatch is a separate opt-in consumer, not part of this unit.
+a manual read. `auto_read_steps` retains its step-only meaning. The local candidate
+also adds the separate default-off `auto_read_all` consumer described below;
+that new automatic behavior is not installed or physically accepted.
 
 ## One owner, fixed order
 
@@ -138,6 +138,48 @@ this transaction is not presented as their fix. The historical failures are not
 erased by a later useful sample. See [validation](validation.md) for the exact
 installed boundary, values, unknown history and retained historical gates.
 
-Automatic unified dispatch is still a separate, unimplemented opt-in consumer;
-`auto_read_steps` retains its step-only meaning and stays off in the pilot. No
-physical test or automatic work is armed by this documentation.
+## Optional automatic unified consumer (local candidate)
+
+`auto_read_all` defaults false, independently of legacy step-only `auto_read_steps`.
+Both are strict booleans and mutually exclusive; malformed/conflicting stored
+options fail setup before forwarding platforms. Options errors do not mutate or
+reload an entry. Valid saves use the existing single selected-entry reload listener.
+Either enabled mode blocks Bluetooth address reconfiguration, even at submission.
+There are no new entities, migrations or changed identities: 26 component files,
+19 entity keys on the same device. Both false means no automatic observer/task.
+
+All mode attaches one local RAW handler to the selected HA-owned native ESPHome
+API generation and one passive generation-maintenance timer. It sends no new
+advertisement subscription/unsubscription, scanner request or API-client request.
+Only a live exact-target packet carrying a recognized normalized model name and
+actual address type 0/1 qualifies; a cached name/type cannot replace those fields.
+The existing advertisement-data parser decodes the live payload. This conservative
+heuristic does not recognize CNCT or guarantee a request for every physical gesture.
+
+The first qualifying packet **delivered while bound/armed** creates a private,
+single-use admission tied to the session, proxy entry and runtime/client/API
+connection/proxy/disconnect-callback collection. Under the existing mutex and again
+at consumption it checks owner, LOADED state, exact generation, cancellation and
+finite nonfuture age at most five seconds. It uses that packet's address type,
+without a second RAW wait. Invalid/reused tickets reject, never fall back to manual
+waiting. Zero-argument manual calls still wait for a subsequent RAW packet.
+
+A qualifying burst is consumed before busy, suspension, task occupancy or scheduling
+checks. No automatic lock queue or retry follows success, partial data, failure or
+busy refusal. A host-ingress timestamp gap of at least 30 seconds permits a later
+burst even for identical payloads suppressed by ordinary HA callbacks. This time
+is local host receive time, not an RF timestamp. Public metadata only suppresses
+setup/resume windows; neither metadata nor the maintenance timer authorizes a read.
+
+Maintenance detaches the old handler before reattaching on the same selected proxy
+source's new usable generation, preserves the burst claim, and revokes old queued
+tickets. It never migrates sources or reads. No guarantee covers packets before
+setup or during unavailability/rebinding. Stop/unload removes only owned original
+handles and joins cooperative cleanup under repeated cancellation; refused unload
+retains observed claims. Native transport, query order, group commits, link latch,
+timeouts and cleanup remain unchanged.
+
+The installed manual physical sample above belongs only to `e3690ff`, not this
+automatic candidate. Automatic physical acceptance and reliability remain pending;
+ERR remains unresolved. Both automatic modes stay off in the pilot. No physical
+test or automatic work is armed by this documentation.

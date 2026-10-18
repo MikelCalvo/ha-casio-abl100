@@ -4,7 +4,10 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.util import dt as dt_util
 from homeassistant.components import bluetooth
 
-from .native_alarms import NativeRead, select_proxy
+from bluetooth_data_tools import monotonic_time_coarse
+
+from .auto_read import _finite_time, MAX_AGE
+from .native_alarms import NativeRead, select_proxy, _usable, _loaded
 from .native_api import NativeAPI
 from .native_sync_adapter import NativeSyncAdapter
 from .sync_transport import (read_alarm_group, read_step_group, read_zone_group,
@@ -52,6 +55,49 @@ class _SyncAPI(NativeAPI):
         return result
 
 
+class _RawSyncAdmission:
+    """Single-use host-ingress authority, bound to one watch and API generation."""
+    def __init__(self, session, proxy_entry, *, runtime, client, connection,
+                 proxy, disconnect_callbacks, target, address_type, seen):
+        self.session, self.entry = session, proxy_entry
+        self.runtime, self.client, self.connection = runtime, client, connection
+        self.proxy, self.callbacks = proxy, disconnect_callbacks
+        self.target, self.address_type, self.seen = target, address_type, seen
+        self.consumed = False
+
+    def guard(self, session):
+        now = monotonic_time_coarse()
+        task = asyncio.current_task()
+        if (self.consumed or session is not self.session or session.closed
+                or task is None or task.cancelling()
+                or not _loaded(session.entry) or session.entry.runtime_data is not session
+                or type(self.address_type) is not int or self.address_type not in (0, 1)
+                or type(self.target) is not int
+                or self.target != int(session.address.replace(':', ''), 16)
+                or not _finite_time(now) or not _finite_time(self.seen)
+                or not 0 <= now - self.seen <= MAX_AGE
+                or not _usable(self.entry)
+                or self.entry.runtime_data is not self.runtime
+                or self.runtime.client is not self.client
+                or self.runtime.bluetooth_device is not self.proxy
+                or self.runtime.disconnect_callbacks is not self.callbacks
+                or self.client._get_connection() is not self.connection):
+            raise ValueError('Invalid automatic read admission')
+
+    def consume(self, reader):
+        self.guard(reader.session)
+        if (reader.entry is not self.entry or reader.runtime is not self.runtime
+                or reader.client is not self.client or reader.connection is not self.connection
+                or reader.proxy is not self.proxy or reader.callbacks is not self.callbacks
+                or reader.target != self.target):
+            raise ValueError('Automatic read generation changed')
+        # free/guard checks the captured public owner, not this execution child.
+        reader.free()
+        reader.guard()
+        self.consumed = True
+        return self.address_type
+
+
 class NativeSyncRead(NativeRead):
     def __init__(self, session, entry):
         super().__init__(session, entry)
@@ -61,6 +107,12 @@ class NativeSyncRead(NativeRead):
                             self.observe_link)
         self.api.session = session
         self.execution = None
+        self._admission = None
+
+    async def wait(self):
+        if self._admission is None:
+            return await super().wait()
+        return self._admission.consume(self)
 
     def observe_link(self, connected, error):
         confirmed = connected is True and error == 0
@@ -132,7 +184,7 @@ class NativeSyncRead(NativeRead):
             self.adapter.remove_notifications()
 
 
-async def read_all(session):
+async def read_all(session, *, admission=None):
     """Register before lock wait; a queue waiter owns no status or freshness."""
     task = asyncio.current_task()
     if session.closed:
@@ -147,6 +199,13 @@ async def read_all(session):
         async with session.lock:
             if session.closed or task.cancelling():
                 raise asyncio.CancelledError
+            if admission is not None:
+                if type(admission) is not _RawSyncAdmission:
+                    raise ValueError('Invalid automatic read admission')
+                admission.guard(session)
+                device = bluetooth.async_ble_device_from_address(session.hass, session.address, connectable=True)
+                if select_proxy(session.hass, device) is not admission.entry:
+                    raise ValueError('Automatic read source changed')
             active = True
             session.sync_group_results = dict.fromkeys(GROUPS, 'not_attempted')
             session.sync_cleanup_result = 'not_attempted'
@@ -161,6 +220,7 @@ async def read_all(session):
             if entry is None:
                 raise ValueError('Native unified source required')
             reader = NativeSyncRead(session, entry)
+            reader._admission = admission
             await reader.read()
             if session.closed or task.cancelling():
                 raise asyncio.CancelledError

@@ -403,10 +403,10 @@ class WatchSession:
                 self.set_zone_phase('closed' if self.closed else 'idle', notify=False)
         self._schedule_alarm_delivery()
 
-    async def read_all(self):
+    async def read_all(self, *, admission=None):
         """Read supported groups on one HA-owned native connection."""
         from .native_sync import read_all
-        await read_all(self)
+        await read_all(self, admission=admission)
 
     async def shutdown(self):
         self.closed = True
@@ -442,11 +442,16 @@ async def async_setup_entry(hass, entry):
     entry.runtime_data = manager
     cancel_update = None
     try:
+        modes = tuple(entry.options.get(key, False) for key in ('auto_read_steps', 'auto_read_all'))
+        if any(type(value) is not bool for value in modes) or all(modes):
+            from homeassistant.exceptions import ConfigEntryError
+            raise ConfigEntryError('Invalid automatic read options')
         await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-        if entry.options.get('auto_read_steps') is True:
+        if entry.options.get('auto_read_steps') is True or entry.options.get('auto_read_all') is True:
             from .auto_read import AutoStepReader
 
-            manager.auto_reader = AutoStepReader(hass, entry, manager)
+            manager.auto_reader = AutoStepReader(hass, entry, manager, mode=(
+                'all' if entry.options.get('auto_read_all') is True else 'steps'))
             manager.auto_reader.start()
         cancel_update = entry.add_update_listener(_async_options_updated)
         entry.async_on_unload(cancel_update)

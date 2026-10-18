@@ -2,7 +2,7 @@
 
 **Experimental pilot, updated 2026-10-18.** Component revision `e3690ff299d907b2867d19c65287fc9e19cce392` is installed. One coordinated **Read watch data** request through Home Assistant's existing ESPHome API connection refreshed alarms/SIG, steps/history, zone configuration, basic settings and encoded timer configuration in one owned session. The five externally verifiable groups passed the postflight checks. Automatic-time adjustment remained unavailable and **unverifiable**, not disabled or fully accepted.
 
-The watch ended in **ERR despite the received data**. Its cause and everyday reliability remain unresolved. Automatic reading is **off** in the pilot. There is no automatic combined-read mode yet; the existing optional automatic reader still requests only steps.
+The watch ended in **ERR despite the received data**. Its cause and everyday reliability remain unresolved. Automatic reading is **off** in the pilot. This local candidate adds a separate default-off automatic combined-read option; it is **not installed or physically accepted**. The existing steps option keeps its step-only meaning.
 
 No Casio account or cloud service is required. This is not an official Casio or Home Assistant integration, is not in the HACS default catalog and has no stable release.
 
@@ -15,7 +15,7 @@ No Casio account or cloud service is required. This is not an official Casio or 
 - The step snapshot included yesterday's zero and six unknown (`null`) historical totals. Unknown is not zero. Receipt of the snapshot does not validate every historical value against the watch.
 - Installation preserved the original **11 entity identities** and added exactly **8**, for **19 entities** on the existing device. One necessary Core restart, source equality, selected entries, a free proxy slot and continuing temperature/humidity reports were checked. No watch settings or firmware were changed.
 - The accepted source passed **1,256 offline and 479 real-HA runtime cases**, with external native IO synthetic, plus focused link-lifetime regressions and independent SPEC/QUALITY review. Counts overlap narrower selections and are not hardware-read counts.
-- Alarm editing, time synchronization, editable settings, watch-button events and a persistent interactive connection are not implemented in this branch. The next increment is an explicit opt-in automatic combined read during a fresh watch connection opportunity, not another scheduler or an implicit change to the old steps option.
+- Alarm editing, time synchronization, editable settings, watch-button events and a persistent interactive connection are not implemented in this branch. The local opt-in automatic combined reader uses a fresh watch advertisement, not another scheduler or an implicit change to the old steps option; independent review and physical acceptance are pending.
 
 See [current and historical validation](docs/validation.md), [unified transaction details](docs/native-unified-sync.md), [zone semantics](docs/native-zones.md) and [read-only settings contracts](docs/settings-read-contract.md). A successful read and the watch's terminal screen are separate observations.
 
@@ -79,19 +79,23 @@ Back up the integration and configuration and use only a recoverable installatio
 
 Existing identities are retained; new read groups add entities. Reloading resets observations until a fresh read. Do not delete/re-add the watch just to update code.
 
-## Optional native step-window reader
+## Optional automatic window readers
 
-Under **Configure**, `auto_read_steps` is an English/Spanish boolean, **off by default**. It still means **steps only**, including history on a valid record. Enabling/disabling reloads only the selected entry. Automatic combined reads are not implemented yet.
+Under **Configure**, `auto_read_steps` and `auto_read_all` are strict English/Spanish booleans, **both off by default**. Select at most one. `auto_read_steps` still means **steps only**, including history on a valid record. `auto_read_all` requests the same fixed six-group transaction as the combined manual button. Saving reloads only the selected entry, retaining its 19 entity identities and device. Conflicting or malformed stored options fail closed; there is no silent migration.
 
-The entry-owned observer uses public HA Bluetooth metadata: a PASSIVE exact-address connectable callback and a one-second cached-metadata timer, because unchanged payloads may suppress callbacks while timestamps advance. It is not watch GATT polling or a second ESPHome scanner. Cached setup bursts are consumed without reading. Fresh opportunities are at most five seconds old; timestamp gaps of at least 30 seconds can separate bursts. Busy/stale/failed opportunities are consumed without a queued automatic retry.
+In steps mode, the entry-owned observer uses public HA Bluetooth metadata: a PASSIVE exact-address connectable callback and a one-second cached-metadata timer, because unchanged payloads may suppress callbacks while timestamps advance. It is not watch GATT polling or a second ESPHome scanner. Cached setup bursts are consumed without reading. Fresh opportunities are at most five seconds old; timestamp gaps of at least 30 seconds can separate bursts. Busy/stale/failed opportunities are consumed without a queued automatic retry.
+
+In all mode, one local RAW callback observes HA's already-owned native ESPHome API connection. The **first qualifying RAW packet delivered while bound and armed** supplies the exact address and live public/random address type; it does not wait for another packet or trust cached device type. That packet must itself carry a recognized ABL-100 name. Name-absent packets are not triggers even if HA remembers the name. There is no second scanner, client or advertisement subscription. One passive one-second timer only detaches/rebinds a changed generation on the same selected proxy; it never requests a read. Packets before setup or during source unavailability/rebinding are not guaranteed.
+
+Both modes consume a qualifying burst before busy/suspended/scheduling checks: no lock queue or automatic retry within that burst, including after partial/failure. The 30-second quiet-gap and five-second admission limits use host-ingress monotonic time, not RF-origin time. Public metadata can suppress a setup/resume burst but cannot authorize an all-mode read.
 
 This is a **timestamp heuristic, not a physical CNCT identifier**. Phone, FIND or automatic time-connection windows can also qualify. There is no evidence of exactly one request per physical gesture or useful data transfer during automatic time windows. Disable/unload removes observers and joins cooperative cleanup. Physical automatic acceptance and unattended reliability remain open.
 
-With the option off, use an explicit manual button as above. With it enabled, a fresh qualifying opportunity may request steps without the HA button. Do not enable it merely because manual combined reading worked.
+With both options off, use an explicit manual button as above. With exactly one enabled, a fresh qualifying opportunity may request that mode without the HA button. The new automatic combined candidate has only local synthetic-IO validation pending independent review; do not attribute the installed manual trial to it. Do not enable either merely because manual combined reading worked.
 
 ## Native Bluetooth-address reconfiguration
 
-If the **same physical watch** changes its Bluetooth address after a pairing reset, use the existing entry's **⋮ → Reconfigure** action. Do not remove/re-add it or edit HA storage. Turn automatic steps off first; reconfiguration is refused while that option is enabled.
+If the **same physical watch** changes its Bluetooth address after a pairing reset, use the existing entry's **⋮ → Reconfigure** action. Do not remove/re-add it or edit HA storage. Turn both automatic modes off first; reconfiguration is refused if either is enabled or malformed, including a submission-time race.
 
 Explicitly select or type the new address after confirming the physical device. The selected entry's transport address changes while its entry/device/entity identities, title and options remain. Other entries' current addresses and retained identities remain reserved. The native reload clears observations; reconfiguration alone is not a successful read, new pairing or ERR fix. See [Spanish instructions](docs/reconfigure.es.md).
 

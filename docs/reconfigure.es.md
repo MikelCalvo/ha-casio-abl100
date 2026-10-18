@@ -4,7 +4,7 @@ Esta función está instalada en el piloto. Se conservó la entrada y sus 11 ide
 
 Si el **mismo reloj físico** anuncia una dirección nueva tras borrar su emparejamiento:
 
-1. En **Ajustes → Dispositivos y servicios → Casio ABL-100WE → Configurar**, desactiva **Leer pasos al detectar el reloj**. La reconfiguración se rechaza mientras esté activada, incluso si se activa con el formulario abierto. No se cambian opciones sin avisar.
+1. En **Ajustes → Dispositivos y servicios → Casio ABL-100WE → Configurar**, desactiva **Leer pasos al detectar el reloj** y **Leer todos los datos al detectar el reloj** (la segunda opción es nueva en el candidato local, aún no instalado ni aceptado físicamente). La reconfiguración se rechaza mientras cualquiera esté activada o tenga un valor no booleano, incluso si cambia con el formulario abierto. No se cambian opciones sin avisar.
 2. Abre **⋮ → Reconfigurar** en la entrada existente. No elimines y vuelvas a añadir la integración; no edites los archivos internos de Home Assistant.
 3. Confirma que la dirección nueva corresponde a tu reloj. Selecciona expresamente el reloj detectado o escribe su dirección MAC completa con caracteres ASCII. La dirección escrita tiene prioridad. El nombre del modelo y la detección no demuestran la propiedad del dispositivo, y nunca se cambia la dirección automáticamente por coincidir el nombre.
 4. Envía el formulario. Si el anuncio seleccionado ha desaparecido, vuelve a seleccionarlo o escribe la dirección exacta. La dirección actual y la identidad conservada de cualquier otra entrada están reservadas: no se pueden reutilizar. Una entrada sin identidad estable se rechaza, sin migraciones implícitas.

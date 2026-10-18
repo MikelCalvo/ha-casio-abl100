@@ -150,11 +150,12 @@ async def test_both_flows_reject_another_entry_transport_or_stable_identity(
         connect.assert_not_called()
 
 
+@pytest.mark.parametrize('option', ['auto_read_steps', 'auto_read_all'])
 @pytest.mark.parametrize('enabled_at_start', [False, True])
 async def test_reconfigure_requires_auto_read_off_including_submission_race(
-    hass, enable_custom_integrations, enabled_at_start,
+    hass, enable_custom_integrations, enabled_at_start, option,
 ):
-    entry = entry_for(hass, options={'auto_read_steps': enabled_at_start, 'keep': 1})
+    entry = entry_for(hass, options={option: enabled_at_start, 'keep': 1})
     with patch('custom_components.casio_abl100.config_flow.bluetooth.async_discovered_service_info',
                return_value=[]), patch('custom_components.casio_abl100.establish_connection') as connect:
         result = await hass.config_entries.flow.async_init(DOMAIN, context={
@@ -162,13 +163,13 @@ async def test_reconfigure_requires_auto_read_off_including_submission_race(
         })
         if not enabled_at_start:
             assert result['type'] is FlowResultType.FORM
-            hass.config_entries.async_update_entry(entry, options={'auto_read_steps': True, 'keep': 1})
+            hass.config_entries.async_update_entry(entry, options={option: True, 'keep': 1})
             result = await hass.config_entries.flow.async_configure(result['flow_id'], {'address': NEW})
         await clean_loaded(hass)
         assert result['type'] is FlowResultType.ABORT
         assert result['reason'] == 'auto_read_enabled'
         assert entry.data['address'] == OLD and entry.unique_id == OLD
-        assert entry.options == {'auto_read_steps': True, 'keep': 1}
+        assert entry.options == {option: True, 'keep': 1}
         connect.assert_not_called()
 
 

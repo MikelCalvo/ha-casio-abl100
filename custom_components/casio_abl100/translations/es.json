@@ -25,7 +25,7 @@
     "abort": {
       "already_configured": "Esta dirección Bluetooth corresponde a otro reloj configurado o a su identidad conservada.",
       "reconfigure_successful": "Dirección Bluetooth actualizada. Se conservan las entidades y el dispositivo existentes.",
-      "auto_read_enabled": "Desactiva la lectura automática de pasos en Configurar antes de cambiar la dirección Bluetooth. No se ha modificado la configuración.",
+      "auto_read_enabled": "Desactiva ambos modos de lectura automática antes de cambiar la dirección Bluetooth.",
       "missing_identity": "Esta entrada no tiene una identidad estable. No se puede cambiar su dirección Bluetooth de forma segura sin una reparación revisada por separado."
     }
   },
@@ -130,14 +130,16 @@
     "step": {
       "init": {
         "title": "Casio ABL-100WE",
-        "description": "Activación opcional y experimental: intentar leer pasos durante una ventana de anuncios Bluetooth. No reconoce el modo CNCT, no mantiene una conexión permanente ni escribe la hora del reloj.",
+        "description": "Experimental y opcional: selecciona como máximo un modo automático. Los anuncios Bluetooth solo indican una ventana de disponibilidad, no reconocen CNCT. Leer todos los datos requiere una fuente ESPHome nativa disponible y un anuncio en vivo que incluya un nombre compatible. No mantiene una conexión ni escribe la hora. Desactiva ambos modos antes de cambiar la dirección.",
         "data": {
-          "auto_read_steps": "Leer pasos al detectar el reloj"
+          "auto_read_steps": "Leer pasos al detectar el reloj",
+          "auto_read_all": "Leer todos los datos al detectar el reloj"
         }
       }
     },
     "error": {
-      "invalid_boolean": "Selecciona un valor booleano"
+      "invalid_boolean": "Selecciona un valor booleano",
+      "automatic_modes_conflict": "Selecciona un solo modo de lectura automática."
     }
   }
 }

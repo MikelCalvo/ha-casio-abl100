@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 from homeassistant.components import bluetooth
+from homeassistant.config_entries import ConfigEntryState
 from homeassistant.exceptions import HomeAssistantError
 
 ADDRESS = 'AA:BB:CC:DD:EE:FF'
@@ -30,7 +31,8 @@ def harness():
         task = asyncio.create_task(coro)
         tasks.append(task)
         return task
-    entry = SimpleNamespace(async_create_background_task=Mock(side_effect=create))
+    entry = SimpleNamespace(async_create_background_task=Mock(side_effect=create),
+                            state=ConfigEntryState.LOADED, runtime_data=owner)
     hass = SimpleNamespace()
     with patch(MODULE + '.monotonic_time_coarse', side_effect=lambda: state.now), patch(
         MODULE + '.bluetooth.async_last_service_info', side_effect=lambda *a, **k: state.cached

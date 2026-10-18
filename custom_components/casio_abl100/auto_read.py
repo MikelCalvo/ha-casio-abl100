@@ -4,7 +4,12 @@ from datetime import timedelta
 import logging
 import math
 
-from bluetooth_data_tools import monotonic_time_coarse
+from bluetooth_data_tools import monotonic_time_coarse, parse_advertisement_data_bytes
+from aioesphomeapi.api_pb2 import BluetoothLERawAdvertisementsResponse
+from homeassistant.config_entries import ConfigEntryState
+from homeassistant.exceptions import ConfigEntryError
+
+from .native_alarms import select_proxy, _usable
 from homeassistant.components import bluetooth
 from homeassistant.core import callback
 from homeassistant.helpers.event import async_track_time_interval
@@ -26,8 +31,9 @@ def _finite_time(value):
 class AutoStepReader:
     """One request per observed burst, not proof of a particular watch gesture."""
 
-    def __init__(self, hass, entry, session):
+    def __init__(self, hass, entry, session, *, mode='steps'):
         self.hass, self.entry, self.session = hass, entry, session
+        self.mode = mode
         self._clock = None
         self._last_seen = None
         self._claimed = False
@@ -40,6 +46,11 @@ class AutoStepReader:
         self._stop_cancelled_task = None
         self._cancel_callback = None
         self._cancel_timer = None
+        self._cancel_disconnect = None
+        self._raw_binding = None
+        self._proxy_entry = None
+        self._source = None
+        self._pending_admission = None
 
     def _now(self):
         now = monotonic_time_coarse()
@@ -62,6 +73,21 @@ class AutoStepReader:
         if now is None or self._faulted:
             return
         try:
+            if self.mode == 'all':
+                device = bluetooth.async_ble_device_from_address(self.hass, self.session.address, connectable=True)
+                name = (device.name or '').rstrip('\x00 \t\r\n') if device is not None else ''
+                if device is not None and (device.address.upper() != self.session.address or name not in _NAMES):
+                    raise ValueError('Unverified watch model')
+                self._proxy_entry = select_proxy(self.hass, device)
+                if self._proxy_entry is None:
+                    raise ValueError('Native automatic source required')
+                self._source = self._proxy_entry.runtime_data.bluetooth_device.mac_address
+                self._bind_raw(self._proxy_entry)
+                self._cancel_timer = async_track_time_interval(
+                    self.hass, self._maintain_raw, timedelta(seconds=1),
+                )
+                self._ready = True
+                return
             self._cancel_callback = bluetooth.async_register_callback(
                 self.hass, self._advertisement,
                 {'address': self.session.address, 'connectable': True},
@@ -80,7 +106,101 @@ class AutoStepReader:
                     cancel()
                 except (Exception, asyncio.CancelledError):
                     _LOGGER.warning('Automatic step observer cleanup failed')
+            if self.mode == 'all':
+                self._detach_raw()
+                if self._cancel_timer is not None:
+                    cancel, self._cancel_timer = self._cancel_timer, None
+                    cancel()
+                raise ConfigEntryError('Unable to observe native automatic source') from None
             raise
+
+    def _detach_raw(self):
+        self._raw_binding = None
+        if self._pending_admission is not None:
+            self._pending_admission.consumed = True
+            self._pending_admission = None
+        for attribute in ('_cancel_callback', '_cancel_disconnect'):
+            cancel = getattr(self, attribute)
+            setattr(self, attribute, None)
+            if cancel is not None:
+                try:
+                    cancel()
+                except (Exception, asyncio.CancelledError):
+                    _LOGGER.warning('Automatic watch observer cleanup failed')
+
+    def _bind_raw(self, proxy_entry):
+        if not _usable(proxy_entry):
+            raise ValueError('Native automatic source unavailable')
+        runtime = proxy_entry.runtime_data
+        proxy = runtime.bluetooth_device
+        if proxy.mac_address != self._source:
+            raise ValueError('Native automatic source changed')
+        client = runtime.client
+        connection = client._get_connection()
+        callbacks = runtime.disconnect_callbacks
+        binding = self._raw_binding = (runtime, client, connection, proxy, callbacks)
+        def raw(message):
+            # A producer can retain a delivery snapshot after handler removal.
+            if self._raw_binding is binding:
+                self._raw_advertisement(message)
+        try:
+            self._cancel_callback = connection.add_message_callback(
+                raw, (BluetoothLERawAdvertisementsResponse,),
+            )
+            def disconnected():
+                if self._raw_binding is binding:
+                    self._detach_raw()
+            callbacks.add(disconnected)
+            self._cancel_disconnect = lambda: callbacks.discard(disconnected)
+        except BaseException:
+            self._detach_raw()
+            raise
+
+    def _raw_valid(self):
+        try:
+            runtime, client, connection, proxy, callbacks = self._raw_binding
+            return (_usable(self._proxy_entry)
+                    and self._proxy_entry.runtime_data is runtime
+                    and runtime.client is client and runtime.bluetooth_device is proxy
+                    and runtime.disconnect_callbacks is callbacks
+                    and proxy.mac_address == self._source
+                    and client._get_connection() is connection)
+        except Exception:
+            return False
+
+    @callback
+    def _maintain_raw(self, _now):
+        if self._stopped or self._faulted or self._raw_valid():
+            return
+        self._detach_raw()
+        try:
+            self._bind_raw(self._proxy_entry)
+        except (Exception, asyncio.CancelledError):
+            # Passive maintenance cannot request a read or change selected source.
+            self._detach_raw()
+
+    @callback
+    def _raw_advertisement(self, message):
+        if self._stopped or self._faulted or not self._raw_valid():
+            return
+        for adv in message.advertisements:
+            if adv.address != int(self.session.address.replace(':', ''), 16) or adv.address_type not in (0, 1):
+                continue
+            name = parse_advertisement_data_bytes(bytes(adv.data))[0]
+            if (name or '').rstrip('\x00 \t\r\n') not in _NAMES:
+                continue
+            seen = self._now()
+            if seen is None:
+                return
+            from .native_sync import _RawSyncAdmission
+            runtime, client, connection, proxy, callbacks = self._raw_binding
+            admission = _RawSyncAdmission(
+                self.session, self._proxy_entry, runtime=runtime, client=client,
+                connection=connection, proxy=proxy, disconnect_callbacks=callbacks,
+                target=adv.address, address_type=adv.address_type, seen=seen,
+            )
+            self._claim(seen, seen, admission=admission)
+            return
 
     @callback
     def _advertisement(self, info, change):
@@ -106,6 +226,13 @@ class AutoStepReader:
         if now is None or not _finite_time(seen) or seen > now:
             self._faulted = True
             return
+        if self.mode == 'all' and self._last_seen is not None and seen <= self._last_seen:
+            # Scanner and local RAW ingress stamp independently. Older public
+            # metadata can suppress a window, never revoke newer RAW observation.
+            return
+        self._claim(seen, now, allow_request=allow_request and self.mode == 'steps')
+
+    def _claim(self, seen, now, *, allow_request=True, admission=None):
         previous = self._last_seen
         if previous is not None:
             if seen < previous:
@@ -123,26 +250,39 @@ class AutoStepReader:
         if (not self._ready or not allow_request or self._suspended or now - seen > MAX_AGE
                 or self._busy() or self._task is not None):
             return
-        coroutine = self._read(seen)
+        self._pending_admission = admission
+        coroutine = self._read(seen, admission=admission)
         try:
             self._task = self.entry.async_create_background_task(
                 self.hass, coroutine, 'Casio automatic step read', eager_start=False,
             )
         except (Exception, asyncio.CancelledError):
             coroutine.close()
+            if admission is not None:
+                admission.consumed = True
+            self._pending_admission = None
             _LOGGER.warning('Unable to schedule automatic step read')
 
     def _busy(self):
         return self.session.closed or self.session.lock.locked() or bool(self.session.tasks)
 
-    async def _read(self, seen):
+    async def _read(self, seen, *, admission=None):
         try:
             now = self._now()
             if (now is None or self._faulted or self._stopped or self._suspended
-                    or self._busy() or now - seen > MAX_AGE):
+                    or self.entry.state is not ConfigEntryState.LOADED
+                    or self.entry.runtime_data is not self.session
+                    or asyncio.current_task().cancelling()
+                    or self._busy() or not 0 <= now - seen <= MAX_AGE):
                 return
             # No yield between the final check and entering the existing session.
-            await self.session.read()
+            if self.mode == 'all':
+                if not self._raw_valid():
+                    return
+                admission.guard(self.session)
+                await self.session.read_all(admission=admission)
+            else:
+                await self.session.read()
         except asyncio.CancelledError:
             task = asyncio.current_task()
             if task is not None and task.cancelling():
@@ -151,6 +291,8 @@ class AutoStepReader:
         except Exception:
             _LOGGER.warning('Automatic step read failed')
         finally:
+            if self._pending_admission is admission:
+                self._pending_admission = None
             if self._task is asyncio.current_task():
                 self._task = None
 
@@ -173,7 +315,9 @@ class AutoStepReader:
         does not impose a timeout or forcibly abandon the owned reader.
         """
         self._stopped = True
-        for attribute in ('_cancel_callback', '_cancel_timer'):
+        if self.mode == 'all':
+            self._detach_raw()
+        for attribute in ('_cancel_callback', '_cancel_timer', '_cancel_disconnect'):
             cancel = getattr(self, attribute)
             setattr(self, attribute, None)
             if cancel is not None:

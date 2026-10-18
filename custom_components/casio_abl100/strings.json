@@ -25,7 +25,7 @@
     "abort": {
       "already_configured": "This Bluetooth address belongs to another configured watch or its retained identity.",
       "reconfigure_successful": "Bluetooth address updated. Existing entities and device are unchanged.",
-      "auto_read_enabled": "Turn off automatic step reading in Configure before changing the Bluetooth address. No configuration was changed.",
+      "auto_read_enabled": "Turn off both automatic read modes before changing the Bluetooth address.",
       "missing_identity": "This entry has no stable identity. Its Bluetooth address cannot be changed safely without a separately reviewed repair."
     }
   },
@@ -130,14 +130,16 @@
     "step": {
       "init": {
         "title": "Casio ABL-100WE",
-        "description": "Optional experimental trigger: try reading steps during a Bluetooth advertising window. This does not recognize CNCT mode, maintain a permanent connection, or write the watch time.",
+        "description": "Experimental and opt-in: select at most one automatic mode. Bluetooth advertising indicates an availability window, not recognition of CNCT. Reading all data requires an available native ESPHome source and a live advertisement carrying a supported name. No permanent connection or time writes. Turn both modes off before changing the address.",
         "data": {
-          "auto_read_steps": "Read steps when watch becomes available"
+          "auto_read_steps": "Read steps when watch becomes available",
+          "auto_read_all": "Read all watch data when watch becomes available"
         }
       }
     },
     "error": {
-      "invalid_boolean": "Select a boolean value"
+      "invalid_boolean": "Select a boolean value",
+      "automatic_modes_conflict": "Select only one automatic read mode."
     }
   }
 }

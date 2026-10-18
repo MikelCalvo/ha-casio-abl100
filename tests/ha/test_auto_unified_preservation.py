@@ -1,0 +1,305 @@
+"""Portable exact inverse-delta preservation guard for the accepted Unit A base.
+
+No Git, private packet or installed HA is needed. Each frozen authorized hunk is
+verified before inversion; the remaining whole-module AST must equal the accepted
+base. Unowned component bytes, including NativeRead/protocol/parsers, are pinned.
+New authorized revisions must update this finite oracle with independent review.
+"""
+import ast
+import hashlib
+import json
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2] / 'custom_components' / 'casio_abl100'
+IMMUTABLE = {'alarms.py': '0cce75a3ec0e31c71980a0578d77d41c1a7ab9852f9f61b7d900e82b9eb2cdc4',
+ 'binary_sensor.py': '5af1aaee0c38429916a9453a6e71351511aff1b2b601792934e463fde431b518',
+ 'button.py': '02e75b972195cb504f3220d997c3c58dd76771613ab978341a3ec93b6c300d60',
+ 'diagnostics.py': '35373addef9e6abb305a95db8155c0a884e360c1fbd0a7b53239ec6deb476abc',
+ 'manifest.json': '995c7bca7aa8699184ebfd6a1d7cc6b2da69493128c20a195715287b5beb80fc',
+ 'native_alarm_adapter.py': 'addc41bf585bd2c7feab52748c7b99a9cadb18df503320c03254f0474cf33054',
+ 'native_alarms.py': 'd1663a47bd7fd7619d512065938e8b598d0babf0e4a2410d919742450197468d',
+ 'native_api.py': '3af0e436ec5bb28177ccff6eb102dee1249b3ef20241f1eae28eddc1a8402908',
+ 'native_step_adapter.py': '977086f937906e9e6aabf6974ed9db9b5ddba9e24910456ecb489a44f74df442',
+ 'native_steps.py': '33e29565daddd8e6accd374c441c5f7e8dd1feda50a0899a1c685b60700a0e9a',
+ 'native_sync_adapter.py': '74e55d1dfece6ce68e5eec2c0cdc819f7171f73e08cb474da9a6804029d90e78',
+ 'native_zone_adapter.py': '87bca86ecb72ed57d5bd52a64872924240034c5f38a9598dcaca1f72df6a91a8',
+ 'native_zones.py': '743e50708eccb89c611faedcc2f85e8cfb958ab4311732e7ed50c7487e14cc55',
+ 'protocol.py': '400d50114c0371f8bc0daff77bee85f6eb2b8af32715e34d142fc11de8fe742b',
+ 'sensor.py': '42a1dc67f79ca9d06291cf1a68b9568c486a45a1bc796123e30e12d7fdb1c0ca',
+ 'settings.py': '2e223383cba446e4f6bd0d1f76f646b970bcee552f94cb0d8dacc9d1310b814a',
+ 'sync_transport.py': '3c4ee02eb68e5842627c1979b02434c18cd1f53a92d5090ebac12ecbb2351716',
+ 'transport.py': '140b8029c6bae04fa43896e06c86aaeabfdbbb9a6fcb5f523b0246595db4ee43',
+ 'zone_transport.py': '24fa0e2da8ab9ecf54b8f328ccd6e850c1f02ae6fb519db0265f947158fd5af6'}
+INVERSE = {'__init__.py': {'baseline_ast': '73b1f5469eb67b68f775fdcff7f29ba1d11a12cf6fc6c1a196c9f5fb99449998',
+                 'hunks': [[402,
+                            412,
+                            '068a8f07a2ae1d4da1b49f51d06fe15bb35580567ee4c4df7546a2d5f7455fa5',
+                            "                self.set_zone_phase('closed' if self.closed else 'idle', "
+                            'notify=False)\n'
+                            '        self._schedule_alarm_delivery()\n'
+                            '\n'
+                            '    async def read_all(self):\n'
+                            '        """Read supported groups on one HA-owned native connection."""\n'
+                            '        from .native_sync import read_all\n'
+                            '        await read_all(self)\n'
+                            '\n'
+                            '    async def shutdown(self):\n'
+                            '        self.closed = True\n'],
+                           [441,
+                            457,
+                            'bae8c2f3395d84264e8b28723da124d26d7515be53ea95e01a94b564f732a6a5',
+                            '    entry.runtime_data = manager\n'
+                            '    cancel_update = None\n'
+                            '    try:\n'
+                            '        await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)\n'
+                            "        if entry.options.get('auto_read_steps') is True:\n"
+                            '            from .auto_read import AutoStepReader\n'
+                            '\n'
+                            '            manager.auto_reader = AutoStepReader(hass, entry, manager)\n'
+                            '            manager.auto_reader.start()\n'
+                            '        cancel_update = entry.add_update_listener(_async_options_updated)\n'
+                            '        entry.async_on_unload(cancel_update)\n']]},
+ 'auto_read.py': {'baseline_ast': '529fd627c9da2c5faa4d512bf4aaa701521f39d36f6aa43eb077ac6a0dbe17ef',
+                  'hunks': [[3,
+                             15,
+                             '3dea5b4bc2812c76b58d6e267e5ffbab6d8aba810fa06d2bced711be9d8715be',
+                             'import logging\n'
+                             'import math\n'
+                             '\n'
+                             'from bluetooth_data_tools import monotonic_time_coarse\n'
+                             'from homeassistant.components import bluetooth\n'
+                             'from homeassistant.core import callback\n'
+                             'from homeassistant.helpers.event import async_track_time_interval\n'],
+                            [30,
+                             39,
+                             '954835fa5a75fcfe945c1d9a0a41d87bab9e8ec9e6e555e42ce08005c0d89c14',
+                             'class AutoStepReader:\n'
+                             '    """One request per observed burst, not proof of a particular watch '
+                             'gesture."""\n'
+                             '\n'
+                             '    def __init__(self, hass, entry, session):\n'
+                             '        self.hass, self.entry, self.session = hass, entry, session\n'
+                             '        self._clock = None\n'
+                             '        self._last_seen = None\n'
+                             '        self._claimed = False\n'],
+                            [45,
+                             56,
+                             'cef3347fbf851d59ae98d4e1dd6cf9fc161ad2cdfcdf3873afbe6aad08e43769',
+                             '        self._stop_cancelled_task = None\n'
+                             '        self._cancel_callback = None\n'
+                             '        self._cancel_timer = None\n'
+                             '\n'
+                             '    def _now(self):\n'
+                             '        now = monotonic_time_coarse()\n'],
+                            [72,
+                             93,
+                             '7ba5119d3f5a39f77d0b0fef0f686e2f0ccb2e5967b38907c18f0c48624f06c0',
+                             '        if now is None or self._faulted:\n'
+                             '            return\n'
+                             '        try:\n'
+                             '            self._cancel_callback = bluetooth.async_register_callback(\n'
+                             '                self.hass, self._advertisement,\n'
+                             "                {'address': self.session.address, 'connectable': True},\n"],
+                            [105,
+                             206,
+                             '4a8305cbf10cfdd9758eb9006dbc6d64a6135e506993dfd8240d3c2b51ba27bb',
+                             '                    cancel()\n'
+                             '                except (Exception, asyncio.CancelledError):\n'
+                             "                    _LOGGER.warning('Automatic step observer cleanup failed')\n"
+                             '            raise\n'
+                             '\n'
+                             '    @callback\n'
+                             '    def _advertisement(self, info, change):\n'],
+                            [225,
+                             238,
+                             '503d01586360f536cd27281d644abbce64e468ee659b3ed1a9a20590094e3ac9',
+                             '        if now is None or not _finite_time(seen) or seen > now:\n'
+                             '            self._faulted = True\n'
+                             '            return\n'
+                             '        previous = self._last_seen\n'
+                             '        if previous is not None:\n'
+                             '            if seen < previous:\n'],
+                            [249,
+                             288,
+                             'e742801716b5d33363eb081ac093dc4367276bb3cdc14d197c5e4f48c0c5be57',
+                             '        if (not self._ready or not allow_request or self._suspended or now - '
+                             'seen > MAX_AGE\n'
+                             '                or self._busy() or self._task is not None):\n'
+                             '            return\n'
+                             '        coroutine = self._read(seen)\n'
+                             '        try:\n'
+                             '            self._task = self.entry.async_create_background_task(\n'
+                             "                self.hass, coroutine, 'Casio automatic step read', "
+                             'eager_start=False,\n'
+                             '            )\n'
+                             '        except (Exception, asyncio.CancelledError):\n'
+                             '            coroutine.close()\n'
+                             "            _LOGGER.warning('Unable to schedule automatic step read')\n"
+                             '\n'
+                             '    def _busy(self):\n'
+                             '        return self.session.closed or self.session.lock.locked() or '
+                             'bool(self.session.tasks)\n'
+                             '\n'
+                             '    async def _read(self, seen):\n'
+                             '        try:\n'
+                             '            now = self._now()\n'
+                             '            if (now is None or self._faulted or self._stopped or '
+                             'self._suspended\n'
+                             '                    or self._busy() or now - seen > MAX_AGE):\n'
+                             '                return\n'
+                             '            # No yield between the final check and entering the existing '
+                             'session.\n'
+                             '            await self.session.read()\n'
+                             '        except asyncio.CancelledError:\n'
+                             '            task = asyncio.current_task()\n'
+                             '            if task is not None and task.cancelling():\n'],
+                            [290,
+                             298,
+                             '7f592c99f05d3093ffdd2b3ca956fb300347cc9a2023a1096f908f94186a438d',
+                             '        except Exception:\n'
+                             "            _LOGGER.warning('Automatic step read failed')\n"
+                             '        finally:\n'
+                             '            if self._task is asyncio.current_task():\n'
+                             '                self._task = None\n'
+                             '\n'],
+                            [314,
+                             323,
+                             'c98d4668f2503fbffccede6714aba76b47576f9757ecac8c15ca14a07fc4e1cb',
+                             '        does not impose a timeout or forcibly abandon the owned reader.\n'
+                             '        """\n'
+                             '        self._stopped = True\n'
+                             "        for attribute in ('_cancel_callback', '_cancel_timer'):\n"
+                             '            cancel = getattr(self, attribute)\n'
+                             '            setattr(self, attribute, None)\n'
+                             '            if cancel is not None:\n']]},
+ 'config_flow.py': {'baseline_ast': '00a3c3ef513305524057b9c169834a5fae9fa66a537d2aefc31618490920f172',
+                    'hunks': [[48,
+                               55,
+                               '3afb1e5bf5552477de5f1ac6884a73ea6adddc6a5561e9df25483dcf9b857159',
+                               '        entry = self._get_reconfigure_entry()\n'
+                               '        if not entry.unique_id:\n'
+                               "            return self.async_abort(reason='missing_identity')\n"
+                               "        if entry.options.get('auto_read_steps') is True:\n"
+                               "            return self.async_abort(reason='auto_read_enabled')\n"
+                               '        if user_input is not None:\n'
+                               '            address, errors = self._selected_address(user_input)\n'],
+                              [115,
+                               129,
+                               '90e4907cb8677082570cf052b427dce4d704bbb579cfe1899d0505a9728dfbbd',
+                               '    async def async_step_init(self, user_input=None):\n'
+                               '        errors = {}\n'
+                               '        if user_input is not None:\n'
+                               "            if type(user_input.get('auto_read_steps')) is not bool:\n"
+                               "                errors['auto_read_steps'] = 'invalid_boolean'\n"
+                               '            else:\n'
+                               "                return self.async_create_entry(title='', data={\n"
+                               '                    **self.config_entry.options,\n'
+                               "                    'auto_read_steps': user_input['auto_read_steps'],\n"
+                               '                })\n'
+                               '        return self.async_show_form(\n'
+                               "            step_id='init',\n"],
+                              [130,
+                               139,
+                               '4853b9f82a9b6f88150eef4eed8ef7067cbf398340a4e90721e65e229209883b',
+                               "                vol.Required('auto_read_steps', "
+                               'default=self.config_entry.options.get(\n'
+                               "                    'auto_read_steps', False,\n"
+                               '                )): bool,\n'
+                               '            }),\n'
+                               '            errors=errors,\n'
+                               '        )\n']]},
+ 'native_sync.py': {'baseline_ast': '85da4a0ed444e7b86eb04395f44ab58ff3c90fc6fbafcad5a58539aea9b2b895',
+                    'hunks': [[3,
+                               13,
+                               'f2acef955a1888193a0e922a3e0aec8cb8aae7089675d86b7c076dcdda4085cf',
+                               'from homeassistant.util import dt as dt_util\n'
+                               'from homeassistant.components import bluetooth\n'
+                               '\n'
+                               'from .native_alarms import NativeRead, select_proxy\n'
+                               'from .native_api import NativeAPI\n'
+                               'from .native_sync_adapter import NativeSyncAdapter\n'
+                               'from .sync_transport import (read_alarm_group, read_step_group, '
+                               'read_zone_group,\n'],
+                              [54,
+                               103,
+                               '41c7f02744f7ffec05ea415ed101620ad6ff19313dbcd0b4b3837923e0486124',
+                               '        return result\n'
+                               '\n'
+                               '\n'
+                               'class NativeSyncRead(NativeRead):\n'
+                               '    def __init__(self, session, entry):\n'
+                               '        super().__init__(session, entry)\n'],
+                              [106,
+                               118,
+                               '04311d88d0d46f720f1e778444c93d246c0cfa1864fa65b4b5e3537251c8bc96',
+                               '                            self.observe_link)\n'
+                               '        self.api.session = session\n'
+                               '        self.execution = None\n'
+                               '\n'
+                               '    def observe_link(self, connected, error):\n'
+                               '        confirmed = connected is True and error == 0\n'],
+                              [183,
+                               190,
+                               '82c509d40bf4438fb8e02c905a22c881a2d5a9c90a04e9734a93dfee5d9d9bf6',
+                               '            self.adapter.remove_notifications()\n'
+                               '\n'
+                               '\n'
+                               'async def read_all(session):\n'
+                               '    """Register before lock wait; a queue waiter owns no status or '
+                               'freshness."""\n'
+                               '    task = asyncio.current_task()\n'
+                               '    if session.closed:\n'],
+                              [198,
+                               211,
+                               '33731a10c45123023350dd6d187da6f3cdc23b8f196af891624a4df32cf34180',
+                               '        async with session.lock:\n'
+                               '            if session.closed or task.cancelling():\n'
+                               '                raise asyncio.CancelledError\n'
+                               '            active = True\n'
+                               '            session.sync_group_results = dict.fromkeys(GROUPS, '
+                               "'not_attempted')\n"
+                               "            session.sync_cleanup_result = 'not_attempted'\n"],
+                              [219,
+                               226,
+                               'cffa1e7507ea97f6e8fb73536905b3c873c15da4e15318ea5d22d146dfec10be',
+                               '            if entry is None:\n'
+                               "                raise ValueError('Native unified source required')\n"
+                               '            reader = NativeSyncRead(session, entry)\n'
+                               '            await reader.read()\n'
+                               '            if session.closed or task.cancelling():\n'
+                               '                raise asyncio.CancelledError\n']]}}
+JSON_BASE = {'strings.json': '612c38f0cb7928138d97742cee58b2e0b31a63372621da3f9b0cc28a0291cef9',
+ 'translations/en.json': '612c38f0cb7928138d97742cee58b2e0b31a63372621da3f9b0cc28a0291cef9',
+ 'translations/es.json': 'f9d94e65dfcfbc0b89654349ed49cb7d97c74a839a709f6322829d00025a0dfa'}
+
+
+def digest(data):
+    return hashlib.sha256(data).hexdigest()
+
+
+def test_exact_component_inventory_and_unowned_bytes():
+    expected = set(IMMUTABLE) | set(INVERSE) | set(JSON_BASE)
+    actual = {str(p.relative_to(ROOT)) for p in ROOT.rglob('*')
+              if p.is_file() and '__pycache__' not in p.parts}
+    assert actual == expected and len(actual) == 26
+    for name, expected_hash in IMMUTABLE.items():
+        assert digest((ROOT / name).read_bytes()) == expected_hash, name
+
+
+def test_only_exact_authorized_python_seams_change():
+    for name, oracle in INVERSE.items():
+        lines = (ROOT / name).read_text().splitlines(keepends=True)
+        for start, end, expected_hash, original in reversed(oracle['hunks']):
+            assert digest(''.join(lines[start:end]).encode()) == expected_hash, (name, start)
+            lines[start:end] = original.splitlines(keepends=True)
+        assert digest(ast.dump(ast.parse(''.join(lines)), include_attributes=False).encode()) == oracle['baseline_ast'], name
+
+
+def test_existing_json_names_keys_and_translations_are_preserved():
+    for name, expected_hash in JSON_BASE.items():
+        obj = json.loads((ROOT / name).read_text())
+        obj['config']['abort'].pop('auto_read_enabled')
+        obj['options']['step']['init'].pop('description')
+        assert obj['options']['step']['init']['data'].pop('auto_read_all')
+        assert obj['options']['error'].pop('automatic_modes_conflict')
+        assert digest(json.dumps(obj, sort_keys=True, ensure_ascii=False).encode()) == expected_hash, name
