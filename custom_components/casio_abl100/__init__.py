@@ -40,6 +40,8 @@ class WatchSession:
         self.entry = entry
         self.alarm_phase = 'idle'
         self.alarm_wait_expires_at = None
+        self.step_phase = 'idle'
+        self.step_wait_expires_at = None
         self.address = address
         # Registry identity is immutable; the BLE transport address may change.
         self.identity = identity or address
@@ -97,48 +99,70 @@ class WatchSession:
         self.alarm_delivery_handles.add(handle)
 
     async def read(self):
-        if self.closed:
-            raise HomeAssistantError(translation_domain=DOMAIN, translation_key='closed')
         task = asyncio.current_task()
+        if self.closed:
+            if task is not None and task.cancelling():
+                raise asyncio.CancelledError
+            raise HomeAssistantError(translation_domain=DOMAIN, translation_key='closed')
         self.tasks.add(task)
+        active = False
+        native = False
+        owned_error = None
         try:
+            if task is not None and task.cancelling():
+                raise asyncio.CancelledError
             async with self.lock:
-                if self.closed:
+                active = True
+                if self.closed or (task is not None and task.cancelling()):
                     raise asyncio.CancelledError
                 device = bluetooth.async_ble_device_from_address(
                     self.hass, self.address, connectable=True
                 )
                 name = (device.name or '').rstrip('\x00 \t\r\n') if device is not None else ''
-                if device is None or device.address.upper() != self.address or name not in ('ABL-100', 'ABL-100WE', 'CASIO ABL-100', 'CASIO ABL-100WE'):
-                    raise HomeAssistantError(translation_domain=DOMAIN, translation_key='unavailable')
-                owned = []
-                base_client_class = self.client_class
+                if device is not None and (device.address.upper() != self.address or name not in ('ABL-100', 'ABL-100WE', 'CASIO ABL-100', 'CASIO ABL-100WE')):
+                    owned_error = HomeAssistantError(translation_domain=DOMAIN, translation_key='unavailable')
+                    raise owned_error
+                native_entry = None
+                if self.entry is not None:
+                    from .native_alarms import select_proxy
+                    native = True
+                    native_entry = select_proxy(self.hass, device)
+                    native = native_entry is not None
+                if native_entry is not None:
+                    from .native_steps import NativeStepRead
+                    record = await NativeStepRead(self, native_entry).read()
+                else:
+                    if device is None:
+                        owned_error = HomeAssistantError(translation_domain=DOMAIN, translation_key='unavailable')
+                        raise owned_error
+                    self.set_step_phase('reading', notify=False)
+                    owned = []
+                    base_client_class = self.client_class
 
-                class OwnedClient(base_client_class):
-                    def __init__(self, *args, **kwargs):
-                        super().__init__(*args, **kwargs)
-                        owned.append(self)
+                    class OwnedClient(base_client_class):
+                        def __init__(self, *args, **kwargs):
+                            super().__init__(*args, **kwargs)
+                            owned.append(self)
 
-                try:
-                    client = await asyncio.wait_for(establish_connection(
-                        OwnedClient, device, 'Casio ABL-100WE',
-                        pair=False, max_attempts=2, timeout=10,
-                    ), timeout=16)
-                    # read_record owns cleanup once the connector returns.
-                    if client in owned:
-                        owned.remove(client)
-                    record = await read_record(client, timeout=12)
-                    if record.record_date != dt_util.now().date():
-                        raise HomeAssistantError(translation_domain=DOMAIN, translation_key='stale_date')
-                except (ReadError, ProtocolError, TimeoutError, OSError, RuntimeError, BleakError) as error:
-                    raise HomeAssistantError(translation_domain=DOMAIN, translation_key='read_failed') from error
-                finally:
-                    for partial_client in owned:
-                        try:
-                            await disconnect_client(partial_client)
-                        except (Exception, asyncio.CancelledError):
-                            # The original connect outcome/cancellation takes priority.
-                            pass
+                    try:
+                        client = await asyncio.wait_for(establish_connection(
+                            OwnedClient, device, 'Casio ABL-100WE',
+                            pair=False, max_attempts=2, timeout=10,
+                        ), timeout=16)
+                        # read_record owns cleanup once the connector returns.
+                        if client in owned:
+                            owned.remove(client)
+                        record = await read_record(client, timeout=12)
+                    finally:
+                        for partial_client in owned:
+                            try:
+                                await disconnect_client(partial_client)
+                            except (Exception, asyncio.CancelledError):
+                                # Preserve the original connector outcome.
+                                pass
+                if record.record_date != dt_util.now().date():
+                    owned_error = HomeAssistantError(translation_domain=DOMAIN, translation_key='stale_date')
+                    raise owned_error
                 if self.closed or (task is not None and task.cancelling()):
                     raise asyncio.CancelledError
                 synced_at = dt_util.utcnow()
@@ -147,13 +171,31 @@ class WatchSession:
                 self.record = record
                 self.last_sync = synced_at
                 self.fresh = True
-                self._notify()
-        except (HomeAssistantError, asyncio.CancelledError):
+                if not native:
+                    self._notify()
+        except BaseException as error:
             self.fresh = False
-            self._notify()
-            raise
+            if native:
+                self._schedule_alarm_delivery()
+            else:
+                self._notify()
+            if self.closed or (task is not None and task.cancelling()):
+                raise asyncio.CancelledError from None
+            if error is owned_error or (not native and isinstance(error, asyncio.CancelledError)):
+                raise
+            raise HomeAssistantError(translation_domain=DOMAIN, translation_key='read_failed') from error
         finally:
             self.tasks.discard(task)
+            if active:
+                self.set_step_phase('closed' if self.closed else 'idle', notify=False)
+        if native:
+            self._schedule_alarm_delivery()
+
+    def set_step_phase(self, phase, expiry=None, *, notify=True):
+        self.step_phase = phase
+        self.step_wait_expires_at = expiry
+        if notify:
+            self._schedule_alarm_delivery()
 
     def set_alarm_phase(self, phase, expiry=None, *, notify=True):
         self.alarm_phase = phase
@@ -267,6 +309,8 @@ class WatchSession:
         self.closed = True
         self.alarm_phase = 'closed'
         self.alarm_wait_expires_at = None
+        self.step_phase = 'closed'
+        self.step_wait_expires_at = None
         for handle in self.alarm_delivery_handles:
             handle.cancel()
         self.alarm_delivery_handles.clear()

@@ -88,8 +88,20 @@ def select_proxy(hass, device):
     return candidates[0]
 
 
-class NativeAlarmRead:
+class NativeRead:
     """Borrow a captured live proxy generation; own only local callbacks/link."""
+
+    def set_phase(self, phase, expiry=None):
+        raise NotImplementedError
+
+    def make_adapter(self, metadata):
+        raise NotImplementedError
+
+    async def transfer(self, adapter):
+        raise NotImplementedError
+
+    def remove_notifications(self):
+        raise NotImplementedError
 
     def __init__(self, session, entry):
         self.session = session
@@ -151,7 +163,7 @@ class NativeAlarmRead:
 
     def invalidate(self):
         self.lost = True
-        self.session.set_alarm_phase('idle')
+        self.set_phase('idle')
         self.owner.cancel()
 
     async def wait(self):
@@ -184,7 +196,7 @@ class NativeAlarmRead:
                 if loop.time() >= deadline:
                     raise TimeoutError('Native wait ended')
             except Exception:
-                self.session.set_alarm_phase('idle')
+                self.set_phase('idle')
                 self.ready.set_exception(TimeoutError('Native wait ended'))
                 return
             self.timer = loop.call_later(min(1, deadline - loop.time()), tick)
@@ -195,7 +207,7 @@ class NativeAlarmRead:
             )
             self.timer = loop.call_later(min(1, WAIT_SECONDS), tick)
             self.free()
-            self.session.set_alarm_phase('waiting', expiry)
+            self.set_phase('waiting', expiry)
             result = await self.ready
             self.free()
             if loop.time() >= deadline:
@@ -215,7 +227,7 @@ class NativeAlarmRead:
         self.callbacks.add(self.invalidate)
         try:
             address_type = await self.wait()
-            self.session.set_alarm_phase('reading')
+            self.set_phase('reading')
             self.free()
             self.attempted = True
 
@@ -243,14 +255,8 @@ class NativeAlarmRead:
                 self.api.bluetooth_gatt_get_services(self.target), 10
             )
             self.guard()
-            self.adapter = NativeAlarmAdapter(
-                self.api,
-                self.target,
-                metadata,
-                lambda: self.valid() and self.link,
-                self.generation_valid,
-            )
-            snapshot = await read_alarms(self.adapter, timeout=12)
+            self.adapter = self.make_adapter(metadata)
+            snapshot = await self.transfer(self.adapter)
             self.guard()
             return snapshot
         finally:
@@ -264,11 +270,30 @@ class NativeAlarmRead:
                         self.api.bluetooth_device_disconnect(self.target, timeout=5)
                     )
             finally:
-                if self.adapter and self.adapter.remove_notify:
-                    self.adapter.remove_notify()
-                    self.adapter.remove_notify = None
+                self.remove_notifications()
                 if self.remove_connection:
                     self.remove_connection()
                     self.remove_connection = None
                 self.callbacks.discard(self.invalidate)
                 self.api.close()
+
+
+class NativeAlarmRead(NativeRead):
+    """Preserve the alarm API and transfer on the shared connection owner."""
+
+    def set_phase(self, phase, expiry=None):
+        self.session.set_alarm_phase(phase, expiry)
+
+    def make_adapter(self, metadata):
+        return NativeAlarmAdapter(
+            self.api, self.target, metadata,
+            lambda: self.valid() and self.link, self.generation_valid,
+        )
+
+    async def transfer(self, adapter):
+        return await read_alarms(adapter, timeout=12)
+
+    def remove_notifications(self):
+        if self.adapter and self.adapter.remove_notify:
+            self.adapter.remove_notify()
+            self.adapter.remove_notify = None

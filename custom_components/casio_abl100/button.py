@@ -13,6 +13,16 @@ class ReadStepsButton(ButtonEntity):
         self._attr_unique_id = f'{session.identity}_read_steps'
         self._attr_device_info = DeviceInfo(identifiers={(DOMAIN, session.identity)}, name='Casio ABL-100WE', model=MODEL, manufacturer='Casio')
 
+    @property
+    def extra_state_attributes(self):
+        expiry = self.session.step_wait_expires_at
+        return {'phase': self.session.step_phase,
+                'wait_expires_at': expiry.isoformat() if expiry is not None else None}
+
+    async def async_added_to_hass(self):
+        await super().async_added_to_hass()
+        self.async_on_remove(self.session.subscribe(self.async_write_ha_state))
+
     async def async_press(self):
         await self.session.read()
 

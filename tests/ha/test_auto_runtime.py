@@ -27,7 +27,7 @@ def advertisement(timestamp):
         name='CASIO ABL-100WE\0', address=ADDRESS, rssi=-50,
         manufacturer_data={}, service_data={}, service_uuids=[],
         source='00:00:00:00:00:01',
-        device=BLEDevice(ADDRESS, 'CASIO ABL-100WE\0', {}),
+        device=BLEDevice(ADDRESS, 'CASIO ABL-100WE\0', {'path': '/synthetic/local'}),
         advertisement=None, connectable=True, time=timestamp, tx_power=None,
     )
 

@@ -803,7 +803,11 @@ async def test_native_alarm_and_step_service_share_existing_lock_in_both_orders(
 
     native.bleak.side_effect = None
     native.bleak.return_value = SimpleNamespace()
+    # Preserve this historical native-alarm/non-native-step lock fixture.
+    # Both fully native orders are exercised by test_native_step_runtime.
+    selections = [None, native.esp] if first == 'steps' else [native.esp, None]
     with (
+        patch('custom_components.casio_abl100.native_alarms.select_proxy', side_effect=selections),
         patch('custom_components.casio_abl100.read_record', side_effect=step_record),
         patch(
             'custom_components.casio_abl100.dt_util.now',

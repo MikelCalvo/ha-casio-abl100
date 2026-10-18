@@ -382,7 +382,7 @@ async def test_reconfigured_auto_off_ignores_both_addresses_then_manual_steps_us
         return bluetooth.BluetoothServiceInfoBleak(
             name='CASIO ABL-100WE', address=address, rssi=-50,
             manufacturer_data={}, service_data={}, service_uuids=[],
-            source='00:00:00:00:00:01', device=BLEDevice(address, 'CASIO ABL-100WE', {}),
+            source='00:00:00:00:00:01', device=BLEDevice(address, 'CASIO ABL-100WE', {'path': '/synthetic/local'}),
             advertisement=None, connectable=True, time=timestamp, tx_power=None,
         )
 
