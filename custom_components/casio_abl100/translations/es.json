@@ -62,6 +62,15 @@
       },
       "last_alarm_read": {
         "name": "Última lectura de alarmas"
+      },
+      "home_standard_utc_offset": {
+        "name": "Desfase UTC estándar principal"
+      },
+      "secondary_standard_utc_offset": {
+        "name": "Desfase UTC estándar secundario"
+      },
+      "last_time_zone_read": {
+        "name": "Última lectura de zonas horarias"
       }
     },
     "binary_sensor": {
@@ -75,6 +84,9 @@
       },
       "read_alarms": {
         "name": "Leer alarmas"
+      },
+      "read_time_zones": {
+        "name": "Leer zonas horarias"
       }
     }
   },
@@ -93,6 +105,9 @@
     },
     "alarm_read_failed": {
       "message": "No se pudo leer la configuración completa de las alarmas"
+    },
+    "zone_read_failed": {
+      "message": "No se pudo leer la configuración completa de las zonas horarias"
     }
   },
   "options": {

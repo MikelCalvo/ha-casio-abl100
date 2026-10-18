@@ -132,10 +132,12 @@ async def test_failed_setup_finalizes_session_and_partial_platform_resources(
         from homeassistant.helpers import entity_registry as er
         registry = er.async_get(hass)
         assert len([entity for entity in registry.entities.values()
-                    if entity.config_entry_id == entry.entry_id]) == 11
+                    if entity.config_entry_id == entry.entry_id]) == 11 + 4
         states = [state for state in hass.states.async_all()
                   if 'casio_abl_100we' in state.entity_id]
-        assert len(states) == 11
+        assert len(states) == 11 + 4
+        from tests.ha.test_zone_entities import assert_zone_addition
+        assert_zone_addition(hass, entry)
         assert all(state.state == 'unavailable' and state.attributes.get('restored')
                    for state in states)  # HA preserves registry placeholders.
         get_manager().scanner_adv_received(advertisement(monotonic_time_coarse()))

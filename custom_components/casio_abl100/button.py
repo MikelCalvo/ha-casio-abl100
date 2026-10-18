@@ -56,5 +56,26 @@ class ReadAlarmsButton(ButtonEntity):
         await self.session.read_alarms()
 
 
+class ReadTimeZonesButton(ReadAlarmsButton):
+    """One manual configuration group, native ESPHome only."""
+    entity_description = ButtonEntityDescription(
+        key='read_time_zones', translation_key='read_time_zones', icon='mdi:sync',
+    )
+
+    def __init__(self, session):
+        super().__init__(session)
+        self._attr_unique_id = f'{session.identity}_read_time_zones'
+
+    @property
+    def extra_state_attributes(self):
+        expiry = self.session.zone_wait_expires_at
+        return {'phase': self.session.zone_phase,
+                'wait_expires_at': expiry.isoformat() if expiry is not None else None}
+
+    async def async_press(self):
+        await self.session.read_time_zones()
+
+
 async def async_setup_entry(hass, entry, async_add_entities):
-    async_add_entities([ReadStepsButton(entry.runtime_data), ReadAlarmsButton(entry.runtime_data)])
+    async_add_entities([ReadStepsButton(entry.runtime_data), ReadAlarmsButton(entry.runtime_data),
+                        ReadTimeZonesButton(entry.runtime_data)])

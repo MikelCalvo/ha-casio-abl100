@@ -129,7 +129,9 @@ async def armed(steps):
 async def test_real_step_button_waits_for_fresh_exact_advert_then_publishes_history(steps):
     registry = er.async_get(steps.hass)
     ids = {e.entity_id: (e.unique_id, e.device_id) for e in registry.entities.values() if e.config_entry_id == steps.watch.entry_id}
-    assert len(ids) == 11 and len({x[1] for x in ids.values()}) == 1
+    assert len(ids) == 11 + 4 and len({x[1] for x in ids.values()}) == 1
+    from tests.ha.test_zone_entities import assert_zone_addition
+    assert_zone_addition(steps.hass, steps.watch)
     assert not steps.wire.calls
     steps.bleak.assert_not_called()
     assert steps.hass.states.get(SENSOR).state == 'unavailable'

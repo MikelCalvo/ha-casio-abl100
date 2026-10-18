@@ -110,9 +110,67 @@ class LastAlarmReadSensor(WatchSensor):
         return self.session.alarm_last_sync is not None
 
 
+class ZoneOffsetSensor(WatchSensor):
+    """Last observed standard offset; never a present effective offset."""
+
+    def __init__(self, session, secondary=False):
+        self.secondary = secondary
+        key = 'secondary_standard_utc_offset' if secondary else 'home_standard_utc_offset'
+        self.entity_description = SensorEntityDescription(
+            key=key, translation_key=key, native_unit_of_measurement='min',
+            icon='mdi:map-clock-outline',
+        )
+        super().__init__(session)
+
+    @property
+    def available(self):
+        return self.session.zone_snapshot is not None
+
+    @property
+    def native_value(self):
+        snapshot = self.session.zone_snapshot
+        if snapshot is None:
+            return None
+        configuration = snapshot.secondary if self.secondary else snapshot.home
+        return configuration.standard_utc_offset_minutes
+
+    @property
+    def extra_state_attributes(self):
+        snapshot = self.session.zone_snapshot
+        if snapshot is None:
+            return None
+        configuration = snapshot.secondary if self.secondary else snapshot.home
+        attributes = {
+            'configured_dst_increment_minutes': configuration.configured_dst_increment_minutes,
+            'dst_rule_code': configuration.dst_rule_code,
+            'fresh': self.session.zones_fresh,
+        }
+        if not self.secondary:
+            attributes['primary_dst_on'] = snapshot.primary_dst_on
+            attributes['primary_dst_auto'] = snapshot.primary_dst_auto
+        return attributes
+
+
+class LastTimeZoneReadSensor(WatchSensor):
+    entity_description = SensorEntityDescription(
+        key='last_time_zone_read', translation_key='last_time_zone_read',
+        device_class=SensorDeviceClass.TIMESTAMP, icon='mdi:clock-check-outline',
+    )
+
+    @property
+    def native_value(self):
+        return self.session.zone_last_sync
+
+    @property
+    def available(self):
+        return self.session.zone_last_sync is not None
+
+
 async def async_setup_entry(hass, entry, async_add_entities):
     async_add_entities([
         StepsSensor(entry.runtime_data), LastSyncSensor(entry.runtime_data),
         *(AlarmSensor(entry.runtime_data, slot) for slot in range(1, 6)),
         LastAlarmReadSensor(entry.runtime_data),
+        ZoneOffsetSensor(entry.runtime_data), ZoneOffsetSensor(entry.runtime_data, True),
+        LastTimeZoneReadSensor(entry.runtime_data),
     ])

@@ -62,6 +62,15 @@
       },
       "last_alarm_read": {
         "name": "Last alarm read"
+      },
+      "home_standard_utc_offset": {
+        "name": "Home standard UTC offset"
+      },
+      "secondary_standard_utc_offset": {
+        "name": "Secondary standard UTC offset"
+      },
+      "last_time_zone_read": {
+        "name": "Last time zone read"
       }
     },
     "binary_sensor": {
@@ -75,6 +84,9 @@
       },
       "read_alarms": {
         "name": "Read alarms"
+      },
+      "read_time_zones": {
+        "name": "Read time zones"
       }
     }
   },
@@ -93,6 +105,9 @@
     },
     "alarm_read_failed": {
       "message": "Unable to read a complete alarm snapshot"
+    },
+    "zone_read_failed": {
+      "message": "Unable to read complete time zone configuration"
     }
   },
   "options": {

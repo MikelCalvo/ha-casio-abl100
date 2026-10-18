@@ -286,7 +286,9 @@ async def two_steps(steps):
         entities = [e for e in registry.entities.values() if e.config_entry_id == watch_b.entry_id]
         button_b = next(e.entity_id for e in entities if e.unique_id.endswith('_read_steps'))
         sensor_b = next(e.entity_id for e in entities if e.domain == 'sensor' and e.unique_id.endswith('_steps_today'))
-        assert len(entities) == 11 and len({e.device_id for e in entities}) == 1
+        assert len(entities) == 11 + 4 and len({e.device_id for e in entities}) == 1
+        from tests.ha.test_zone_entities import assert_zone_addition
+        assert_zone_addition(steps.hass, watch_b)
         assert {e.device_id for e in entities}.isdisjoint({e.device_id for e in registry.entities.values() if e.config_entry_id == steps.watch.entry_id})
         yield SimpleNamespace(a=steps, b=watch_b, target_b=target_b, button_b=button_b, sensor_b=sensor_b)
         if watch_b.state is ConfigEntryState.LOADED:

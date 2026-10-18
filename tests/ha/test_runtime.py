@@ -11,6 +11,7 @@ from homeassistant.util import dt as dt_util
 import pytest
 
 from custom_components.casio_abl100 import DOMAIN
+from tests.ha.test_zone_entities import ZONE_KEYS, OLD_KEYS, old_listeners, assert_zone_addition
 from custom_components.casio_abl100.alarms import parse_alarms
 from custom_components.casio_abl100 import sensor as sensors
 from custom_components.casio_abl100.protocol import StepRecord
@@ -48,7 +49,7 @@ async def test_step_history_real_service_keeps_ids_commands_failure_and_reload_b
                     for entity in registry.entities.values()
                     if entity.config_entry_id == entry.entry_id}
         ids = entity_ids()
-        assert len(ids) == 11
+        assert len(ids) == 11 + 4
         connect.assert_not_called()
         step_id = ids['steps_today']
         assert hass.states.get(step_id).state == 'unavailable'
@@ -110,8 +111,11 @@ async def test_core_entry_setup_creates_eleven_entities_without_a_ble_read(hass:
         await hass.async_block_till_done()
         connect.assert_not_called()
     states = [state for state in hass.states.async_all() if state.domain in ('sensor', 'button', 'binary_sensor') and 'casio' in state.entity_id]
-    assert len(states) == 11
-    assert {state.entity_id for state in states} == {
+    assert len(states) == 11 + 4
+    assert_zone_addition(hass, entry)
+    from homeassistant.helpers import entity_registry as er
+    assert {state.entity_id for state in states
+            if er.async_get(hass).async_get(state.entity_id).unique_id.removeprefix("AA:BB:CC:DD:EE:FF_") in OLD_KEYS} == {
         'sensor.casio_abl_100we_steps_today',
         'sensor.casio_abl_100we_last_synchronization',
         'button.casio_abl_100we_read_steps',
@@ -130,9 +134,10 @@ async def test_core_entry_setup_creates_eleven_entities_without_a_ble_read(hass:
     assert (devices[0].manufacturer, devices[0].model) == ('Casio', 'ABL-100WE')
     entities = [er.async_get(hass).async_get(state.entity_id) for state in states]
     assert all(entity.config_entry_id == entry.entry_id for entity in entities)
-    assert len(entities) == 11
-    assert len({entity.unique_id for entity in entities}) == 11
-    assert {entity.unique_id for entity in entities} == {
+    assert len(entities) == 11 + 4
+    assert len({entity.unique_id for entity in entities}) == 11 + 4
+    assert {entity.unique_id for entity in entities
+            if entity.unique_id.removeprefix("AA:BB:CC:DD:EE:FF_") in OLD_KEYS} == {
         *(f'AA:BB:CC:DD:EE:FF_alarm_{n}' for n in range(1, 6)),
         *(f'AA:BB:CC:DD:EE:FF_{key}' for key in (
             'steps_today', 'last_sync', 'read_steps', 'hourly_signal',
@@ -278,7 +283,7 @@ async def test_real_service_read_failure_and_reload_keep_one_device_and_translat
         assert hass.states.get(signal_id).attributes['fresh'] is True
         last = alarms['AA:BB:CC:DD:EE:FF_last_alarm_read'].state
         assert datetime.fromisoformat(last).tzinfo == timezone.utc
-        assert len(ids) == 11
+        assert len(ids) == 11 + 4
         assert all('Casio ABL-100WE Casio' not in state.attributes.get('friendly_name', '')
                    for state in (hass.states.get(state_id) for state_id in ids))
         assert alarms['AA:BB:CC:DD:EE:FF_steps_today'].state == 'unavailable'
@@ -313,9 +318,9 @@ async def test_real_service_read_failure_and_reload_keep_one_device_and_translat
         session = entry.runtime_data
         # Preserve the original ten subscriptions, plus step-button progress.
         from custom_components.casio_abl100.button import ReadStepsButton
-        assert len({listener for listener in session.listeners
-                    if not isinstance(getattr(listener, '__self__', None), ReadStepsButton)}) == 10
-        assert len(session.listeners) == 11
+        assert len(old_listeners(session, exclude_steps=True)) == 10
+        assert_zone_addition(hass, entry)
+        assert len(session.listeners) == 11 + 4
         assert await hass.config_entries.async_unload(entry.entry_id)
         assert session.closed and not session.listeners and not session.alarm_delivery_handles
         assert await hass.config_entries.async_setup(entry.entry_id)
@@ -331,10 +336,10 @@ async def test_real_service_read_failure_and_reload_keep_one_device_and_translat
         assert len({device.id for device in dr.async_get(hass).devices
                     if (DOMAIN, 'AA:BB:CC:DD:EE:FF') in device.identifiers}) == 1
         assert len([entity for entity in er.async_get(hass).entities.values()
-                    if entity.config_entry_id == entry.entry_id]) == 11
-        assert len({listener for listener in entry.runtime_data.listeners
-                    if not isinstance(getattr(listener, '__self__', None), ReadStepsButton)}) == 10
-        assert len(entry.runtime_data.listeners) == 11
+                    if entity.config_entry_id == entry.entry_id]) == 11 + 4
+        assert len(old_listeners(entry.runtime_data, exclude_steps=True)) == 10
+        assert_zone_addition(hass, entry)
+        assert len(entry.runtime_data.listeners) == 11 + 4
         reloaded_session = entry.runtime_data
         assert await hass.config_entries.async_unload(entry.entry_id)
         assert not reloaded_session.listeners

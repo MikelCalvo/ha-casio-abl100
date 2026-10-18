@@ -30,6 +30,16 @@ class _AlarmReadFailed(HomeAssistantError):
             return 'Unable to read a complete alarm snapshot'
 
 
+class _ZoneReadFailed(HomeAssistantError):
+    """Keep a context-free safe string as well as the HA translation key."""
+
+    def __str__(self):
+        try:
+            return super().__str__()
+        except HomeAssistantError:
+            return 'Unable to read complete time zone configuration'
+
+
 class WatchSession:
     """Entry-owned state and tasks; no global client or per-watch shared futures."""
 
@@ -42,6 +52,11 @@ class WatchSession:
         self.alarm_wait_expires_at = None
         self.step_phase = 'idle'
         self.step_wait_expires_at = None
+        self.zone_phase = 'idle'
+        self.zone_wait_expires_at = None
+        self.zone_snapshot = None
+        self.zone_last_sync = None
+        self.zones_fresh = False
         self.address = address
         # Registry identity is immutable; the BLE transport address may change.
         self.identity = identity or address
@@ -305,8 +320,76 @@ class WatchSession:
                 self.set_alarm_phase('closed' if self.closed else 'idle', notify=False)
         self._schedule_alarm_delivery()
 
+    def set_zone_phase(self, phase, expiry=None, *, notify=True):
+        self.zone_phase = phase
+        self.zone_wait_expires_at = expiry
+        if notify:
+            self._schedule_alarm_delivery()
+
+    async def read_time_zones(self):
+        """Accept a native configuration observation independently of clocks."""
+        task = asyncio.current_task()
+        if self.closed:
+            if task is not None and task.cancelling():
+                raise asyncio.CancelledError
+            raise HomeAssistantError(translation_domain=DOMAIN, translation_key='closed')
+        self.tasks.add(task)
+        active = False
+        unavailable = None
+        try:
+            if task is not None and task.cancelling():
+                raise asyncio.CancelledError
+            async with self.lock:
+                active = True
+                if self.closed or (task is not None and task.cancelling()):
+                    raise asyncio.CancelledError
+                device = bluetooth.async_ble_device_from_address(
+                    self.hass, self.address, connectable=True
+                )
+                name = (device.name or '').rstrip('\x00 \t\r\n') if device is not None else ''
+                if (device is not None and (device.address.upper() != self.address
+                        or name not in ('ABL-100', 'ABL-100WE', 'CASIO ABL-100', 'CASIO ABL-100WE'))):
+                    unavailable = HomeAssistantError(
+                        translation_domain=DOMAIN, translation_key='unavailable'
+                    )
+                    raise unavailable
+                from .native_alarms import select_proxy
+                from .native_zones import NativeZoneRead
+                native_entry = select_proxy(self.hass, device) if self.entry is not None else None
+                if native_entry is None:
+                    raise ValueError('Native zone source required')
+                snapshot = await NativeZoneRead(self, native_entry).read()
+                if self.closed or (task is not None and task.cancelling()):
+                    raise asyncio.CancelledError
+                observed_at = dt_util.utcnow()
+                if self.closed or (task is not None and task.cancelling()):
+                    raise asyncio.CancelledError
+                # Nothing fallible, awaited or observer-controlled inside commit.
+                self.zone_snapshot = snapshot
+                self.zone_last_sync = observed_at
+                self.zones_fresh = True
+        except BaseException as error:
+            # A cancelled queue waiter owns neither readiness nor freshness.
+            if active:
+                self.zones_fresh = False
+            self._schedule_alarm_delivery()
+            if self.closed or (task is not None and task.cancelling()):
+                raise asyncio.CancelledError from None
+            if error is unavailable:
+                raise
+            raise _ZoneReadFailed(
+                translation_domain=DOMAIN, translation_key='zone_read_failed'
+            ) from error
+        finally:
+            self.tasks.discard(task)
+            if active:
+                self.set_zone_phase('closed' if self.closed else 'idle', notify=False)
+        self._schedule_alarm_delivery()
+
     async def shutdown(self):
         self.closed = True
+        self.zone_phase = 'closed'
+        self.zone_wait_expires_at = None
         self.alarm_phase = 'closed'
         self.alarm_wait_expires_at = None
         self.step_phase = 'closed'
