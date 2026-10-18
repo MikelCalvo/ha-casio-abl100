@@ -1,8 +1,10 @@
-# Lectura nativa de alarmas (candidato local)
+# Lectura nativa de alarmas (piloto instalado)
 
-Este cambio usa la conexión API que Home Assistant ya mantiene con ESPHome.
-No instala nada, reinicia servicios ni actúa sobre dispositivos durante las pruebas.
-La aceptación física de esta ruta compartida con HA sigue pendiente.
+La revisión `a897b0078a73deeaafbec0c1265be4848592f343` usa la conexión API que
+Home Assistant ya mantiene con ESPHome. Está instalada y el 2026-10-18 completó
+una lectura física que actualizó las entidades existentes. Las pruebas locales
+con IO sintético y esta única muestra física son capas diferentes; no demuestran
+fiabilidad cotidiana. [Resultado y límites](native-alarm-validation.md).
 
 ## Uso
 
@@ -83,5 +85,11 @@ ajustes, emparejamiento, AppInfo, END o cambios de modo del escáner.
 
 Las pruebas usan Home Assistant 2026.9.4, aioesphomeapi 46.2.0,
 bleak-esphome 4.0.0 y habluetooth 6.26.11. Las pruebas sintéticas no prueban
-aceptación física de la conexión compartida, fiabilidad cotidiana ni la pantalla
-terminal del reloj. Los éxitos nativos independientes anteriores son otra capa.
+aceptación física, fiabilidad cotidiana ni la pantalla terminal del reloj. La
+lectura física posterior sí publicó las cinco alarmas, SIG y su fecha de lectura
+a través de HA, con las 11 identidades conservadas y sin escrituras de ajustes.
+La operación terminó en `idle` y la ventana quedó cerrada; el proxy quedó libre
+y los sensores de temperatura/humedad siguieron informando. No se actualizaron
+pasos. La pantalla final de esta última prueba no se comunicó: no se da por
+resuelto ni por repetido su `ERR`. Los dos éxitos nativos independientes anteriores
+sí tuvieron `ERR` confirmado y siguen siendo otra capa.

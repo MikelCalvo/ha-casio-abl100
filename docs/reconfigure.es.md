@@ -1,6 +1,6 @@
-# Reconfiguración de la dirección Bluetooth (candidato local)
+# Reconfiguración de la dirección Bluetooth
 
-Esta función está preparada para revisión local. **No se ha instalado ni probado con el reloj físico.** No demuestra que se haya resuelto `ERR` ni explica errores de conexión anteriores.
+Esta función está instalada en el piloto. Se conservó la entrada y sus 11 identidades de entidades al cambiar a la dirección posterior al reset, expresamente confirmada por el usuario. La lectura de alarmas posterior se documenta [por separado](native-alarm-validation.md). Esto no demuestra que se haya resuelto `ERR` ni explica los errores de conexión anteriores.
 
 Si el **mismo reloj físico** anuncia una dirección nueva tras borrar su emparejamiento:
 

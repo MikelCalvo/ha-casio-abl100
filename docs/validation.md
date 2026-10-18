@@ -1,6 +1,36 @@
 # Pilot validation
 
-## Native address reconfiguration: local review candidate
+## Current installed boundary: 2026-10-18
+
+Installed component revision: **`a897b0078a73deeaafbec0c1265be4848592f343`**.
+The [native alarm trial findings](native-alarm-validation.md) record a real
+HA-owned read that published a fresh complete alarm/SIG snapshot at
+`2026-10-18T01:41:26+00:00`. One request, no watch-setting writes, unchanged
+11 identities, closed wait window, `phase: idle`, a free proxy slot and continued
+temperature/humidity reports were verified. The final watch screen was not reported.
+
+The exact component passed **449 offline / 143 real-HA runtime tests**, with
+external native IO synthetic, plus independent SPEC and QUALITY review.
+The separate private deployment wrapper passed 12 recovery tests after its
+staging-cleanup and interrupted-rollback defects were corrected. Those are
+operational-script tests, not additional integration tests or hardware reads.
+Deployment replaced five of 17 component files with one Core restart; its caller
+acknowledgement timed out, but completed startup/loading was verified without
+submitting another restart.
+
+Daily-history and automatic-reader code are installed, but their physical
+acceptance remains open and `auto_read_steps=false`. No new step observation was
+produced by this alarm trial. Current primary/secondary time reads are not
+established; see [clock limits](clock-reading-limits.md).
+
+## Historical gates
+
+The sections below retain their **then-current** revision and test boundaries.
+Statements such as “not installed” or “review pending” apply to those historical
+gates, not to today’s inventory. They do not supersede the installed boundary
+above, and overlapping test counts must not be added together.
+
+### Native address reconfiguration: historical local review candidate
 
 This increment is based on exact local baseline `fd6228bc28586f385ab130a03cc4f7fa32e5099f`. The original worktree was clean and is left unchanged. Its retained baseline rerun passed **444 offline tests (five dependency deprecations) and 42 real-HA runtime tests**, with synthetic BLE. The initial reconfiguration candidate added 28 runtime cases and passed 444 offline / 70 runtime tests, but independent SPEC found one pre-existing user-flow reservation gap: HA's native ignored entries were omitted and could be replaced. That candidate remains blocked and was not deployed. Revision 1 adds 10 runtime cases using native ignored-entry production plus ignored/disabled address-and-identity controls. Causal RED preserved 3 behavioral failures and 7 passing controls; after the minimal reservation fix, all 10 pass. The revised combined selection passes **444 offline and 80 real-HA runtime cases**, exit 0 each. These are replacement-suite counts, not additional physical reads; independent SPEC and QUALITY of the revised artifact remain pending.
 
@@ -12,7 +42,7 @@ HA 2026.9.4 calls existing update listeners for data changes and warns against s
 
 The earlier offline ConfigEntry double now supplies its real `unique_id` field; the revision1 flow doubles accept HA's native `include_ignore` keyword. All original behavioral assertions remain unchanged. Reservation checks explicitly include ignored entries, so native user-flow override behavior cannot replace another reserved identity. The previous temporary interpreter had been pruned. Tests reuse pinned HA/Bluetooth packages already retained in the local wheel cache through isolated `PYTHONPATH` entries; no package install or network fetch was performed. The runtime suite disables IP sockets and uses the HA plugin's synthetic Bluetooth boundary. Five offline dependency warnings match the recovered pristine baseline; no runtime warnings were reported.
 
-No live HA, ESPHome, ADB, SSH, watch or deployment operation was performed. Independent review, deployment authorization and physical acceptance remain separate gates. See [English procedure](../README.md#native-bluetooth-address-reconfiguration-local-candidate) and [procedimiento en español](reconfigure.es.md).
+No live HA, ESPHome, ADB, SSH, watch or deployment operation was performed. Independent review, deployment authorization and physical acceptance remain separate gates. See [English procedure](../README.md#native-bluetooth-address-reconfiguration) and [procedimiento en español](reconfigure.es.md).
 
 ## Historical acceptance boundary retained from the base
 
@@ -24,7 +54,7 @@ The new focused tests first failed at the missing API, then at substantive empty
 
 Seven previous-day summaries plus a separate current total are source-described protocol capacity, not a manufacturer retention guarantee. `daily_history` is a bounded snapshot attribute, not persistent history or retrospective Recorder/statistics import. The transport, session logic, existing IDs and diagnostics whitelist are unchanged. That history-only gate did not include automatic synchronization. The optional reader described below adds step-window requests, not settings editing or an `ERR` fix.
 
-## Optional native step-window reader: current local boundary
+## Optional native step-window reader: historical local boundary
 
 The combined history/reader candidate is **local, uninstalled and not physically validated**. The installed pilot remains alarm revision `fefd06b10375bea34e84ec060f34acc2c9cb86c5`, with manual step and alarm actions. There has been no new physical test: the accepted manual step results remain 229 and 276, and the accepted AL1–AL5/SIG snapshot does not resolve the watch's `ERR`.
 
@@ -161,11 +191,13 @@ The entity implementer's original RED output files were not retained. Its missin
 
 Home Assistant `2026.9.4`, ESPHome `2026.9.1`, Bleak `3.0.2`, bleak-retry-connector `4.7.0`, bleak-esphome `4.0.0`, aioesphomeapi `46.2.0`, habluetooth `6.26.11`.
 
-## Remaining acceptance
+## Remaining acceptance (current)
 
-- Continue assessing separated sessions and changing counts over time before claiming everyday reliability. The initial two-session check passed; record any future failures as well as successes, rather than retrying until success.
-- Longer-term reconnect behavior and unload/cancellation during an actual connected transaction remain unverified.
-- The alarm query is installed and one complete snapshot has been compared, as recorded at the top. Separate-session repeatability, enabled SIG and the watch-side `ERR` remain unverified. The local history/optional-reader bundle has not replaced the installed alarm revision; final integrated tests/reviews, history comparison, fresh-window behavior and unattended operation still require acceptance.
-- Alarm editing, clock/settings writes and watch-button events are not implemented. Each needs its own source validation, tests, explicit setting/gesture target and coordinated physical acceptance.
+- Repeatability of the shared HA-owned alarm route across separate sessions, activated SIG, longer-term reconnects and real active-transfer cancellation/unload remain unverified. Keep failed samples; do not retry until success and call that reliability.
+- The cause of earlier watch-side `ERR` remains unresolved. The latest HA trial’s terminal screen is unknown, not a confirmed success or failure.
+- Physical daily-history comparison, automatic fresh-window step reads and unattended operation remain unvalidated. Automatic reading is still off. Historical manual step successes apply to their named earlier revision, not this alarm-only trial.
+- Interactive session lifetime and automatic reading remain separate product goals; this one-shot alarm read does not fulfill them.
+- Current primary/secondary clock reads lack a validated GET/decoder contract. Zone/DST configuration is a narrower source-backed proposal, not an implemented or physically tested feature.
+- Alarm editing, clock/settings writes and watch-button events are not implemented in this branch. Each needs its own contract and coordinated acceptance. No further physical work is armed by this documentation update.
 
 The operator also reports Android CasioGShockSmartSync phone actions working. That is a useful independent session reference, not proof of our unimplemented features. Raw logs, device addresses, credentials, registry backups and third-party captures are intentionally excluded from this repository.
