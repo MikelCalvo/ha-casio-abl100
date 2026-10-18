@@ -16,7 +16,7 @@ class NativeStepRead(NativeRead):
 
     async def transfer(self, adapter):
         record = await read_record(adapter, timeout=12)
-        # The frozen transport checks framing before disconnect. The adapter
+        # read_record checks framing before disconnect. The adapter
         # additionally rejects pre-START or cleanup-time notifications.
         if adapter.invalid:
             raise ReadError('Invalid native step transaction')

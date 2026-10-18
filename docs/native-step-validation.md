@@ -1,101 +1,114 @@
 # Native steps/history validation candidate
 
-## Status: blocked before SPEC acceptance
+## Status: locally tested; independent SPEC and QUALITY pending
 
-This candidate moves the existing Read steps operation onto the generation-bound
-native ESPHome connection for selected native sources. It has **not** been
-installed, physically exercised, or approved for deployment. The existing alarm
-API remains available through the same factored connection owner.
+Read steps now uses the generation-bound native ESPHome connection for selected
+native sources. This candidate has **not** been installed or physically exercised.
+Local synthetic acceptance is not permission to deploy. Existing alarm operations
+remain available through the same factored connection owner.
 
 ## Read boundary
 
-- Entry setup performs no watch operation. Existing eleven entity identities,
-  names and history schema are retained.
-- The step button has its own `phase` and UTC `wait_expires_at`, independent of
-  alarm progress. A request waits at most 360 seconds for a new exact-address raw
-  advertisement on the selected existing proxy generation. Cached device absence
-  is allowed only with unambiguous native proxy selection.
-- An affirmative native connected reply is required before service discovery.
+- Setup performs no watch operation. The existing eleven entity identities,
+  labels and history schema are retained.
+- Read steps has independent `phase` and UTC `wait_expires_at` attributes. It waits
+  at most 360 seconds for a fresh exact-address raw advertisement from the selected
+  proxy generation. Cached device absence requires unambiguous native selection.
+- An affirmative connected reply is required before service discovery.
 - Metadata resolves the feature service, ALL_FEATURES, DRSP, Convoy and one CCCD
   per characteristic. Notify support, DRSP response-write support, distinct valid
-  handles and service membership are checked before subscriptions.
-- Three finite notify acquisitions are joined, and each CCCD is enabled with
-  `01 00`. The only characteristic write is DRSP `00 11 00 00 00`, response=True.
-  No settings SET, clock command, end command, API connection closure, retries,
-  cache policy or firmware changes are introduced.
-- Existing record parser and local-date acceptance are retained. Native values
-  and UTC success time commit only after transfer and cleanup. Failed refreshes
-  retain last-good data/time and mark only steps stale. Positive caller
-  cancellation counts conservatively outrank ordinary/backend failures.
-- Active and lock-queued operations are entry-owned. The original API generation
-  alone may receive cleanup. Non-native sources retain the existing Bleak route.
+  handles and service membership are validated before subscriptions.
+- Three finite notify acquisitions are joined; each CCCD receives `01 00`.
+  The sole characteristic write is DRSP `00 11 00 00 00`, response=True. There is
+  no settings SET, clock command, end command, new retry, cache-policy change,
+  API connection closure or firmware change.
+- The existing record parser and local-date acceptance are retained. Values and
+  UTC success time commit after transfer and cleanup. Failures preserve last-good
+  data/time and mark only steps stale. Outstanding caller cancellation counts
+  conservatively outrank ordinary/backend failures.
+- Active and lock-queued operations are entry-owned. Cleanup targets only the
+  captured original generation. Non-native sources retain the Bleak route.
+- Observer delivery is best effort after commit, outside the read task. One
+  observer's exception or backend-only cancellation cannot undo success or skip
+  another current listener. Scheduling failure does not change the transaction;
+  shutdown cancels pending deliveries and late callbacks recheck closure.
 
-## Synthetic test boundary
+## Response-future correction
 
-`tests/ha/test_native_step_runtime.py` runs real HA ConfigEntry management,
-registries, `button.press`, entities, session, NativeAPI and the installed
-APIClient method bodies. Only the external APIConnection exchange, discovery and
-clock are synthetic. Metadata is serialized through the existing native alarm
-wire producer; DRSP and Convoy payloads use synthetic 400-byte history records.
-No test values or Bluetooth addresses are physical observations.
+A malformed length header can finish the response future exceptionally during
+START, followed by a write failure before the response future is awaited. The
+previous finalizer cancelled only unfinished futures, leaking the done exception
+to the event loop. The narrowly authorized correction also retrieves the exception
+of a done, noncancelled future. No other transport behavior changes.
 
-`tests/protocol/test_native_step_adapter.py` exercises the unchanged parser and
-transport via the new adapter. Its small API double models confirmed-disconnect
-notification removal; real library registration/cancellation cleanup is tested
-separately by the HA runtime suite.
+The unchanged regression
+`test_native_step_runtime.py::test_invalid_frame_and_failed_write_leave_no_unretrieved_future`
+was observed failing at the actual loop-exception assertion before the correction,
+and passing afterward. It releases task/traceback references before GC. Separate
+acceptance cases assert the original write exception remains the causal error,
+backend-only cancellation becomes a safe read failure, and genuine caller
+cancellation remains cancellation. Earlier misleading service-based lifetime
+coverage and the original blocked commit/report are preserved privately.
 
-Existing fixture-only adaptations preserve the original assertions: local
-Bluetooth doubles now carry nonempty local backend details; the historical mixed
-native-alarm/Bleak-step lock test explicitly selects those original routes; the
-listener census still asserts all ten original subscribers and separately adds
-the step-button progress subscriber.
+## Synthetic evidence boundary
 
-## Concrete ownership blocker
+`tests/ha/test_native_step_runtime.py` exercises real HA ConfigEntry management,
+registries, `button.press`, entities, session, NativeAPI and installed APIClient
+methods. Only external APIConnection exchange, discovery and test dates are
+synthetic. The adapter suite uses synthetic metadata and 400-byte history records.
+No test values or addresses are physical observations.
 
-Reproduction:
+`tests/ha/test_native_step_acceptance_runtime.py` adds finite acceptance closures:
 
-```
-tests/ha/test_native_step_runtime.py::test_invalid_frame_and_failed_write_leave_no_unretrieved_future
-```
+- Two real HA entries share one native API generation, with producer-addressed
+  protobuf responses. B's advertisement cannot start A. A's unload while waiting,
+  acquiring DRSP notify, or disconnecting preserves B's callbacks and unrelated
+  original callbacks. A-address frames cannot complete B; B alone publishes its
+  response. A replacement generation receives zero requests/handlers, and both
+  old-generation readers refuse publication after replacement.
+- Ordinary and backend-cancellation observer faults preserve committed steps and
+  other delivery. Ordinary/backend-cancellation scheduler faults preserve success,
+  read failure and caller cancellation. Unload suppresses retained deliveries.
+- Last notify acquisition (10-second native budget) and disconnect (5-second
+  native budget) are held through repeated caller cancellation, then complete near
+  a synthetic finite backend deadline. Children finish before the owner returns,
+  original unrelated callbacks survive, and replacements receive no traffic.
+  The external fake compresses its clock to 0.1 seconds and completes at 90%; no
+  production timeout is shortened or changed. This proves joining, not real-time
+  behavior at 9/4.5 seconds or forced termination of an uncooperative backend.
+- A failed step refresh preserves a successful alarm snapshot, timestamp and
+  freshness while retaining stale last-good step values/time.
 
-Deliver a malformed length header during the real response-write invocation,
-then raise a synthetic private write exception before returning its ACK. The
-unchanged `transport.read_record` completes its local future with `ReadError`,
-but exits via the write error before awaiting that future. Its `finally` cancels
-only an unfinished future; it never retrieves an already-failed future's error.
-Once the completed read task and its traceback are released, the event loop
-receives `Future exception was never retrieved`.
+The shared primitive's existing alarm tests remain applicable to exact-source
+proxy selection, generation checks and child-entry guards; the new step consumer
+has its own three-subscription, publication and HA isolation assertions. Existing
+fixture-only adaptations preserve old behavior assertions and the ten original
+subscribers, separately accounting for the step progress subscriber.
 
-The test uses direct session invocation for this memory-lifetime assertion,
-removes task references, runs GC and inspects the real loop exception handler.
-A prior service-based version passed while its task/traceback was retained, but
-stderr still exposed the error later. That misleading pass is retained privately
-and is not acceptance evidence.
+### Composed finite budget
 
-The narrow remedy belongs in `transport.py`: consume a completed noncancelled
-response future during finalization, preserving the original error and caller
-cancellation policy. That file is explicitly frozen by this task. This candidate
-therefore stops **blocked** without changing it or duplicating the parser inside
-the adapter. Authorization for that narrowly scoped correction and its TDD cycle
-is required before claiming a clean full runtime gate.
+After acquiring the shared session lock, a conservative padded envelope is
+**497 seconds**: advertisement 360; connect 30 plus vendor timeout disconnect 5;
+services 10; three acquisitions plus descriptors at 10+10 each; START 10; record
+response 12; adapter disconnect 5; owner fallback disconnect 5. This intentionally
+sums even mutually exclusive failure allowances; outer 12-second transfer-stage
+limits can shorten it. Normal event-loop execution and the backend honoring its
+finite timeouts/cooperative cancellation are prerequisites. No separate total
+service timer was added. A queued request also waits for earlier lock owners;
+there is no unconditional bound for arbitrary queue length, suspended event loops
+or indefinitely uncooperative external code. An external trial/controller must
+budget beyond this envelope and separately allow queued work, not use a short
+polling timeout as a service deadline.
 
-## Evidence and remaining gates
+## Remaining gates
 
-Private exact-byte RED snapshots, every runner argv/environment, stdout/stderr,
-actual exit and source hashes are under the task's `steps-implementation/`
-evidence directory. The initial service RED fails at missing native waiting
-readiness, not at fixture import/setup. The adapter RED establishes absence of
-its API, not semantic proof for every later metadata guard.
+Exact-byte causal RED/GREEN, later characterization runs, argv/environment,
+stdout/stderr, real exits, coverage mapping and final manifest/archive are in the
+private `steps-correction-r1/` packet, alongside unchanged historical evidence.
+The original native-route RED and adapter API-existence RED remain distinguished
+from later semantic coverage. The finite matrix is representative, **not** an
+exhaustive Cartesian product of all faults and cancellation interleavings.
 
-Most new semantic cases and existing alarm regressions pass; expanded cases are
-characterization/acceptance coverage, not retroactively claimed causal RED.
-The required future-cleanup case fails and blocks the candidate regardless of
-aggregate passing counts. The broader cancellation matrix is not claimed as an
-exhaustive Cartesian product. Two-entry isolation, observer fault permutations,
-cleanup near-budget lateness and full cancellation/error cross-products require
-review against the frozen contract after resolving the transport ownership
-conflict. No additional production instrumentation was added to evade that gap.
-
-Independent SPEC then QUALITY, installation, real proxy/watch transfer,
-watch-screen result and physical history comparison all remain pending. Nothing
-here changes the live auto-read option or requests a physical trial.
+Independent full-delta SPEC then QUALITY remain required. Installation, a real
+proxy/watch transfer, watch-screen outcome and physical history comparison are
+separate pending gates. Live automatic settings and device state were untouched.
