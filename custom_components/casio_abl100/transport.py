@@ -133,6 +133,8 @@ async def read_record(client, *, timeout=12):
     finally:
         if not complete.done():
             complete.cancel()
+        elif not complete.cancelled():
+            complete.exception()  # A write may fail before this response is awaited.
         failed = sys.exc_info()[0] is not None
         try:
             await _stage('disconnect', client.disconnect(), timeout)
