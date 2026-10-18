@@ -35,8 +35,11 @@ class WatchSession:
 
     client_class = BleakClientWithServiceCache
 
-    def __init__(self, hass, address, identity=None):
+    def __init__(self, hass, address, identity=None, entry=None):
         self.hass = hass
+        self.entry = entry
+        self.alarm_phase = 'idle'
+        self.alarm_wait_expires_at = None
         self.address = address
         # Registry identity is immutable; the BLE transport address may change.
         self.identity = identity or address
@@ -152,6 +155,12 @@ class WatchSession:
         finally:
             self.tasks.discard(task)
 
+    def set_alarm_phase(self, phase, expiry=None, *, notify=True):
+        self.alarm_phase = phase
+        self.alarm_wait_expires_at = expiry
+        if notify:
+            self._schedule_alarm_delivery()
+
     async def read_alarms(self):
         """Manually read a complete alarm snapshot, independent of step freshness."""
         task = asyncio.current_task()
@@ -163,55 +172,69 @@ class WatchSession:
         # so entry shutdown also reaches queued manual reads.
         self.tasks.add(task)
         unavailable = None  # Only this particular validation error may escape.
+        active = False
         try:
             if task is not None and task.cancelling():
                 raise asyncio.CancelledError
             async with self.lock:
+                active = True
                 if self.closed or (task is not None and task.cancelling()):
                     raise asyncio.CancelledError
                 device = bluetooth.async_ble_device_from_address(
                     self.hass, self.address, connectable=True
                 )
                 name = (device.name or '').rstrip('\x00 \t\r\n') if device is not None else ''
-                if (device is None or device.address.upper() != self.address
-                        or name not in ('ABL-100', 'ABL-100WE', 'CASIO ABL-100', 'CASIO ABL-100WE')):
+                if (device is not None and (device.address.upper() != self.address
+                        or name not in ('ABL-100', 'ABL-100WE', 'CASIO ABL-100', 'CASIO ABL-100WE'))):
                     unavailable = HomeAssistantError(
                         translation_domain=DOMAIN, translation_key='unavailable'
                     )
                     raise unavailable
 
-                # The retry connector may construct a client and then fail before
-                # returning it; only that partial client is ours to disconnect.
-                owned = []
-                base_client_class = self.client_class
+                native_entry = None
+                if self.entry is not None:
+                    from .native_alarms import select_proxy
+                    native_entry = select_proxy(self.hass, device)
+                if native_entry is not None:
+                    from .native_alarms import NativeAlarmRead
+                    snapshot = await NativeAlarmRead(self, native_entry).read()
+                else:
+                    if device is None:
+                        unavailable = HomeAssistantError(translation_domain=DOMAIN, translation_key='unavailable')
+                        raise unavailable
+                    self.set_alarm_phase('reading', notify=False)
+                    # The retry connector may construct a client and then fail before
+                    # returning it; only that partial client is ours to disconnect.
+                    owned = []
+                    base_client_class = self.client_class
 
-                class OwnedClient(base_client_class):
-                    def __init__(self, *args, **kwargs):
-                        super().__init__(*args, **kwargs)
-                        owned.append(self)
+                    class OwnedClient(base_client_class):
+                        def __init__(self, *args, **kwargs):
+                            super().__init__(*args, **kwargs)
+                            owned.append(self)
 
-                try:
-                    client = await asyncio.wait_for(establish_connection(
-                        OwnedClient, device, 'Casio ABL-100WE',
-                        pair=False, max_attempts=2, timeout=10,
-                    ), timeout=16)
-                    if client in owned:
-                        owned.remove(client)
-                    # The frozen transport owns the returned client's cleanup.
-                    snapshot = await read_alarm_snapshot(client, timeout=12)
-                finally:
-                    # Preserve the original connect/read outcome over partial
-                    # cleanup faults; without an original failure, cleanup must
-                    # still fail the transaction instead of publishing a value.
-                    original_error = sys.exc_info()[1]
-                    cleanup_error = None
-                    for partial_client in owned:
-                        try:
-                            await disconnect_client(partial_client)
-                        except BaseException as error:
-                            cleanup_error = error
-                    if original_error is None and cleanup_error is not None:
-                        raise cleanup_error
+                    try:
+                        client = await asyncio.wait_for(establish_connection(
+                            OwnedClient, device, 'Casio ABL-100WE',
+                            pair=False, max_attempts=2, timeout=10,
+                        ), timeout=16)
+                        if client in owned:
+                            owned.remove(client)
+                        # The frozen transport owns the returned client's cleanup.
+                        snapshot = await read_alarm_snapshot(client, timeout=12)
+                    finally:
+                        # Preserve the original connect/read outcome over partial
+                        # cleanup faults; without an original failure, cleanup must
+                        # still fail the transaction instead of publishing a value.
+                        original_error = sys.exc_info()[1]
+                        cleanup_error = None
+                        for partial_client in owned:
+                            try:
+                                await disconnect_client(partial_client)
+                            except BaseException as error:
+                                cleanup_error = error
+                        if original_error is None and cleanup_error is not None:
+                            raise cleanup_error
                 if self.closed or (task is not None and task.cancelling()):
                     raise asyncio.CancelledError
                 synced_at = dt_util.utcnow()
@@ -236,10 +259,14 @@ class WatchSession:
             ) from error
         finally:
             self.tasks.discard(task)
+            if active:
+                self.set_alarm_phase('closed' if self.closed else 'idle', notify=False)
         self._schedule_alarm_delivery()
 
     async def shutdown(self):
         self.closed = True
+        self.alarm_phase = 'closed'
+        self.alarm_wait_expires_at = None
         for handle in self.alarm_delivery_handles:
             handle.cancel()
         self.alarm_delivery_handles.clear()
@@ -260,7 +287,7 @@ class WatchSession:
 
 
 async def async_setup_entry(hass, entry):
-    manager = WatchSession(hass, entry.data['address'], identity=entry.unique_id)
+    manager = WatchSession(hass, entry.data['address'], identity=entry.unique_id, entry=entry)
     entry.runtime_data = manager
     cancel_update = None
     try:

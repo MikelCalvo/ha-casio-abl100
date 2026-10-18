@@ -311,7 +311,7 @@ async def test_real_service_read_failure_and_reload_keep_one_device_and_translat
         assert hass.states.get(signal_id).attributes['fresh'] is False
         assert hass.states.get(alarms['AA:BB:CC:DD:EE:FF_last_alarm_read'].entity_id).state == last
         session = entry.runtime_data
-        assert len(session.listeners) == 9
+        assert len(session.listeners) == 10  # Existing nine plus alarm-button progress.
         assert await hass.config_entries.async_unload(entry.entry_id)
         assert session.closed and not session.listeners and not session.alarm_delivery_handles
         assert await hass.config_entries.async_setup(entry.entry_id)
@@ -328,7 +328,7 @@ async def test_real_service_read_failure_and_reload_keep_one_device_and_translat
                     if (DOMAIN, 'AA:BB:CC:DD:EE:FF') in device.identifiers}) == 1
         assert len([entity for entity in er.async_get(hass).entities.values()
                     if entity.config_entry_id == entry.entry_id]) == 11
-        assert len(entry.runtime_data.listeners) == 9
+        assert len(entry.runtime_data.listeners) == 10
         reloaded_session = entry.runtime_data
         assert await hass.config_entries.async_unload(entry.entry_id)
         assert not reloaded_session.listeners

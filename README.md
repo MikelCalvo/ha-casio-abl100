@@ -34,6 +34,56 @@ Names below omit the device prefix, which Home Assistant adds once. Entity IDs d
 
 Alarm and step observations have independent timestamps and freshness. Before a successful read the corresponding observations are unavailable, not zero or off. A failed refresh retains the last good values and marks that feature's `fresh` attribute false. Disabled alarms still show their observed time. Step data for another date is unavailable; alarm times do not expire at midnight. Neither observation survives an integration reload in this pilot.
 
+## Native manual alarm route (local candidate, not installed)
+
+[Procedimiento y explicación en español](docs/native-alarms.es.md).
+
+**Read alarms / Leer alarmas** now borrows the existing loaded ESPHome entry's
+API connection when the cached Bluetooth device identifies that proxy. It does
+not create a second API client, disable ESPHome, or send advertisement subscription
+requests. With no cached source after a Core restart, only one unambiguous loaded,
+available, connectable, RAW-capable ESPHome proxy is accepted. A missing selected
+source, ambiguous proxy, occupied target or unavailable proxy is refused. Devices
+positively identified on non-ESPHome scanners retain the previous Bleak route.
+
+For this native route, **press Read alarms once first**, then inspect that existing
+button's attributes: `phase: waiting` and a future UTC `wait_expires_at` mean that
+the captured proxy generation, free capacity, local RAW handler and deadline have
+been checked. Only then open the watch's `CNCT` window (C/MODE, lower left, held
+at least three seconds). Keep phone Bluetooth/other clients from connecting and
+use only one initiating actor. The request remains in progress while waiting for
+the next exact-target RAW advertisement, for **at most 360 seconds**, then reads
+once with its actual advertised address type. It does not replay cached packets
+or automatically retry a connection. `phase: reading` clears the wait expiry;
+terminal success/failure returns to `idle`, and entry shutdown clears it to
+`closed`. No extra entity or diagnostic service is added. Do not press both
+manual buttons or enqueue repeated requests; they share the existing watch lock.
+
+Connection uses the native 30-second connect / five-second disconnect budgets,
+without the old 16-second Bleak wrapper. A positive `connected=true,error=0` reply
+is mandatory before services (10 seconds), notify and CCCD `0100`, and the unchanged
+GET15/GET16 transport (12-second stages). No time, zone, pairing, AppInfo, END,
+scanner-mode or watch-setting command is added. A complete snapshot is published
+to the existing five alarm sensors, SIG and last-read timestamp only after link
+cleanup and final ownership checks. Failure retains the last good alarm values
+and timestamp with `fresh: false`; steps are independent.
+
+The native method facade borrows the installed aioesphomeapi BLE implementations
+but binds *all* internal submissions, including cancellation cleanup inside
+`bluetooth_device_connect`, to the captured connection. It neither mutates the
+shared client nor shares its notify map. Notify acquisition is shielded and
+joined through the backend's finite 10-second timeout, including repeated caller
+cancellation; owned original callbacks are removed even if acquisition fails or
+the API reconnects. No GATT is submitted to a replacement generation. Cleanup is
+cooperative: an arbitrarily uncooperative backend cannot be forcibly terminated.
+
+Local real-HA tests exercise entry setup, the actual `button.press` service,
+listeners, all 11 existing registry identities, publication, failures,
+cancellation, unload and API replacement with only native connection IO faked.
+These tests are **not physical acceptance** of the shared HA path. Earlier
+standalone native successes do not establish that acceptance. Nothing in this
+increment has been installed or operated remotely.
+
 ## Daily-history snapshot (local, not installed)
 
 The source-described 400-byte ABL-100WE block contains **seven previous-day summary slots, plus today's separate total**. This is reverse-engineered protocol evidence, not a retention guarantee stated in the official manual. The seven slots are eight bytes each at offsets 318–373; their uint32 step total is followed by a distance word that this increment deliberately ignores. Slot dates are anchored to the validated watch record date: yesterday through seven days ago, newest first.
@@ -52,7 +102,7 @@ Use only an installation you can recover and back up the existing integration/co
 4. Select a discovered watch or enter its exact Bluetooth address. No watch is preconfigured.
 5. Use a **connectable** ESPHome Bluetooth proxy. Advertisement forwarding alone is insufficient.
 
-For a coordinated **manual** read, put the watch near the proxy and hold **C/MODE, lower left, for at least three seconds**, until `CNCT` and the Bluetooth icon flash. Temporarily disabling the phone's Bluetooth can avoid connection contention; do not unpair or reset the watch. Press the selected read button **once** during that connection window. Step and alarm reads are separate transactions, serialized per watch; do not launch them concurrently from multiple actors. Preserve any failure instead of retrying until success and calling that reliable.
+For a coordinated **step or non-ESPHome** manual read, put the watch near the proxy and hold **C/MODE, lower left, for at least three seconds**, until `CNCT` and the Bluetooth icon flash. Temporarily disabling the phone's Bluetooth can avoid connection contention; do not unpair or reset the watch. Press the selected read button **once** during that connection window. Step and alarm reads are separate transactions, serialized per watch; do not launch them concurrently from multiple actors. Preserve any failure instead of retrying until success and calling that reliable.
 
 ## Optional native step-window reader (local, not installed)
 
@@ -115,6 +165,7 @@ PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 PYTHONPATH="$PWD" "$PYTHON" -m pytest \
   --ignore=tests/ha/test_auto_options_runtime.py \
   --ignore=tests/ha/test_auto_runtime.py \
   --ignore=tests/ha/test_auto_lifecycle_runtime.py \
+  --ignore=tests/ha/test_native_alarm_runtime.py \
   --ignore=tests/ha/test_reconfigure_runtime.py
 
 # Actual HA registries, service calls, translations, reload and scheduler.
@@ -122,7 +173,7 @@ PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 PYTHONPATH="$PWD" "$PYTHON" -m pytest \
 PYTHONPATH="$PWD" "$PYTHON" -m pytest -o asyncio_mode=auto \
   -q tests/ha/test_runtime.py tests/ha/test_auto_options_runtime.py \
   tests/ha/test_auto_runtime.py tests/ha/test_auto_lifecycle_runtime.py \
-  tests/ha/test_reconfigure_runtime.py
+  tests/ha/test_reconfigure_runtime.py tests/ha/test_native_alarm_runtime.py
 ```
 
 Public fixtures are constructed synthetic data, not captured watch records. Their example step counts, alarm times and flags are not hardware results. Raw logs, credentials and deployment/device identifiers are excluded; BLE addresses in tests are synthetic placeholders.
