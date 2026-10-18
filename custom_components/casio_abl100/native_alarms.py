@@ -1,6 +1,7 @@
 """One manually armed alarm read on HA's existing ESPHome connection."""
 
 import asyncio
+import sys
 from datetime import timedelta
 
 from aioesphomeapi import BluetoothProxyFeature
@@ -260,6 +261,7 @@ class NativeRead:
             self.guard()
             return snapshot
         finally:
+            primary_error = sys.exc_info()[1]
             try:
                 if (
                     self.attempted
@@ -269,6 +271,11 @@ class NativeRead:
                     await joined(
                         self.api.bluetooth_device_disconnect(self.target, timeout=5)
                     )
+            except BaseException:
+                # Cleanup must not replace an already failing transfer. The
+                # session still gives an outstanding caller cancellation priority.
+                if primary_error is None:
+                    raise
             finally:
                 self.remove_notifications()
                 if self.remove_connection:

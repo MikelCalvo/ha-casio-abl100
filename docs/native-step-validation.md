@@ -50,6 +50,21 @@ backend-only cancellation becomes a safe read failure, and genuine caller
 cancellation remains cancellation. Earlier misleading service-based lifetime
 coverage and the original blocked commit/report are preserved privately.
 
+## Owner cleanup error priority
+
+A later composed-path review found that a failing owner fallback disconnect could
+replace the original START failure after adapter cleanup also failed. The owner
+now retains an active primary error while still attempting the existing fallback
+and releasing its callbacks. With no primary error, cleanup failure still rejects
+the transaction. The session retains genuine caller-cancellation priority.
+
+`test_native_owner_priority_runtime.py` preserves the independent review's
+producer-shaped probes. Two step variants and the matching preexisting alarm
+case failed before the correction and pass afterward. Successful cleanup,
+cleanup-only failures, genuine cancellation, native-date rejection and retained
+late callbacks are separate controls. This changes error selection, not packets,
+connection policy, cleanup attempts or timeouts.
+
 ## Synthetic evidence boundary
 
 `tests/ha/test_native_step_runtime.py` exercises real HA ConfigEntry management,
@@ -104,7 +119,8 @@ polling timeout as a service deadline.
 
 Exact-byte causal RED/GREEN, later characterization runs, argv/environment,
 stdout/stderr, real exits, coverage mapping and final manifest/archive are in the
-private `steps-correction-r1/` packet, alongside unchanged historical evidence.
+private `steps-correction-r1/` and `steps-correction-r2/` packets, alongside
+unchanged historical evidence.
 The original native-route RED and adapter API-existence RED remain distinguished
 from later semantic coverage. The finite matrix is representative, **not** an
 exhaustive Cartesian product of all faults and cancellation interleavings.
