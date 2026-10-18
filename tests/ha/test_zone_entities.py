@@ -11,6 +11,7 @@ from custom_components.casio_abl100.sensor import ZoneOffsetSensor, LastTimeZone
 from tests.protocol.test_zone_transport import FRAMES
 
 ZONE_KEYS = {'read_time_zones', 'home_standard_utc_offset', 'secondary_standard_utc_offset', 'last_time_zone_read'}
+SYNC_KEYS = {'read_all', 'time_format', 'automatic_time_adjustment', 'timer_encoded_duration'}
 OLD_KEYS = {'steps_today', 'last_sync', 'read_steps', 'last_alarm_read', 'read_alarms', 'hourly_signal', *(f'alarm_{n}' for n in range(1, 6))}
 
 
@@ -18,15 +19,16 @@ def assert_zone_addition(hass, entry):
     from homeassistant.helpers import entity_registry as er
     entities = [e for e in er.async_get(hass).entities.values() if e.config_entry_id == entry.entry_id]
     keys = {e.unique_id.removeprefix((entry.unique_id or entry.data['address']) + '_') for e in entities}
-    assert keys - ZONE_KEYS == OLD_KEYS
+    assert keys - ZONE_KEYS - SYNC_KEYS == OLD_KEYS
+    assert keys & SYNC_KEYS == SYNC_KEYS
     assert keys & ZONE_KEYS == ZONE_KEYS
-    assert len(entities) == len(OLD_KEYS) + len(ZONE_KEYS)
+    assert len(entities) == len(OLD_KEYS) + len(ZONE_KEYS) + len(SYNC_KEYS)
 
 
 def old_listeners(session, exclude_steps=False):
     return {listener for listener in session.listeners
             if getattr(getattr(listener, '__self__', None), 'entity_description', SimpleNamespace(key=None)).key
-            not in (ZONE_KEYS | ({'read_steps'} if exclude_steps else set()))}
+            not in (ZONE_KEYS | SYNC_KEYS | ({'read_steps'} if exclude_steps else set()))}
 
 
 @pytest.mark.asyncio

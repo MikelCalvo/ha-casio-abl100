@@ -31,6 +31,16 @@
   },
   "entity": {
     "sensor": {
+      "time_format": {
+        "name": "Formato horario"
+      },
+      "automatic_time_adjustment": {
+        "name": "Ajuste automático de hora",
+        "state": {"enabled": "Activado", "disabled": "Desactivado"}
+      },
+      "timer_encoded_duration": {
+        "name": "Duración codificada del temporizador"
+      },
       "steps_today": {
         "name": "Pasos de hoy",
         "state_attributes": {
@@ -79,6 +89,9 @@
       }
     },
     "button": {
+      "read_all": {
+        "name": "Leer datos del reloj"
+      },
       "read_steps": {
         "name": "Leer pasos"
       },
@@ -91,6 +104,9 @@
     }
   },
   "exceptions": {
+    "sync_read_failed": {
+      "message": "No se pudieron leer todos los datos del reloj; se conservan los grupos completados"
+    },
     "closed": {
       "message": "La entrada del reloj ya no está activa"
     },

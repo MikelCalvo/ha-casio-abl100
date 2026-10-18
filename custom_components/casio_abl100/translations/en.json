@@ -31,6 +31,16 @@
   },
   "entity": {
     "sensor": {
+      "time_format": {
+        "name": "Time format"
+      },
+      "automatic_time_adjustment": {
+        "name": "Automatic time adjustment",
+        "state": {"enabled": "Enabled", "disabled": "Disabled"}
+      },
+      "timer_encoded_duration": {
+        "name": "Timer encoded duration"
+      },
       "steps_today": {
         "name": "Steps today",
         "state_attributes": {
@@ -79,6 +89,9 @@
       }
     },
     "button": {
+      "read_all": {
+        "name": "Read watch data"
+      },
       "read_steps": {
         "name": "Read steps"
       },
@@ -91,6 +104,9 @@
     }
   },
   "exceptions": {
+    "sync_read_failed": {
+      "message": "Unable to read all watch data; completed groups are retained"
+    },
     "closed": {
       "message": "The watch entry is no longer active"
     },

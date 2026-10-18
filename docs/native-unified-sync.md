@@ -1,0 +1,114 @@
+# Native unified read (local Unit A)
+
+`button.press` on **Read watch data** (`read_all`, Spanish **Leer datos del reloj**)
+starts one explicitly initiated native ESPHome transaction. Setup does not contact
+the watch. Enable the watch's Bluetooth connection window only when coordinating
+a read. This local implementation does not enable automatic synchronization;
+`auto_read_steps` retains its existing step-only meaning. Automatic unified
+advertisement dispatch is a separate opt-in consumer, not part of this unit.
+
+## One owner, fixed order
+
+The entry registers the request before awaiting the existing device mutex. It
+selects the existing native ESPHome proxy and waits for a fresh, exact-address
+advertisement. Non-native sources are refused, without a Bleak fallback or new
+API client. The unchanged `NativeRead` owns one connection/discovery generation
+and one outer disconnect. The new subclass borrows this link for exactly:
+
+1. Alarms/SIG: GET `15`, then GET `16`.
+2. Steps/history: subscribe DRSP and Convoy, send `0011000000` on DRSP.
+3. Zone/DST configuration: `1D00`, `1E00`, `1E01`.
+4. Basic settings: GET `13`.
+5. Automatic-time configuration: GET `11`.
+6. Encoded timer configuration: GET `18`.
+
+ALL_FEATURES notification acquisition and its CCCD enable happen once; steps
+reuse this channel. DRSP/Convoy metadata is resolved only after alarms complete,
+so missing step metadata cannot block a validated alarm observation. Discovery
+supplies every handle. No one-shot reader is called and no inner disconnect is
+hidden. No GET22/10, GET23, initialization, END, SET, time synchronization,
+pairing, reset, reconnect, retry or firmware change is introduced.
+
+## Independent observations, not atomic whole-watch success
+
+Each group validates all its frames with the existing immutable parser, drains
+adjacent callbacks, closes its local receiving state, then checks owner,
+generation, link and outstanding caller cancellation. Value, aware UTC timestamp
+and freshness commit synchronously before the next group. Deferred observers
+cannot undo a commit if an observer or its scheduler fails.
+
+A later error stops remaining groups, but keeps earlier committed observations.
+Failed/unattempted groups retain last-good values and timestamps with freshness
+false. A cleanup-only failure likewise keeps all valid observations but prevents
+overall success. Caller cancellation/unload wins over backend and cleanup errors;
+owned finite cleanup is joined, including repeated cancellation. Queue waiters
+own neither active readiness nor freshness. No new observations are persisted;
+reload starts unknown while keeping entity registry identities.
+
+The button exposes only bounded status attributes:
+
+- `phase`: idle, waiting, reading, closed; `wait_expires_at`: aware timestamp/null.
+- `result`: never, success, partial, failed, cancelled.
+- `group_results`: exactly alarms, steps, zones, basic_settings, auto_time, timer;
+  each not_attempted, reading, success or failed.
+- `cleanup_result`: not_attempted, success or failed. No disconnect submission
+  after invalidated generation is represented as a successful cleanup.
+
+A partial/failed read raises the fixed translated `sync_read_failed` error while
+completed groups remain visible. Backend text is not copied into public status,
+exception arguments, translation placeholders or component logs. Exception
+causal chains remain useful internally. The wire has no transaction IDs: phase
+checks reject matching unsolicited-before-invocation and duplicate/adjacent
+frames, but cannot prove peripheral causality of an identical late response.
+Unrelated notifications do not refresh another group. Real installed API methods
+retain address/handle filtering.
+
+## Four added entities (15 local base entities become 19)
+
+All existing alarm/step/zone identities and individual actions are preserved.
+
+- `read_all`: Read watch data / Leer datos del reloj.
+- `time_format`: Time format / Formato horario, `12h` or `24h`;
+  `button_tone_enabled`, `light_duration_mode` (short/long), `fresh`, `last_read`.
+  No public power-saving capability assertion is made.
+- `automatic_time_adjustment`: Automatic time adjustment / Ajuste automático de
+  hora, enabled/disabled translated enum; `adjustment_minute`, `fresh`,
+  `last_read`. Unknown enable remains unavailable, never disabled. Reading this
+  configuration does not set or synchronize time. HA omits extra attributes
+  while an entity is unavailable; the unknown minute stays `None` in the
+  observation rather than being invented.
+- `timer_encoded_duration`: Timer encoded duration / Duración codificada del
+  temporizador, encoded arithmetic seconds (unit `s`); `encoded_hours`,
+  `encoded_minutes`, `encoded_seconds`, `fresh`, `last_read`. This is not a running
+  countdown. Encoded zero stays zero; no zero-to-60-minute interpretation exists.
+
+Zone configuration and record dates are not current running-clock entities.
+
+## Cooperative timing envelope
+
+No timeout was increased. With the existing backend's cooperative bounds, a
+conservative serial envelope is 360 s advertisement admission + 30 s connect
+(and up to 5 s connect-failure cleanup) + 10 s discovery + six 10 s subscription/
+CCCD stages + nine 10 s query-write stages + nine 12 s response waits + 5 s outer
+disconnect = **668 s**, plus event-loop scheduling. Query writes without response
+usually complete synchronously but are counted conservatively. The step group's
+three notifications carry one 400-byte transfer, not three full-record waits.
+Each notification acquisition is shielded and joined using the accepted finite
+backend helper. This is a cooperative bound, not a hard deadline against an
+uncooperative backend, OS pause or host failure; it is not a new watch timeout.
+Do not wrap the service in a shorter controller timeout and infer a device fault.
+
+## Validation limits
+
+Tests traverse real HA setup, registry, `button.press`, session, installed
+`APIClient` bodies, framing and parsers. Only external native connection messages
+are synthetic. The decisive fake feeds request-provided append/completion
+predicates, including wrong address/handle and service-DONE replies; two entries
+share one wire. Separate offline suites exercise borrowed-group framing.
+
+This candidate composes the intended UX. It does **not** claim to repair the
+observed physical ALL_FEATURES CCCD response timeout. Physical alarm success,
+terminal watch ERR, later pre-START step CCCD timeout and synthetic source
+validation are distinct evidence. No live probe or deployment was performed.
+Independent SPEC, then QUALITY, and separately authorized combined physical
+acceptance remain required before treating expanded data as accepted.

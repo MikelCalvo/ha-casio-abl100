@@ -76,6 +76,29 @@ class ReadTimeZonesButton(ReadAlarmsButton):
         await self.session.read_time_zones()
 
 
+class ReadAllButton(ReadAlarmsButton):
+    """One native connection for all supported read groups."""
+    entity_description = ButtonEntityDescription(
+        key='read_all', translation_key='read_all', icon='mdi:sync',
+    )
+
+    def __init__(self, session):
+        super().__init__(session)
+        self._attr_unique_id = f'{session.identity}_read_all'
+
+    @property
+    def extra_state_attributes(self):
+        expiry = self.session.sync_wait_expires_at
+        return {'phase': self.session.sync_phase,
+                'wait_expires_at': expiry.isoformat() if expiry is not None else None,
+                'result': self.session.sync_result,
+                'group_results': dict(self.session.sync_group_results),
+                'cleanup_result': self.session.sync_cleanup_result}
+
+    async def async_press(self):
+        await self.session.read_all()
+
+
 async def async_setup_entry(hass, entry, async_add_entities):
     async_add_entities([ReadStepsButton(entry.runtime_data), ReadAlarmsButton(entry.runtime_data),
-                        ReadTimeZonesButton(entry.runtime_data)])
+                        ReadTimeZonesButton(entry.runtime_data), ReadAllButton(entry.runtime_data)])

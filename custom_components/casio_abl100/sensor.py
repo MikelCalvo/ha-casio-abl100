@@ -166,6 +166,83 @@ class LastTimeZoneReadSensor(WatchSensor):
         return self.session.zone_last_sync is not None
 
 
+class SettingsSensor(WatchSensor):
+    """Independent last-good configuration, intentionally not persisted."""
+    snapshot_key = None
+
+    @property
+    def snapshot(self):
+        return getattr(self.session, self.snapshot_key + '_snapshot')
+
+    @property
+    def available(self):
+        return self.snapshot is not None and self.native_value is not None
+
+    @property
+    def extra_state_attributes(self):
+        timestamp = getattr(self.session, self.snapshot_key + '_last_sync')
+        attributes = {
+            'fresh': getattr(self.session, self.snapshot_key + '_fresh'),
+            'last_read': timestamp.isoformat() if timestamp is not None else None,
+        }
+        attributes.update(self.observed_attributes())
+        return attributes
+
+    def observed_attributes(self):
+        return {}
+
+
+class TimeFormatSensor(SettingsSensor):
+    snapshot_key = 'basic_settings'
+    entity_description = SensorEntityDescription(key='time_format', translation_key='time_format')
+
+    @property
+    def native_value(self):
+        return self.snapshot.time_format if self.snapshot is not None else None
+
+    def observed_attributes(self):
+        if self.snapshot is None:
+            return {}
+        return {'button_tone_enabled': self.snapshot.button_tone_enabled,
+                'light_duration_mode': self.snapshot.light_duration_mode}
+
+
+class AutoTimeSensor(SettingsSensor):
+    snapshot_key = 'auto_time'
+    entity_description = SensorEntityDescription(
+        key='automatic_time_adjustment', translation_key='automatic_time_adjustment',
+        device_class=SensorDeviceClass.ENUM, options=['enabled', 'disabled'],
+    )
+
+    @property
+    def native_value(self):
+        if self.snapshot is None or self.snapshot.enabled is None:
+            return None
+        return 'enabled' if self.snapshot.enabled else 'disabled'
+
+    def observed_attributes(self):
+        return {'adjustment_minute': self.snapshot.adjustment_minute if self.snapshot is not None else None}
+
+
+class TimerEncodedSensor(SettingsSensor):
+    snapshot_key = 'timer'
+    entity_description = SensorEntityDescription(
+        key='timer_encoded_duration', translation_key='timer_encoded_duration',
+        native_unit_of_measurement='s',
+    )
+
+    @property
+    def native_value(self):
+        return self.snapshot.encoded_duration_seconds if self.snapshot is not None else None
+
+    def observed_attributes(self):
+        if self.snapshot is None:
+            return {}
+        return {'encoded_hours': self.snapshot.hours,
+                'encoded_minutes': self.snapshot.minutes,
+                'encoded_seconds': self.snapshot.seconds}
+
+
 async def async_setup_entry(hass, entry, async_add_entities):
     async_add_entities([
         StepsSensor(entry.runtime_data), LastSyncSensor(entry.runtime_data),
@@ -173,4 +250,6 @@ async def async_setup_entry(hass, entry, async_add_entities):
         LastAlarmReadSensor(entry.runtime_data),
         ZoneOffsetSensor(entry.runtime_data), ZoneOffsetSensor(entry.runtime_data, True),
         LastTimeZoneReadSensor(entry.runtime_data),
+        TimeFormatSensor(entry.runtime_data), AutoTimeSensor(entry.runtime_data),
+        TimerEncodedSensor(entry.runtime_data),
     ])

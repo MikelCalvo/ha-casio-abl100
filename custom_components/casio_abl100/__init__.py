@@ -72,6 +72,23 @@ class WatchSession:
         self.alarm_delivery_handles = set()
         self.closed = False
         self.auto_reader = None
+        self.sync_phase = 'idle'
+        self.sync_wait_expires_at = None
+        self.sync_result = 'never'
+        self.sync_group_results = dict.fromkeys(
+            ('alarms', 'steps', 'zones', 'basic_settings', 'auto_time', 'timer'),
+            'not_attempted',
+        )
+        self.sync_cleanup_result = 'not_attempted'
+        self.basic_settings_snapshot = None
+        self.basic_settings_last_sync = None
+        self.basic_settings_fresh = False
+        self.auto_time_snapshot = None
+        self.auto_time_last_sync = None
+        self.auto_time_fresh = False
+        self.timer_snapshot = None
+        self.timer_last_sync = None
+        self.timer_fresh = False
 
     def subscribe(self, callback):
         self.listeners.add(callback)
@@ -386,8 +403,15 @@ class WatchSession:
                 self.set_zone_phase('closed' if self.closed else 'idle', notify=False)
         self._schedule_alarm_delivery()
 
+    async def read_all(self):
+        """Read supported groups on one HA-owned native connection."""
+        from .native_sync import read_all
+        await read_all(self)
+
     async def shutdown(self):
         self.closed = True
+        self.sync_phase = 'closed'
+        self.sync_wait_expires_at = None
         self.zone_phase = 'closed'
         self.zone_wait_expires_at = None
         self.alarm_phase = 'closed'
