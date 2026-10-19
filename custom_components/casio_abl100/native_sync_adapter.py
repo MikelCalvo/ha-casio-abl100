@@ -19,6 +19,34 @@ class NativeSyncAdapter(NativeAlarmAdapter):
         self.query_index = 0
         self.steps_started = False
         self.closing = False
+        self.primary_entered = False
+        self.steps_entered = False
+        self.steps_ready = False
+        self.acquiring = False
+        self.cycle_finished = False
+
+    def _quiescent(self):
+        self.guard()
+        if self.acquiring or self.receiver is not None or self.step_receivers is not None:
+            raise ValueError('Unified cycle still receiving')
+
+    def finish_cycle(self):
+        """Owner attests all six groups validated and committed successfully."""
+        self._quiescent()
+        if (self.cycle_finished or self.query_index != 8 or not self.steps_started
+                or not self.primary_ready or not self.steps_ready):
+            raise ValueError('Unified cycle incomplete')
+        self.cycle_finished = True
+
+    def rearm_cycle(self):
+        """Consume explicit success; retain only confirmed link subscriptions."""
+        self._quiescent()
+        if not self.cycle_finished:
+            raise ValueError('Unified cycle not successful')
+        self.cycle_finished = False
+        self.query_index = 0
+        self.steps_started = False
+        self.primary_entered = self.steps_entered = False
 
     def guard(self):
         super().guard()
@@ -26,12 +54,22 @@ class NativeSyncAdapter(NativeAlarmAdapter):
             raise RuntimeError('Unified link closing')
 
     async def start_primary(self):
+        self.guard()
+        if self.primary_entered:
+            raise ValueError('Unexpected repeated primary entry')
+        self.primary_entered = True
+        if self.primary_ready:
+            return
         def receive(_char, data):
             if self.receiver is not None and not self.closing:
                 self.receiver(data)
-        await super().start_notify(self.primary, receive)
-        self.guard()
-        self.primary_ready = True
+        self.acquiring = True
+        try:
+            await super().start_notify(self.primary, receive)
+            self.guard()
+            self.primary_ready = True
+        finally:
+            self.acquiring = False
 
     async def query_primary(self, data):
         self.guard()
@@ -46,6 +84,20 @@ class NativeSyncAdapter(NativeAlarmAdapter):
 
     async def start_step_notifications(self):
         self.guard()
+        if self.steps_entered:
+            raise ValueError('Unexpected repeated step entry')
+        self.steps_entered = True
+        if self.steps_ready:
+            return
+        self.acquiring = True
+        try:
+            await self._acquire_step_notifications()
+            self.guard()
+            self.steps_ready = True
+        finally:
+            self.acquiring = False
+
+    async def _acquire_step_notifications(self):
         # Reuse accepted metadata validation, not the disconnecting step reader.
         resolved = NativeStepAdapter(self.api, self.address, self.metadata, self.connected)
         self.step_chars = resolved.chars

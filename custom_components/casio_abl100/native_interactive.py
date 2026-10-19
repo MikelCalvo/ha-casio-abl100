@@ -1,0 +1,426 @@
+"""Bounded, entry-owned interactive reads on one original native generation.
+
+The wire has no transaction IDs: an identical delayed reply delivered after a
+repeated identical query starts cannot be authenticated as belonging to it.
+No quiet delay, retry, keepalive or reconnect is used to disguise that limit.
+"""
+import asyncio
+from datetime import timedelta
+
+from homeassistant.components import bluetooth
+from homeassistant.exceptions import HomeAssistantError
+from homeassistant.util import dt as dt_util
+
+from .native_alarms import select_proxy
+from .native_api import NativeAPI
+from .native_sync import NativeSyncRead, GROUPS, DESTINATIONS
+from .sync_transport import (read_alarm_group, read_step_group, read_zone_group,
+                             read_basic_group, read_auto_time_group, read_timer_group)
+
+IDLE_SECONDS = 120
+SESSION_SECONDS = 300
+REFRESH_SECONDS = 60
+CHECK_SECONDS = 1
+READERS = (read_alarm_group, read_step_group, read_zone_group,
+           read_basic_group, read_auto_time_group, read_timer_group)
+
+
+def _failed():
+    # A fixed safe public error, independent of backend exception provenance.
+    return HomeAssistantError('Interactive watch session unavailable or failed')
+
+
+class NativeInteractiveSession:
+    """One root, mutex reservation and terminal outcome per explicit connect."""
+
+    def __init__(self, session):
+        self.session = session
+        self.phase = 'starting'
+        self.link_state = 'unknown'
+        self.wait_expires_at = None
+        self.idle_expires_at = None
+        self.session_expires_at = None
+        self.operation_result = 'never'
+        self.group_results = dict.fromkeys(GROUPS, 'not_attempted')
+        self.cleanup_result = 'not_attempted'
+        self.close_reason = None
+        self.cleanup_in_progress = False
+        self.reader = None
+        self.root = None
+        self.maintenance_handle = None
+        self.connect_caller = asyncio.current_task()
+        self.operation_caller = None
+        self.operation_complete = None
+        self.ready = asyncio.get_running_loop().create_future()
+        self.wake = asyncio.Event()
+        self.failure = None
+        self._cancel_sent = False
+        self._finished = False
+        self._idle_deadline = None
+        self._session_deadline = None
+        self._refresh_deadline = None
+        self._cycles = 0
+
+    @property
+    def active(self):
+        return not self._finished
+
+    @property
+    def usable(self):
+        return (self.active and self.phase == 'connected' and self.close_reason is None
+                and self.reader is not None and self.reader.valid() and self.reader.link)
+
+    def publish(self):
+        self.session._schedule_alarm_delivery()
+
+    def start(self):
+        coroutine = self._run()
+        try:
+            self.root = self.session.entry.async_create_background_task(
+                self.session.hass, coroutine, 'Casio interactive session', eager_start=False,
+            )
+        except BaseException:
+            coroutine.close()
+            self._finish()
+            raise
+        # No yield between reservation, creation and registration. The done
+        # callback also accounts for owner cancellation before coroutine entry.
+        self.session.tasks.add(self.root)
+        self.root.add_done_callback(self._root_done)
+        self.publish()
+
+    def _root_done(self, task):
+        if not task.cancelled():
+            task.exception()
+        self.session.tasks.discard(task)
+        if not self._finished:
+            self.request_close('owner_cancelled')
+            self._finish()
+
+    def request_close(self, reason):
+        if self._finished:
+            return
+        if self.close_reason is None:
+            self.close_reason = reason
+        self.phase = 'closing'
+        self.wait_expires_at = self.idle_expires_at = None
+        self.wake.set()
+        execution = self.reader.execution if self.reader is not None else None
+        if (not self.cleanup_in_progress and not self._cancel_sent
+                and execution is not None and not execution.done()):
+            self._cancel_sent = True
+            execution.cancel()
+        self.publish()
+
+    def authority(self):
+        if not self.active or self.close_reason is not None:
+            return False
+        if self.root is not None and self.root.cancelling():
+            self.request_close('owner_cancelled')
+            return False
+        caller = self.operation_caller or self.connect_caller
+        if caller is not None and caller.cancelling():
+            self.request_close('caller_cancelled')
+            return False
+        now = asyncio.get_running_loop().time()
+        for deadline, reason in ((self._session_deadline, 'session_expired'),
+                                 (self._refresh_deadline, 'refresh_expired'),
+                                 (self._idle_deadline, 'idle_expired')):
+            if deadline is not None and now >= deadline:
+                self.request_close(reason)
+                return False
+        return True
+
+    def _tick(self):
+        self.maintenance_handle = None
+        if self._finished:
+            return
+        if self.reader is not None and not self.reader.generation_valid():
+            self.link_state = 'unknown'
+            self.request_close('generation_lost')
+        self.authority()
+        if self.close_reason is None:
+            self.maintenance_handle = asyncio.get_running_loop().call_later(CHECK_SECONDS, self._tick)
+
+    def _idle(self):
+        self.phase = 'connected'
+        self._refresh_deadline = None
+        self._idle_deadline = asyncio.get_running_loop().time() + IDLE_SECONDS
+        self.idle_expires_at = dt_util.utcnow() + timedelta(seconds=IDLE_SECONDS)
+        self.publish()
+
+    async def _run(self):
+        try:
+            # A competing legacy operation may have won scheduling. Never queue.
+            if self.session.closed or self.session.lock.locked() or not self.authority():
+                raise _failed()
+            async with self.session.lock:
+                if not self.authority():
+                    raise _failed()
+                device = bluetooth.async_ble_device_from_address(
+                    self.session.hass, self.session.address, connectable=True,
+                )
+                name = (device.name or '').rstrip('\x00 \t\r\n') if device is not None else ''
+                if device is not None and (device.address.upper() != self.session.address or name not in (
+                        'ABL-100', 'ABL-100WE', 'CASIO ABL-100', 'CASIO ABL-100WE')):
+                    raise _failed()
+                entry = select_proxy(self.session.hass, device) if self.session.entry is not None else None
+                if entry is None:
+                    raise _failed()
+                self.reader = _InteractiveRead(self.session, entry, self)
+                self.maintenance_handle = asyncio.get_running_loop().call_later(CHECK_SECONDS, self._tick)
+                await self.reader.read()
+        except BaseException as error:
+            self.failure = error
+            if self.close_reason is None:
+                if self.reader is not None and not self.reader.generation_valid():
+                    reason = 'generation_lost'
+                elif self.root.cancelling():
+                    reason = 'owner_cancelled'
+                else:
+                    reason = 'read_failed' if self.operation_caller is not None else 'connect_failed'
+                self.request_close(reason)
+        finally:
+            if self.reader is not None and not self.reader.generation_valid():
+                self.link_state = 'unknown'
+                if self.cleanup_result in ('not_attempted', 'success'):
+                    self.cleanup_result = 'generation_lost'
+            self.session.tasks.discard(asyncio.current_task())
+            self._finish()
+
+    def _finish(self):
+        self._finished = True
+        self.phase = 'closed'
+        self.connect_caller = None
+        self.operation_caller = None
+        self.wait_expires_at = self.idle_expires_at = self.session_expires_at = None
+        if self.maintenance_handle is not None:
+            self.maintenance_handle.cancel()
+            self.maintenance_handle = None
+        if self.operation_result == 'reading':
+            self.operation_result = ('cancelled' if self.close_reason == 'caller_cancelled' else
+                                    'partial' if 'success' in self.group_results.values() else 'failed')
+        for future in (self.ready, self.operation_complete):
+            if future is not None and not future.done():
+                future.set_result(None)
+        self.publish()
+
+    async def _join(self):
+        cancelled = False
+        while self.root is not None and not self.root.done():
+            try:
+                await asyncio.wait({self.root})
+            except asyncio.CancelledError:
+                cancelled = True
+        if cancelled or asyncio.current_task().cancelling():
+            raise asyncio.CancelledError
+
+    async def _wait_caller(self, complete):
+        try:
+            await asyncio.wait({complete, self.root}, return_when=asyncio.FIRST_COMPLETED)
+            if asyncio.current_task().cancelling():
+                raise asyncio.CancelledError
+        except asyncio.CancelledError:
+            self.request_close('caller_cancelled')
+            try:
+                await self._join()
+            finally:
+                raise asyncio.CancelledError from None
+
+    async def connected(self):
+        await self._wait_caller(self.ready)
+        if not self.usable:
+            raise _failed() from self.failure
+
+    async def refresh(self):
+        caller = asyncio.current_task()
+        if caller.cancelling():
+            raise asyncio.CancelledError
+        if not self.usable or self.operation_caller is not None:
+            raise _failed()
+        self.operation_caller = caller
+        self.operation_complete = asyncio.get_running_loop().create_future()
+        self.operation_result = 'reading'
+        self.group_results = dict.fromkeys(GROUPS, 'not_attempted')
+        self._idle_deadline = None
+        self.idle_expires_at = None
+        self._refresh_deadline = asyncio.get_running_loop().time() + REFRESH_SECONDS
+        self.phase = 'reading'
+        for _value, _timestamp, freshness in DESTINATIONS:
+            setattr(self.session, freshness, False)
+        self.publish()
+        self.wake.set()
+        await self._wait_caller(self.operation_complete)
+        if self.operation_result != 'success' or self.close_reason is not None:
+            raise _failed() from self.failure
+
+    async def close(self, reason='explicit_close'):
+        self.request_close(reason)
+        await self._join()
+        if self.cleanup_result in ('failed', 'generation_lost'):
+            raise _failed() from self.failure
+
+
+class _InteractiveAPI(NativeAPI):
+    def __init__(self, reader):
+        super().__init__(reader.connection, reader.generation_valid, reader.valid)
+        self.reader = reader
+
+    async def bluetooth_device_connect(self, address, on_state, *args, **kwargs):
+        def state(connected, mtu, error):
+            on_state(self.reader.observe_link(connected, error), mtu, error)
+        return await super().bluetooth_device_connect(address, state, *args, **kwargs)
+
+    async def bluetooth_device_disconnect(self, *args, **kwargs):
+        controller = self.reader.controller
+        # Set before the finalizer's expected false callback. Never cancel the
+        # finalizer or overwrite the primary reason because of our own release.
+        controller.cleanup_in_progress = True
+        if controller.close_reason is None:
+            self.reader._latch_failure()
+        controller.phase = 'closing'
+        controller.publish()
+        try:
+            result = await super().bluetooth_device_disconnect(*args, **kwargs)
+        except BaseException:
+            controller.cleanup_result = 'failed'
+            controller.link_state = 'unknown'
+            raise
+        controller.cleanup_result = 'success'
+        controller.link_state = 'disconnected'
+        return result
+
+
+class _InteractiveRead(NativeSyncRead):
+    def __init__(self, session, entry, controller):
+        super().__init__(session, entry)
+        self.controller = controller
+        self.api = _InteractiveAPI(self)
+
+    def valid(self):
+        return self.controller.authority() and super().valid()
+
+    def invalidate(self):
+        self.lost = True
+        self.controller.link_state = 'unknown'
+        self.controller.request_close('generation_lost')
+
+    def observe_link(self, connected, error):
+        c = self.controller
+        confirmed = connected is True and error == 0
+        if c.cleanup_in_progress:
+            if not confirmed:
+                c.link_state = 'disconnected' if error == 0 else 'unknown'
+            return False
+        if self.link_established and not confirmed:
+            self.link_lost = True
+            c.link_state = 'disconnected' if error == 0 else 'unknown'
+            if self.adapter is not None:
+                self.adapter.receiver = self.adapter.step_receivers = None
+            c.request_close('link_lost')
+        if confirmed and not self.link_lost and c.close_reason is None:
+            if not self.link_established:
+                c._session_deadline = asyncio.get_running_loop().time() + SESSION_SECONDS
+                c.session_expires_at = dt_util.utcnow() + timedelta(seconds=SESSION_SECONDS)
+            self.link_established = True
+            c.link_state = 'connected'
+        return confirmed and not self.link_lost and c.close_reason is None
+
+    def set_phase(self, phase, expiry=None):
+        c = self.controller
+        if c.close_reason is not None:
+            return
+        c.phase = 'connecting' if phase == 'reading' else phase
+        c.wait_expires_at = expiry
+        c.publish()
+
+    async def read(self):
+        # Observe every primary exit before NativeRead enters its unchanged
+        # finalizer, including wait/services/metadata failures. The execution's
+        # cancellation counter cannot be used as public caller provenance.
+        try:
+            return await super().read()
+        finally:
+            if self.controller.close_reason is None:
+                self._latch_failure()
+
+    def _latch_failure(self):
+        c = self.controller
+        # Already unwinding the execution. Revocation must not inject another
+        # cancellation into its finalizer or protected acquisition join.
+        c._cancel_sent = True
+        if not self.generation_valid():
+            reason = 'generation_lost'
+        elif self.owner.cancelling():
+            reason = 'owner_cancelled'
+        elif (c.operation_caller or c.connect_caller) is not None and (
+                c.operation_caller or c.connect_caller).cancelling():
+            reason = 'caller_cancelled'
+        else:
+            reason = 'read_failed' if c.operation_caller is not None else 'connect_failed'
+        c.request_close(reason)
+
+    async def transfer(self, adapter):
+        try:
+            return await self._interactive_transfer(adapter)
+        except BaseException:
+            self._latch_failure()
+            raise
+
+    async def _interactive_transfer(self, adapter):
+        c = self.controller
+        self.guard()
+        c.connect_caller = None
+        c._idle()
+        c.ready.set_result(None)
+        while True:
+            await c.wake.wait()
+            c.wake.clear()
+            self.guard()
+            if c.operation_caller is None:
+                continue
+            if c._cycles:
+                adapter.rearm_cycle()
+            for group, read, destinations in zip(GROUPS, READERS, DESTINATIONS, strict=True):
+                self.guard()
+                adapter.guard()
+                c.group_results[group] = 'reading'
+                c.publish()
+                try:
+                    snapshot = await read(adapter)
+                    self.guard()
+                    adapter.guard()
+                    observed_at = dt_util.utcnow()
+                    self.guard()
+                    adapter.guard()
+                    value, timestamp, freshness = destinations
+                    setattr(self.session, value, snapshot)
+                    setattr(self.session, timestamp, observed_at)
+                    setattr(self.session, freshness, True)
+                    c.group_results[group] = 'success'
+                except BaseException:
+                    c.group_results[group] = 'failed'
+                    raise
+                c.publish()
+            # Explicit success, not merely last query submission, authorizes
+            # the next cycle. Each transport has quiesced its group receivers.
+            adapter.finish_cycle()
+            c._cycles += 1
+            c.operation_result = 'success'
+            c.operation_caller = None
+            c._idle()
+            c.operation_complete.set_result(None)
+
+
+async def connect_interactive(session):
+    caller = asyncio.current_task()
+    if caller.cancelling():
+        raise asyncio.CancelledError
+    previous = session.interactive_session
+    if (session.closed or session.entry is None or session.lock.locked() or session.tasks
+            or (previous is not None and (previous.active or not previous.root.done()))):
+        raise _failed()
+    controller = NativeInteractiveSession(session)
+    session.interactive_session = controller
+    controller.start()
+    await controller.connected()

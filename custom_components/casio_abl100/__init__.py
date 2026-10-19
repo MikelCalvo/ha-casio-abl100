@@ -72,6 +72,7 @@ class WatchSession:
         self.alarm_delivery_handles = set()
         self.closed = False
         self.auto_reader = None
+        self.interactive_session = None
         self.sync_phase = 'idle'
         self.sync_wait_expires_at = None
         self.sync_result = 'never'
@@ -408,6 +409,25 @@ class WatchSession:
         from .native_sync import read_all
         await read_all(self, admission=admission)
 
+    async def connect_interactive(self):
+        """Explicitly retain one native link; no application reads on connect."""
+        from .native_interactive import connect_interactive
+        await connect_interactive(self)
+
+    async def read_interactive(self):
+        """Refresh fixed groups on the admitted retained link, never reconnect."""
+        from .native_interactive import _failed
+        if asyncio.current_task().cancelling():
+            raise asyncio.CancelledError
+        if self.interactive_session is None:
+            raise _failed()
+        await self.interactive_session.refresh()
+
+    async def close_interactive(self):
+        """Close bypasses the lifetime mutex and joins original cleanup."""
+        if self.interactive_session is not None:
+            await self.interactive_session.close()
+
     async def shutdown(self):
         self.closed = True
         self.sync_phase = 'closed'
@@ -423,16 +443,21 @@ class WatchSession:
         self.alarm_delivery_handles.clear()
         try:
             try:
-                if self.auto_reader is not None:
-                    await self.auto_reader.stop()
+                if self.interactive_session is not None:
+                    self.interactive_session.request_close('shutdown')
+                    await self.interactive_session._join()
             finally:
-                # The reader has already joined its owned read, including any
-                # cooperative disconnect. Do not cancel that cleanup twice.
-                tasks = set(self.tasks)
-                for task in tasks:
-                    task.cancel()
-                if tasks:
-                    await asyncio.gather(*tasks, return_exceptions=True)
+                try:
+                    if self.auto_reader is not None:
+                        await self.auto_reader.stop()
+                finally:
+                    # Interactive and automatic cleanup already joined. Never
+                    # re-cancel their finalizers while releasing manual owners.
+                    tasks = set(self.tasks)
+                    for task in tasks:
+                        task.cancel()
+                    if tasks:
+                        await asyncio.gather(*tasks, return_exceptions=True)
         finally:
             self.listeners.clear()
 
@@ -478,7 +503,12 @@ async def async_unload_entry(hass, entry):
     if reader is not None:
         reader.suspend()
     try:
-        unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+        try:
+            if manager.interactive_session is not None:
+                manager.interactive_session.request_close('unload')
+                await manager.interactive_session._join()
+        finally:
+            unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     except BaseException:
         if reader is not None:
             reader.resume()

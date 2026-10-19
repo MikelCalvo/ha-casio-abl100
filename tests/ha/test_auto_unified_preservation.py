@@ -273,22 +273,40 @@ JSON_BASE = {'strings.json': '612c38f0cb7928138d97742cee58b2e0b31a63372621da3f9b
  'translations/es.json': 'f9d94e65dfcfbc0b89654349ed49cb7d97c74a839a709f6322829d00025a0dfa'}
 
 
+INTERACTIVE_INVERSE = {'__init__.py': {'installed_sha256': '2f4003d80d27a67231c50c9d76d077477c558ab8c88bb0fb56d9b3f03958d163', 'hunks': [[74, 75, '426335538439bcec5d0147c2f196fd0f08ddcfc9096e42b339154ff2ed3c25a3', ''], [411, 430, 'a71237999e15c1b9bbde6bf883b2f6661f69539d4a76429afcdf33bc31aa8943', ''], [445, 448, '1d60f5169045bcb3170f494f8ecfa4d9860cdf0879118553e8e8e21aedf5a6e6', '                if self.auto_reader is not None:\n                    await self.auto_reader.stop()\n'], [449, 460, 'e673c22b1a68267d75c1045c6d0ed440e00b3737826657e1f49613f09a966ee5', '                # The reader has already joined its owned read, including any\n                # cooperative disconnect. Do not cancel that cleanup twice.\n                tasks = set(self.tasks)\n                for task in tasks:\n                    task.cancel()\n                if tasks:\n                    await asyncio.gather(*tasks, return_exceptions=True)\n'], [505, 511, '00332a526e28e2a85cafbbfa82e6a602237bfae5fa45007a58df118fa31405c0', '        unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)\n']]}, 'native_sync_adapter.py': {'installed_sha256': '74e55d1dfece6ce68e5eec2c0cdc819f7171f73e08cb474da9a6804029d90e78', 'hunks': [[21, 49, '008a94c234ce0a93b47b56c5c527a3ade0d968821faaf24d6d531d300368405a', ''], [56, 62, '1440df158bf49bd75291126571adc57205bcf39f3db2c5b5c3a050f81321fc9f', ''], [65, 72, '593c9c8ba5ab215374e36d57e2a9493f3f27b2963736157a9a93043e79ccdd10', '        await super().start_notify(self.primary, receive)\n        self.guard()\n        self.primary_ready = True\n'], [86, 100, '4f3f05ec00645c0397295e548cc1f7025d03395e185973acf7c4f9bab99148e6', '']]}}
+
+
+def installed_source(name):
+    """Invert exact approved hunks, then verify the entire installed module."""
+    source = (ROOT / name).read_text()
+    if name not in INTERACTIVE_INVERSE:
+        return source
+    oracle = INTERACTIVE_INVERSE[name]
+    lines = source.splitlines(keepends=True)
+    for start, end, expected_hash, original in reversed(oracle['hunks']):
+        assert digest(''.join(lines[start:end]).encode()) == expected_hash, (name, start)
+        lines[start:end] = original.splitlines(keepends=True)
+    source = ''.join(lines)
+    assert digest(source.encode()) == oracle['installed_sha256'], name
+    return source
+
+
 def digest(data):
     return hashlib.sha256(data).hexdigest()
 
 
 def test_exact_component_inventory_and_unowned_bytes():
-    expected = set(IMMUTABLE) | set(INVERSE) | set(JSON_BASE)
+    expected = set(IMMUTABLE) | set(INVERSE) | set(JSON_BASE) | {'native_interactive.py'}
     actual = {str(p.relative_to(ROOT)) for p in ROOT.rglob('*')
               if p.is_file() and '__pycache__' not in p.parts}
-    assert actual == expected and len(actual) == 26
+    assert actual == expected and len(actual) == 27
     for name, expected_hash in IMMUTABLE.items():
-        assert digest((ROOT / name).read_bytes()) == expected_hash, name
+        assert digest(installed_source(name).encode()) == expected_hash, name
 
 
 def test_only_exact_authorized_python_seams_change():
     for name, oracle in INVERSE.items():
-        lines = (ROOT / name).read_text().splitlines(keepends=True)
+        lines = installed_source(name).splitlines(keepends=True)
         for start, end, expected_hash, original in reversed(oracle['hunks']):
             assert digest(''.join(lines[start:end]).encode()) == expected_hash, (name, start)
             lines[start:end] = original.splitlines(keepends=True)
