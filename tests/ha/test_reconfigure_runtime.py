@@ -17,7 +17,8 @@ SUFFIXES = {'steps_today', 'last_sync', 'read_steps', 'last_alarm_read',
             'read_alarms', 'hourly_signal', *(f'alarm_{n}' for n in range(1, 6)),
             'read_time_zones', 'home_standard_utc_offset',
             'secondary_standard_utc_offset', 'last_time_zone_read',
-            'read_all', 'time_format', 'automatic_time_adjustment', 'timer_encoded_duration'}
+            'read_all', 'time_format', 'automatic_time_adjustment', 'timer_encoded_duration',
+            'connect_interactive', 'read_interactive', 'close_interactive', 'interactive_connected'}
 
 
 def entry_for(hass, address=OLD, identity: str | None=OLD, options=None, title='My Casio'):

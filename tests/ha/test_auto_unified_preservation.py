@@ -286,9 +286,9 @@ UI_INVERSE = {'button.py': {'accepted_core_sha256': '02e75b972195cb504f3220d997c
                          [101, 102, 'e60fc4d1794b38fef46c4c08f8f050aeb06168a97369fd6983adf17196f9094a', ''],
                          [122, 123, 'e60fc4d1794b38fef46c4c08f8f050aeb06168a97369fd6983adf17196f9094a', ''],
                          [146, 147, 'e60fc4d1794b38fef46c4c08f8f050aeb06168a97369fd6983adf17196f9094a', ''],
-                         [148, 208, 'c52260f6af9a57e4f8cb1988e754d0909d3170765832a28557a41fabe5cd6c36', ''],
-                         [212,
-                          215,
+                         [148, 214, 'c6d5f6913a6638535e3633d0808b0a1ea4c14e75b99570cce3458e30025b0715', ''],
+                         [218,
+                          221,
                           '99826dc867d11d756f62567b6dfb81c86b3ae1d8e07b8e89c983f5c654c4b791',
                           '                        ReadTimeZonesButton(entry.runtime_data), '
                           'ReadAllButton(entry.runtime_data)])\n']]},

@@ -162,6 +162,12 @@ class InteractiveButton(ReadAlarmsButton):
         )
         self._attr_unique_id = f'{session.identity}_{key}'
 
+    async def async_added_to_hass(self):
+        await super().async_added_to_hass()
+        self.async_on_remove(
+            self.session.entry.async_on_state_change(self.async_write_ha_state)
+        )
+
     def _operable(self):
         return (not self.session.closed and self.session.entry is not None
                 and self.session.entry.state is ConfigEntryState.LOADED)

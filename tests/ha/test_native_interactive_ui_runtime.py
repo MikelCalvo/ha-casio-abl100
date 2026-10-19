@@ -7,7 +7,7 @@ from unittest.mock import patch
 import pytest
 from aioesphomeapi.api_pb2 import BluetoothDeviceRequest, BluetoothGATTWriteRequest
 from homeassistant.components.button import DATA_COMPONENT
-from homeassistant.config_entries import ConfigEntryState
+from homeassistant.config_entries import ConfigEntry, ConfigEntryState
 from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import entity_registry as er, translation
@@ -99,9 +99,14 @@ async def test_exact_identity_translated_names_ids_and_initial_formatter(hass, e
             assert mapping[key].original_name == name
             assert hass.states.get(mapping[key].entity_id).attributes['friendly_name'] == 'Casio ABL-100WE ' + name
         pristine(status(p))
-        assert button(p, 'connect_interactive').available
+        assert button(p, 'connect_interactive').available is True
+        projected = hass.states.get(mapping['connect_interactive'].entity_id).as_dict()
+        assert projected['state'] != 'unavailable', (
+            'Native connect must be visibly usable immediately after real entry setup', projected)
         assert not button(p, 'read_interactive').available
         assert not button(p, 'close_interactive').available
+        for key in ('read_interactive', 'close_interactive'):
+            assert hass.states.get(mapping[key].entity_id).as_dict()['state'] == 'unavailable'
         bleak.assert_not_called()
         errors = await translation.async_get_translations(hass, language, 'exceptions', {DOMAIN})
         for action in ('connect', 'read', 'close'):
@@ -317,6 +322,16 @@ async def test_unload_reload_options_keep_all_identities_and_reset_values(unifie
     reload = asyncio.create_task(p.hass.config_entries.async_reload(p.watch.entry_id))
     await spin_until(p.wire.entered.is_set)
     assert not reload.done() and p.watch.runtime_data is original
+    assert p.watch.state is ConfigEntryState.UNLOAD_IN_PROGRESS
+    before = list(p.wire.calls)
+    for key in ('connect_interactive', 'read_interactive'):
+        assert not button(p, key).available
+        assert p.hass.states.get(entities(p)[key].entity_id).as_dict()['state'] == 'unavailable'
+        with pytest.raises(HomeAssistantError) as caught:
+            await button(p, key).async_press()
+        assert caught.value.translation_key == f'interactive_{key.removesuffix("_interactive")}_failed'
+    assert p.wire.calls == before
+    assert button(p, 'close_interactive').available
     p.wire.release.set()
     assert await reload
     await p.hass.async_block_till_done()
@@ -326,6 +341,7 @@ async def test_unload_reload_options_keep_all_identities_and_reset_values(unifie
     assert {e.unique_id: (e.entity_id, e.device_id) for e in entities(p).values()} == ids
     assert p.hass.states.get('button.my_watch_refresh').attributes['friendly_name'] == 'My refresh'
     pristine(status(p))
+    assert p.hass.states.get(entities(p)['connect_interactive'].entity_id).as_dict()['state'] != 'unavailable'
     form = await p.hass.config_entries.options.async_init(p.watch.entry_id)
     result = await p.hass.config_entries.options.async_configure(form['flow_id'],
         {'auto_read_steps': False, 'auto_read_all': False})
@@ -334,7 +350,64 @@ async def test_unload_reload_options_keep_all_identities_and_reset_values(unifie
     p.session = p.watch.runtime_data
     assert {e.unique_id: (e.entity_id, e.device_id) for e in entities(p).values()} == ids
     pristine(status(p))
+    assert p.hass.states.get(entities(p)['connect_interactive'].entity_id).as_dict()['state'] != 'unavailable'
     assert_clean(p)
+
+
+async def test_entry_publication_subscriptions_removed_with_actual_entities(unified):
+    p = unified
+    registered, removed, delivered = [], [], []
+    original_subscribe = ConfigEntry.async_on_state_change
+
+    def observe(entry, callback):
+        # Observation only: retain native registration, dispatch and unsubscribe.
+        def forward():
+            delivered.append((callback, entry.state))
+            callback()
+        unsubscribe = original_subscribe(entry, forward)
+        registered.append((entry, callback))
+
+        def remove():
+            removed.append(callback)
+            unsubscribe()
+        return remove
+
+    sentinel_states = []
+    unsubscribe_sentinel = p.watch.async_on_state_change(lambda: sentinel_states.append(p.watch.state))
+    try:
+        with patch.object(ConfigEntry, 'async_on_state_change', observe):
+            assert await p.hass.config_entries.async_reload(p.watch.entry_id)
+            await p.hass.async_block_till_done()
+            p.session = p.watch.runtime_data
+            current = [button(p, key) for key in ('connect_interactive', 'read_interactive', 'close_interactive')]
+            owned = [callback for entry, callback in registered if entry is p.watch
+                     and getattr(callback, '__self__', None) in current]
+            assert len(owned) == 3 and len(set(owned)) == 3, 'One native entry subscription per interactive button'
+            assert all(delivered.count((callback, ConfigEntryState.LOADED)) == 1 for callback in owned)
+            connect = current[0]
+            await connect.async_remove(force_remove=True)
+            assert removed.count(owned[0]) == 1
+            assert p.hass.states.get(connect.entity_id) is None
+            assert await p.hass.config_entries.async_unload(p.watch.entry_id)
+            await p.hass.async_block_till_done()
+            assert all(removed.count(callback) == 1 for callback in owned)
+            assert (owned[0], ConfigEntryState.UNLOAD_IN_PROGRESS) not in delivered
+            assert all((callback, ConfigEntryState.UNLOAD_IN_PROGRESS) in delivered for callback in owned[1:])
+            assert not any(callback in owned and state is ConfigEntryState.NOT_LOADED for callback, state in delivered)
+            assert sentinel_states[-2:] == [ConfigEntryState.UNLOAD_IN_PROGRESS, ConfigEntryState.NOT_LOADED]
+            # Native transitions after removal cannot resurrect stale entities.
+            assert p.hass.states.get(connect.entity_id) is None
+            assert await p.hass.config_entries.async_setup(p.watch.entry_id)
+            await p.hass.async_block_till_done()
+            p.session = p.watch.runtime_data
+            newer = [button(p, key) for key in ('connect_interactive', 'read_interactive', 'close_interactive')]
+            new_owned = [callback for entry, callback in registered if entry is p.watch
+                         and getattr(callback, '__self__', None) in newer]
+            assert len(new_owned) == 3 and not set(new_owned) & set(owned)
+            assert p.hass.states.get(connect.entity_id).as_dict()['state'] != 'unavailable'
+            assert all(delivered.count((callback, ConfigEntryState.LOADED)) == 1 for callback in owned + new_owned)
+    finally:
+        unsubscribe_sentinel()
 
 
 async def test_two_entries_status_isolation_and_captured_old_controller(unified):
