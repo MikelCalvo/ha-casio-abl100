@@ -70,9 +70,14 @@ class InteractiveConnectionSensor(HourlySignalSensor):
             return dict(phase='idle', link_state='unknown', usable=False,
                         wait_expires_at=None, idle_expires_at=None, session_expires_at=None,
                         operation_result='never', group_results=dict.fromkeys(GROUPS, 'not_attempted'),
-                        cleanup_result='not_attempted', close_reason=None)
+                        cleanup_result='not_attempted', close_reason=None,
+                        failure_kind=None, failure_stage=None, native_status=None)
         attrs = {key: getattr(controller, key) for key in (
             'phase', 'link_state', 'operation_result', 'cleanup_result', 'close_reason')}
+        fault = controller.native_fault
+        attrs.update(failure_kind='native_link_loss' if fault is not None else None,
+                     failure_stage=fault.stage if fault is not None else None,
+                     native_status=fault.status if fault is not None else None)
         attrs['usable'] = bool(controller.usable)
         attrs['group_results'] = dict(controller.group_results)
         for key in ('wait_expires_at', 'idle_expires_at', 'session_expires_at'):

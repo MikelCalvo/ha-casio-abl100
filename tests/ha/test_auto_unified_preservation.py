@@ -349,6 +349,47 @@ UI_JSON_ADDITIONS = {'strings.json': {'buttons': {'connect_interactive': {'name'
                                                                                   'interactiva utilizable'}}}}
 
 
+FIRST_FAULT_INVERSE = {'native_interactive.py': {'baseline_sha256': 'b2b7e97faaed56c3a17963406bd10ab2c158b1c82a0c3ab43ec207a8101f626e',
+                           'hunks': [[31,
+                                      39,
+                                      'e0912bc2ace8faa1207d7ed75869d744efc3ad638cffadb93823a4ec09949941',
+                                      ''],
+                                     [81,
+                                      83,
+                                      '78511730242efb09f870706e1242fc1d040d5373bf572eea75b4785b96474db3',
+                                      ''],
+                                     [172,
+                                      173,
+                                      '68df2f33d30dfa36152028038e6ac6c3258ef86f0d149108b137dc97e92f77cb',
+                                      ''],
+                                     [286,
+                                      287,
+                                      '68df2f33d30dfa36152028038e6ac6c3258ef86f0d149108b137dc97e92f77cb',
+                                      ''],
+                                     [318,
+                                      350,
+                                      '67ff5fd5ffb2de3fd159a02025b5fb47e074f5e5b91b1c234d1c7a304e40da9f',
+                                      ''],
+                                     [393,
+                                      396,
+                                      'e899271b8ab78587a6a20244224f5f6fad13cebf77b952739aedf08c3c773875',
+                                      ''],
+                                     [468,
+                                      469,
+                                      'b99e2f6bfc0465c2733215db57ca9b3dc8baa09c0c448527bc61bb986c4bb9e1',
+                                      '']]},
+ 'binary_sensor.py': {'baseline_sha256': '732740ca52beb152669040f5ba441974792fd537479d8f275f0b8a5fdf42903c',
+                      'hunks': [[72,
+                                 74,
+                                 '9ff9c0f6045486ae95da3e763dd568b018362dd121c47ddc32eeb533adfeeb58',
+                                 "                        cleanup_result='not_attempted', "
+                                 'close_reason=None)\n'],
+                                [76,
+                                 80,
+                                 '479603176c2835c22076f52113938a54a7ccef2f503682d475a0d5a73c60a780',
+                                 '']]}}
+
+
 OBSERVATIONS_INVERSE = {'__init__.py': {'baseline_sha256': 'f5c6ef8271204b30720f9540f44fbd552e43ed5744def4bc5460b458b80d6053',
                  'hunks': [[8,
                             10,
@@ -408,6 +449,14 @@ OBSERVATIONS_SHA256 = '3281ac06f65f6e7e0c9b5672de2f5cf4c0619c71b6d29701fc6fa0650
 def installed_source(name):
     """Invert exact approved hunks, then verify the entire installed module."""
     source = (ROOT / name).read_text()
+    if name in FIRST_FAULT_INVERSE:
+        oracle = FIRST_FAULT_INVERSE[name]
+        lines = source.splitlines(keepends=True)
+        for start, end, expected_hash, original in reversed(oracle['hunks']):
+            assert digest(''.join(lines[start:end]).encode()) == expected_hash, (name, start)
+            lines[start:end] = original.splitlines(keepends=True)
+        source = ''.join(lines)
+        assert digest(source.encode()) == oracle['baseline_sha256'], name
     if name in OBSERVATIONS_INVERSE:
         oracle = OBSERVATIONS_INVERSE[name]
         lines = source.splitlines(keepends=True)

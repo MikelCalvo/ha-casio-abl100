@@ -32,6 +32,14 @@ def _failed():
 
 
 @dataclass(frozen=True)
+class _NativeFault:
+    """First observed native loss, never resource or operation authority."""
+
+    stage: str
+    status: int | None
+
+
+@dataclass(frozen=True)
 class _Outcome:
     """Request-owned terminal data; never backend exceptions or latest UI state."""
 
@@ -71,6 +79,8 @@ class NativeInteractiveSession:
         self.closed = loop.create_future()
         self.wake = asyncio.Event()
         self.failure = None
+        self.native_fault = None
+        self._native_stage = 'unknown'
         self._cancel_sent = False
         self._finished = False
         self._idle_deadline = None
@@ -160,6 +170,7 @@ class NativeInteractiveSession:
             self.maintenance_handle = asyncio.get_running_loop().call_later(CHECK_SECONDS, self._tick)
 
     def _idle(self):
+        self._native_stage = 'unknown'
         self.phase = 'connected'
         self._refresh_deadline = None
         self._idle_deadline = asyncio.get_running_loop().time() + IDLE_SECONDS
@@ -273,6 +284,7 @@ class NativeInteractiveSession:
         complete = asyncio.get_running_loop().create_future()
         self.operation_caller = caller
         self.operation_complete = complete
+        self._native_stage = 'unknown'
         self.operation_result = 'reading'
         self.group_results = dict.fromkeys(GROUPS, 'not_attempted')
         self._idle_deadline = None
@@ -304,6 +316,38 @@ class _InteractiveAPI(NativeAPI):
         def state(connected, mtu, error):
             on_state(self.reader.observe_link(connected, error), mtu, error)
         return await super().bluetooth_device_connect(address, state, *args, **kwargs)
+
+    async def bluetooth_gatt_start_notify(self, address, handle, *args, **kwargs):
+        c, adapter = self.reader.controller, self.reader.adapter
+        primary = adapter is not None and handle == adapter.primary.handle
+        if primary:
+            c._native_stage = 'primary_notify'
+        result = await super().bluetooth_gatt_start_notify(address, handle, *args, **kwargs)
+        if primary:
+            c._native_stage = 'other'
+        return result
+
+    async def bluetooth_gatt_write_descriptor(self, address, handle, *args, **kwargs):
+        c, adapter = self.reader.controller, self.reader.adapter
+        primary = adapter is not None and handle == adapter.cccd
+        if primary:
+            c._native_stage = 'primary_cccd'
+        result = await super().bluetooth_gatt_write_descriptor(address, handle, *args, **kwargs)
+        if primary:
+            c._native_stage = 'other'
+        return result
+
+    async def bluetooth_gatt_write(self, address, handle, data, *args, **kwargs):
+        c, adapter = self.reader.controller, self.reader.adapter
+        query = ('get15' if data == b'\x15' else 'get16' if data == b'\x16' else None)
+        alarm = adapter is not None and handle == adapter.query.handle
+        if alarm and query is not None:
+            c._native_stage = query + '_submit'
+        result = await super().bluetooth_gatt_write(address, handle, data, *args, **kwargs)
+        if alarm and query is not None:
+            # Only local write-without-response completion, never a watch ACK.
+            c._native_stage = query + '_wait'
+        return result
 
     async def bluetooth_device_disconnect(self, *args, **kwargs):
         controller = self.reader.controller
@@ -347,6 +391,9 @@ class _InteractiveRead(NativeSyncRead):
                 c.link_state = 'disconnected' if error == 0 else 'unknown'
             return False
         if self.link_established and not confirmed:
+            if c.close_reason is None and c.native_fault is None:
+                status = error if type(error) is int and -2147483648 <= error <= 2147483647 else None
+                c.native_fault = _NativeFault(c._native_stage, status)
             self.link_lost = True
             c.link_state = 'disconnected' if error == 0 else 'unknown'
             if self.adapter is not None:
@@ -419,6 +466,7 @@ class _InteractiveRead(NativeSyncRead):
             for group, read, destinations in zip(GROUPS, READERS, DESTINATIONS, strict=True):
                 self.guard()
                 adapter.guard()
+                c._native_stage = 'other'
                 c.group_results[group] = 'reading'
                 c.publish()
                 try:

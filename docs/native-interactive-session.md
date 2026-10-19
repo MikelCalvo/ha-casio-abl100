@@ -36,6 +36,43 @@ Attributes are bounded controller observations: `phase`, explicit `link_state`, 
 
 Groups are `alarms`, `steps`, `zones`, `basic_settings`, `auto_time`, `timer`. Earlier validated groups survive a later failure. Requested freshness is reset for each admitted refresh without deleting last-good values/timestamps. Valid unknown auto-time is HA `unknown` with its observed minute (possibly null), freshness and original last-read timestamp; never-read remains unavailable. The six semantic last-good groups are cached privately and restored after reload/Core restart with original timestamps and `fresh: false`. No controller, connection, owner, expiry, session/cleanup result or automatic option is restored; interactive status always starts pristine. This is a last-observation cache, not historical Recorder import, and cannot guarantee durability across disk failure or a kill/power loss before writing finishes.
 
+## First native-fault observation
+
+The connection sensor always includes exactly three additional scalar attributes:
+
+- `failure_kind`: null until captured, then the fixed `native_link_loss`.
+- `failure_stage`: null until captured, then `primary_notify`, `primary_cccd`,
+  `get15_submit`, `get15_wait`, `get16_submit`, `get16_wait`, `other` or `unknown`.
+- `native_status`: the actual callback's non-boolean signed 32-bit integer,
+  including reported zero; otherwise null. No protocol meaning is assigned to
+  these numeric values.
+
+The first callback reporting a no-longer-confirmed established native link is
+snapshotted synchronously before protective cancellation, only with no existing
+close intent and outside cleanup. Later callbacks, expected disconnect status
+zero and cleanup errors cannot replace it. Explicit close, idle expiry, caller
+cancellation and cleanup-only errors do not fabricate a native fault. Null means
+**not captured**, not proof that no underlying fault occurred.
+
+Stages describe existing **local public native API invocations**, not captured
+ATT traffic. `primary_notify` and `primary_cccd` describe entering the primary
+subscription/descriptor coroutine; a normal return resets to `other`.
+`get15_submit`/`get16_submit` describe entering the existing write-without-response
+coroutine, not an ATT submission or acknowledgement. Only after its normal local
+return does the stage become `get15_wait`/`get16_wait`, while awaiting the
+application response; this is **not an ACK from the watch**. Each read-group
+boundary resets to `other`; idle/setup/new operations are `unknown`, so later
+settings or idle losses never inherit a stale alarm-query stage. Repeated alarm
+cycles observe the same existing call boundaries without reacquiring an already
+ready subscription.
+
+The snapshot belongs only to that controller, remains visible after its joined
+closure and is never copied to its successor or stored/restored on HA reload.
+It contains no address, handle, raw data, exception text, timestamp or identity.
+It is observation only: no retries, control decisions or health/readiness claims
+use it. The physical first-read failure's cause remains unknown; this discriminator
+is not a BLE reliability repair.
+
 ## Bounds and safety limits
 
 The accepted core uses a 120-second idle limit, 300-second absolute link lifetime and 60-second refresh limit. Its existing fresh-RAW wait is bounded separately at 360 seconds. Limits revoke further work; already-held notification acquisition and cooperative disconnect still need their backend cleanup time. No forced release deadline is claimed.

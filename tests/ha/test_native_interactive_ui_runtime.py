@@ -78,6 +78,8 @@ def pristine(projected):
                     cleanup_result='not_attempted', close_reason=None)
     assert {k: attrs[k] for k in expected} == expected
     assert type(attrs['usable']) is bool
+    assert {key: attrs[key] for key in ('failure_kind', 'failure_stage', 'native_status')} == dict(
+        failure_kind=None, failure_stage=None, native_status=None)
 
 
 @pytest.mark.parametrize('language', ['en', 'es'])
@@ -181,6 +183,8 @@ async def test_real_services_connect_two_distinct_refreshes_close(unified):
     await p.hass.async_block_till_done()
     assert status(p)['state'] == 'off' and status(p)['attributes']['link_state'] == 'disconnected'
     assert status(p)['attributes']['cleanup_result'] == 'success'
+    assert {key: status(p)['attributes'][key] for key in ('failure_kind', 'failure_stage', 'native_status')} == dict(
+        failure_kind=None, failure_stage=None, native_status=None)
     assert c.root.done() and c.maintenance_handle is None
     assert len([x for x in w.calls if isinstance(x, BluetoothDeviceRequest) and x.request_type != 1]) == 1
     assert len([x for x in w.calls if isinstance(x, BluetoothDeviceRequest) and x.request_type == 1]) == 1
