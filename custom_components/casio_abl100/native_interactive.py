@@ -5,6 +5,7 @@ repeated identical query starts cannot be authenticated as belonging to it.
 No quiet delay, retry, keepalive or reconnect is used to disguise that limit.
 """
 import asyncio
+from dataclasses import dataclass
 from datetime import timedelta
 
 from homeassistant.components import bluetooth
@@ -30,6 +31,20 @@ def _failed():
     return HomeAssistantError('Interactive watch session unavailable or failed')
 
 
+@dataclass(frozen=True)
+class _Outcome:
+    """Request-owned terminal data; never backend exceptions or latest UI state."""
+
+    result: str
+    close_reason: str | None = None
+    cleanup_result: str = 'not_attempted'
+
+
+def _resolve(complete, outcome):
+    if complete is not None and not complete.done():
+        complete.set_result(outcome)
+
+
 class NativeInteractiveSession:
     """One root, mutex reservation and terminal outcome per explicit connect."""
 
@@ -51,7 +66,9 @@ class NativeInteractiveSession:
         self.connect_caller = asyncio.current_task()
         self.operation_caller = None
         self.operation_complete = None
-        self.ready = asyncio.get_running_loop().create_future()
+        loop = asyncio.get_running_loop()
+        self.ready = loop.create_future()
+        self.closed = loop.create_future()
         self.wake = asyncio.Event()
         self.failure = None
         self._cancel_sent = False
@@ -200,37 +217,52 @@ class NativeInteractiveSession:
         if self.operation_result == 'reading':
             self.operation_result = ('cancelled' if self.close_reason == 'caller_cancelled' else
                                     'partial' if 'success' in self.group_results.values() else 'failed')
-        for future in (self.ready, self.operation_complete):
-            if future is not None and not future.done():
-                future.set_result(None)
+        # Resolve pending work only after teardown. Completed handoffs retain
+        # their own outcome even if close or another refresh advanced the UI.
+        _resolve(self.ready, _Outcome('failed', self.close_reason, self.cleanup_result))
+        _resolve(self.operation_complete,
+                 _Outcome(self.operation_result, self.close_reason, self.cleanup_result))
+        _resolve(self.closed, _Outcome(
+            'failed' if self.cleanup_result in ('failed', 'generation_lost') else 'success',
+            self.close_reason, self.cleanup_result,
+        ))
         self.publish()
 
     async def _join(self):
+        root = self.root
         cancelled = False
-        while self.root is not None and not self.root.done():
+        while root is not None and not root.done():
             try:
-                await asyncio.wait({self.root})
+                await asyncio.wait({root})
             except asyncio.CancelledError:
                 cancelled = True
         if cancelled or asyncio.current_task().cancelling():
             raise asyncio.CancelledError
 
     async def _wait_caller(self, complete):
+        root = self.root
         try:
-            await asyncio.wait({complete, self.root}, return_when=asyncio.FIRST_COMPLETED)
+            await asyncio.wait({complete, root}, return_when=asyncio.FIRST_COMPLETED)
             if asyncio.current_task().cancelling():
                 raise asyncio.CancelledError
         except asyncio.CancelledError:
-            self.request_close('caller_cancelled')
-            try:
-                await self._join()
-            finally:
-                raise asyncio.CancelledError from None
+            # Completion detaches authority synchronously before notifying
+            # waiters. Cancelling that previous caller must not close its
+            # successor. An admitted, still-pending caller must close/join.
+            if not complete.done():
+                self.request_close('caller_cancelled')
+                try:
+                    await self._join()
+                finally:
+                    raise asyncio.CancelledError from None
+            raise asyncio.CancelledError from None
+        return complete.result()
 
     async def connected(self):
-        await self._wait_caller(self.ready)
-        if not self.usable:
-            raise _failed() from self.failure
+        complete = self.ready
+        outcome = await self._wait_caller(complete)
+        if outcome.result != 'success':
+            raise _failed() from None
 
     async def refresh(self):
         caller = asyncio.current_task()
@@ -238,8 +270,9 @@ class NativeInteractiveSession:
             raise asyncio.CancelledError
         if not self.usable or self.operation_caller is not None:
             raise _failed()
+        complete = asyncio.get_running_loop().create_future()
         self.operation_caller = caller
-        self.operation_complete = asyncio.get_running_loop().create_future()
+        self.operation_complete = complete
         self.operation_result = 'reading'
         self.group_results = dict.fromkeys(GROUPS, 'not_attempted')
         self._idle_deadline = None
@@ -250,15 +283,16 @@ class NativeInteractiveSession:
             setattr(self.session, freshness, False)
         self.publish()
         self.wake.set()
-        await self._wait_caller(self.operation_complete)
-        if self.operation_result != 'success' or self.close_reason is not None:
-            raise _failed() from self.failure
+        outcome = await self._wait_caller(complete)
+        if outcome.result != 'success':
+            raise _failed() from None
 
     async def close(self, reason='explicit_close'):
+        complete = self.closed
         self.request_close(reason)
         await self._join()
-        if self.cleanup_result in ('failed', 'generation_lost'):
-            raise _failed() from self.failure
+        if complete.result().result != 'success':
+            raise _failed() from None
 
 
 class _InteractiveAPI(NativeAPI):
@@ -372,13 +406,14 @@ class _InteractiveRead(NativeSyncRead):
         self.guard()
         c.connect_caller = None
         c._idle()
-        c.ready.set_result(None)
+        _resolve(c.ready, _Outcome('success'))
         while True:
             await c.wake.wait()
             c.wake.clear()
             self.guard()
             if c.operation_caller is None:
                 continue
+            complete = c.operation_complete
             if c._cycles:
                 adapter.rearm_cycle()
             for group, read, destinations in zip(GROUPS, READERS, DESTINATIONS, strict=True):
@@ -409,7 +444,7 @@ class _InteractiveRead(NativeSyncRead):
             c.operation_result = 'success'
             c.operation_caller = None
             c._idle()
-            c.operation_complete.set_result(None)
+            _resolve(complete, _Outcome('success'))
 
 
 async def connect_interactive(session):

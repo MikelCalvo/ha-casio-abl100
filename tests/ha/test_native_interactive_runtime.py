@@ -559,3 +559,197 @@ async def test_real_automatic_admission_skips_while_interactive_owner_holds_link
     finally:
         await reader.stop()
     assert_clean(unified)
+
+
+async def test_completed_refresh_outcome_is_local_when_next_refresh_starts_before_waiter_resumes(unified):
+    s, w = unified.session, unified.wire
+    c = await connect(unified)
+    w.hold_at = 'response'
+    first = asyncio.create_task(s.read_interactive())
+    await spin_until(w.entered.is_set)
+    second = []
+    def immediately_refresh(_future):
+        # Real HA eager task API can admit a new public caller before the
+        # previous completion waiter resumes. Do not replace controller code.
+        w.hold_at = 'response'
+        w.entered.clear()
+        second.append(unified.hass.async_create_task(s.read_interactive(), eager_start=True))
+    c.operation_complete.add_done_callback(immediately_refresh)
+    w.hold_at = None
+    w.notify(TARGET, 61, w.frames[b'\x15'])
+    try:
+        await first
+    finally:
+        await s.close_interactive()
+        for task in second:
+            await asyncio.gather(task, return_exceptions=True)
+    assert_clean(unified)
+
+
+async def test_completed_refresh_survives_close_before_waiter_resumes(unified):
+    s, w = unified.session, unified.wire
+    c = await connect(unified)
+    w.hold_at = 'response'
+    first = asyncio.create_task(s.read_interactive())
+    await spin_until(w.entered.is_set)
+    closers = []
+    def immediately_close(_future):
+        closers.append(unified.hass.async_create_task(s.close_interactive(), eager_start=True))
+    c.operation_complete.add_done_callback(immediately_close)
+    w.hold_at = None
+    w.notify(TARGET, 61, w.frames[b'\x15'])
+    try:
+        await first
+        assert closers and c.close_reason == 'explicit_close'
+    finally:
+        await s.close_interactive()
+        await asyncio.gather(*closers)
+    assert_clean(unified)
+
+
+async def test_connect_readiness_survives_eager_refresh_before_waiter_resumes(unified):
+    s, w = unified.session, unified.wire
+    caller = asyncio.create_task(s.connect_interactive())
+    await spin_until(lambda: s.interactive_session is not None and s.interactive_session.phase == 'waiting')
+    c = s.interactive_session
+    following = []
+    def immediately_refresh(_future):
+        w.hold_at = 'response'
+        following.append(unified.hass.async_create_task(s.read_interactive(), eager_start=True))
+    c.ready.add_done_callback(immediately_refresh)
+    try:
+        await drive(caller, unified)
+        assert following and c.phase == 'reading'
+        await spin_until(w.entered.is_set)
+        w.hold_at = None
+        w.notify(TARGET, 61, w.frames[b'\x15'])
+        await following[0]
+    finally:
+        await s.close_interactive()
+        await asyncio.gather(*following, return_exceptions=True)
+    assert_clean(unified)
+
+
+@pytest.mark.parametrize('operation', ['connect', 'refresh'])
+async def test_detached_caller_cancellation_never_closes_eager_successor(unified, operation):
+    s, w = unified.session, unified.wire
+    if operation == 'connect':
+        first = asyncio.create_task(s.connect_interactive())
+        await spin_until(lambda: s.interactive_session is not None and s.interactive_session.phase == 'waiting')
+        c = s.interactive_session
+        completion = c.ready
+    else:
+        c = await connect(unified)
+        w.hold_at = 'response'
+        first = asyncio.create_task(s.read_interactive())
+        await spin_until(w.entered.is_set)
+        completion = c.operation_complete
+    following = []
+    def cancel_previous_after_handoff(_future):
+        w.hold_at = 'response'
+        w.entered.clear()
+        following.append(unified.hass.async_create_task(s.read_interactive(), eager_start=True))
+        first.cancel()
+    completion.add_done_callback(cancel_previous_after_handoff)
+    try:
+        if operation == 'connect':
+            with pytest.raises(asyncio.CancelledError):
+                await drive(first, unified)
+        else:
+            w.hold_at = None
+            w.notify(TARGET, 61, w.frames[b'\x15'])
+            with pytest.raises(asyncio.CancelledError):
+                await first
+        assert following and c.active and c.close_reason is None, 'Detached cancellation must not revoke a successor'
+        await spin_until(w.entered.is_set)
+        w.hold_at = None
+        w.notify(TARGET, 61, w.frames[b'\x15'])
+        await following[0]
+    finally:
+        await s.close_interactive()
+        await asyncio.gather(*following, return_exceptions=True)
+    assert_clean(unified)
+
+
+@pytest.mark.parametrize('fault', ['read_failed', 'explicit_close'])
+async def test_incomplete_refresh_stays_failed_after_new_controller_success(unified, fault):
+    s, w = unified.session, unified.wire
+    old = await connect(unified)
+    if fault == 'read_failed':
+        w.failure_stage = 'get13'
+    else:
+        w.hold_at = 'response'
+    first = asyncio.create_task(s.read_interactive())
+    if fault == 'explicit_close':
+        await spin_until(w.entered.is_set)
+        await s.close_interactive()
+    with pytest.raises(HomeAssistantError):
+        await first
+    old_completion = old.operation_complete
+    outcome = old_completion.result()
+    assert outcome.result != 'success' and outcome.close_reason == fault
+    w.failure_stage = w.hold_at = None
+    try:
+        new = await connect(unified)
+        await s.read_interactive()
+        assert new.operation_result == 'success'
+        assert old.operation_result != 'success' and old.close_reason == fault
+        assert old.operation_complete is old_completion and old_completion.result() is outcome
+        with pytest.raises(HomeAssistantError):
+            await old.refresh()
+    finally:
+        await s.close_interactive()
+    assert_clean(unified)
+
+
+async def test_failed_close_is_captured_on_old_owner_after_successful_reconnect(unified):
+    s, w = unified.session, unified.wire
+    old = await connect(unified)
+    w.failure_stage = 'disconnect'
+    with pytest.raises(HomeAssistantError):
+        await s.close_interactive()
+    w.failure_stage = None
+    try:
+        newer = await connect(unified)
+        with pytest.raises(HomeAssistantError):
+            await old.close()
+        assert newer.usable and newer.close_reason is None
+    finally:
+        await s.close_interactive()
+    assert_clean(unified)
+
+
+@pytest.mark.parametrize('cleanup_fails', [False, True])
+async def test_close_outcome_stays_with_joined_owner_during_eager_reconnect(unified, cleanup_fails):
+    s, w = unified.session, unified.wire
+    old = await connect(unified)
+    if cleanup_fails:
+        w.failure_stage = 'disconnect'
+    following = []
+    def immediately_reconnect(_root):
+        w.failure_stage = None
+        following.append(unified.hass.async_create_task(s.connect_interactive(), eager_start=True))
+    old.root.add_done_callback(immediately_reconnect)
+    try:
+        if cleanup_fails:
+            with pytest.raises(HomeAssistantError):
+                await s.close_interactive()
+        else:
+            await s.close_interactive()
+        assert following and s.interactive_session is not old
+        await drive(following[0], unified)
+        assert s.interactive_session.usable
+        assert old.cleanup_result == ('failed' if cleanup_fails else 'success')
+        outcome = old.closed.result()
+        assert outcome.result == ('failed' if cleanup_fails else 'success')
+        assert outcome.close_reason == 'explicit_close'
+        assert outcome.cleanup_result == old.cleanup_result
+        from dataclasses import FrozenInstanceError
+        with pytest.raises(FrozenInstanceError):
+            outcome.result = 'reclassified'
+        await s.read_interactive()
+        assert old.closed.result() is outcome
+    finally:
+        await s.close_interactive()
+        await asyncio.gather(*following, return_exceptions=True)
+    assert_clean(unified)
