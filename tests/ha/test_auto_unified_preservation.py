@@ -349,9 +349,73 @@ UI_JSON_ADDITIONS = {'strings.json': {'buttons': {'connect_interactive': {'name'
                                                                                   'interactiva utilizable'}}}}
 
 
+OBSERVATIONS_INVERSE = {'__init__.py': {'baseline_sha256': 'f5c6ef8271204b30720f9540f44fbd552e43ed5744def4bc5460b458b80d6053',
+                 'hunks': [[8,
+                            10,
+                            '8e86a28763135412d466cd7029f0aaeea5ed24769a8649b96ab1ab86654df872',
+                            'from homeassistant.const import Platform\n'],
+                           [93,
+                            104,
+                            '0fef19fc031b6e430565888f39190e7fb18a7228f35b6b0829d1b172ebdcfc03',
+                            ''],
+                           [218,
+                            219,
+                            '7d381eedb1a970b9d222b1265293955ae17813f062aa233bb1560275a74cc8c4',
+                            ''],
+                           [333,
+                            334,
+                            'c220d7ea2cd1793b9e53b08caccac0bf21b157692d42d5a74d8fd2f23d235f44',
+                            ''],
+                           [402,
+                            403,
+                            'f662d220f92149af93bb7b4c4d2c5786dadbfed29f01fe667555c5f01a8759d2',
+                            ''],
+                           [477,
+                            479,
+                            'ef4ea4bcebbb2ee266c23b407dec9d11ddce5bb5453cc69fe6a15cd6bd41b42d',
+                            ''],
+                           [490,
+                            497,
+                            'ab5d4eb48d40b953acf7094732485213909235ad1656661e5a8e6de5a14fc996',
+                            ''],
+                           [517,
+                            526,
+                            '4b2f8c2d2b29a47742a904ce0768e729178e08e8ecc167b527d5df6ca3c621da',
+                            '']]},
+ 'sensor.py': {'baseline_sha256': '42a1dc67f79ca9d06291cf1a68b9568c486a45a1bc796123e30e12d7fdb1c0ca',
+               'hunks': [[169,
+                          170,
+                          '1346da673404703bcbc30d1f2b6172c89374615728b1721febe6e0614d22e504',
+                          '    """Independent last-good configuration, intentionally not '
+                          'persisted."""\n'],
+                         [217,
+                          221,
+                          'eeb8bf5d3688caa93ecb1f5fca74f9c8dc6fba46b5dc90edd4c6c687ee20fa27',
+                          '']]},
+ 'native_sync.py': {'baseline_sha256': 'e25e6203b4780abb3552a4829e08ec4374b53c2974ad5b424c661502f09d0847',
+                    'hunks': [[179,
+                               180,
+                               'd2fbb9713658ccc0a299c1bb8a11f6143f0c20807e48a89ce3831a6949911135',
+                               '']]},
+ 'native_interactive.py': {'baseline_sha256': '221a7b31fc8368fcae9dfbd5bddff38028d7913b712004bf1892106cb15d141c',
+                           'hunks': [[438,
+                                      439,
+                                      '76b4ad4c721c82507151db869969c5af6d8a1687b0d9bdafe3a0d8ecaab1d927',
+                                      '']]}}
+OBSERVATIONS_SHA256 = 'cbd5250fda71102faf288089482d7745b17fead6dda2abbd35c96df69da2afc3'
+
+
 def installed_source(name):
     """Invert exact approved hunks, then verify the entire installed module."""
     source = (ROOT / name).read_text()
+    if name in OBSERVATIONS_INVERSE:
+        oracle = OBSERVATIONS_INVERSE[name]
+        lines = source.splitlines(keepends=True)
+        for start, end, expected_hash, original in reversed(oracle['hunks']):
+            assert digest(''.join(lines[start:end]).encode()) == expected_hash, (name, start)
+            lines[start:end] = original.splitlines(keepends=True)
+        source = ''.join(lines)
+        assert digest(source.encode()) == oracle['baseline_sha256'], name
     if name in UI_INVERSE:
         oracle = UI_INVERSE[name]
         lines = source.splitlines(keepends=True)
@@ -377,10 +441,12 @@ def digest(data):
 
 
 def test_exact_component_inventory_and_unowned_bytes():
-    expected = set(IMMUTABLE) | set(INVERSE) | set(JSON_BASE) | {'native_interactive.py'}
+    expected = set(IMMUTABLE) | set(INVERSE) | set(JSON_BASE) | {'native_interactive.py', 'observations.py'}
     actual = {str(p.relative_to(ROOT)) for p in ROOT.rglob('*')
               if p.is_file() and '__pycache__' not in p.parts}
-    assert actual == expected and len(actual) == 27
+    assert actual == expected and len(actual) == 28
+    assert digest((ROOT / 'observations.py').read_bytes()) == OBSERVATIONS_SHA256
+    installed_source('native_interactive.py')
     for name, expected_hash in IMMUTABLE.items():
         assert digest(installed_source(name).encode()) == expected_hash, name
 

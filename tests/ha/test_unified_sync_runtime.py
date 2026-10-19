@@ -331,9 +331,11 @@ async def test_unknown_auto_time_and_encoded_zero_are_not_invented(unified):
     await task
     await unified.hass.async_block_till_done()
     state = unified.hass.states.get('sensor.casio_abl_100we_automatic_time_adjustment')
-    # HA omits extra attributes for unavailable entities; unknown is retained
-    # in the actual observation, not converted into a disabled enum.
-    assert state.state == 'unavailable'
+    # A valid unknown observation remains available so HA exposes its metadata.
+    assert state.state == 'unknown'
+    assert state.attributes['fresh'] is True
+    assert state.attributes['last_read'] == unified.session.auto_time_last_sync.isoformat()
+    assert state.attributes['adjustment_minute'] is None
     assert unified.session.auto_time_snapshot.enabled is None
     assert unified.session.auto_time_snapshot.adjustment_minute is None
     assert unified.hass.states.get('sensor.casio_abl_100we_timer_encoded_duration').state == '0'
@@ -818,7 +820,12 @@ async def test_unload_held_cleanup_blocks_late_commit_and_reload_keeps_identity(
     assert {e.unique_id: (e.entity_id, e.device_id) for e in er.async_get(unified.hass).entities.values() if e.config_entry_id == unified.watch.entry_id} == ids
     assert len(unified.wire.calls) == calls
     assert unified.watch.runtime_data.sync_result == 'never'
-    assert unified.watch.runtime_data.alarm_snapshot is None
+    restored = unified.watch.runtime_data.alarm_snapshot
+    assert [(a.slot, a.hour, a.minute, a.enabled) for a in restored.alarms] == [(a.slot, a.hour, a.minute, a.enabled) for a in snap.alarms]
+    assert restored.hourly_signal == snap.hourly_signal
+    assert unified.watch.runtime_data.alarm_last_sync == unified.session.alarm_last_sync
+    assert unified.watch.runtime_data.alarms_fresh is False
+    assert unified.watch.runtime_data.record is None
 
 
 @pytest.mark.asyncio

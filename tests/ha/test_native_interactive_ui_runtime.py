@@ -308,7 +308,7 @@ async def test_admission_outcomes_are_local_and_caller_cancellation_preserved(un
     assert_clean(p)
 
 
-async def test_unload_reload_options_keep_all_identities_and_reset_values(unified):
+async def test_unload_reload_options_keep_all_identities_and_restore_stale(unified):
     p = unified
     old = dict(entities(p))
     registry = er.async_get(p.hass)
@@ -317,6 +317,8 @@ async def test_unload_reload_options_keep_all_identities_and_reset_values(unifie
     ids = {e.unique_id: (e.entity_id, e.device_id) for e in entities(p).values()}
     c = await connect_ui(p)
     await press(p, 'read_interactive')
+    from tests.ha.test_observations_runtime import observations, projection
+    observed = observations(p.session)
     original = p.session
     p.wire.hold_at = 'disconnect'
     reload = asyncio.create_task(p.hass.config_entries.async_reload(p.watch.entry_id))
@@ -337,7 +339,10 @@ async def test_unload_reload_options_keep_all_identities_and_reset_values(unifie
     await p.hass.async_block_till_done()
     assert c.root.done() and original.closed and not original.listeners
     p.session = p.watch.runtime_data
-    assert p.session is not original and p.session.alarm_snapshot is None
+    assert p.session is not original
+    assert projection(observations(p.session)) == projection(observed)
+    assert [t for _v, t, _f in observations(p.session)] == [t for _v, t, _f in observed]
+    assert all(f is False for _v, _t, f in observations(p.session))
     assert {e.unique_id: (e.entity_id, e.device_id) for e in entities(p).values()} == ids
     assert p.hass.states.get('button.my_watch_refresh').attributes['friendly_name'] == 'My refresh'
     pristine(status(p))
@@ -348,6 +353,9 @@ async def test_unload_reload_options_keep_all_identities_and_reset_values(unifie
     assert result['type'] is FlowResultType.CREATE_ENTRY
     await p.hass.async_block_till_done()
     p.session = p.watch.runtime_data
+    assert projection(observations(p.session)) == projection(observed)
+    assert [t for _v, t, _f in observations(p.session)] == [t for _v, t, _f in observed]
+    assert all(f is False for _v, _t, f in observations(p.session))
     assert {e.unique_id: (e.entity_id, e.device_id) for e in entities(p).values()} == ids
     pristine(status(p))
     assert p.hass.states.get(entities(p)['connect_interactive'].entity_id).as_dict()['state'] != 'unavailable'

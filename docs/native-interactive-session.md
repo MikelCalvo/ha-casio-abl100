@@ -34,7 +34,7 @@ Before any controller exists, the sensor is **unknown**, with `phase: idle`, `li
 
 Attributes are bounded controller observations: `phase`, explicit `link_state`, strict boolean `usable`, `wait_expires_at`, `idle_expires_at`, `session_expires_at`, `operation_result`, `group_results`, `cleanup_result`, `close_reason`. Expiries are explicit null or aware UTC ISO timestamps. Public status is observational; the initiating service's own completion decides its outcome, not a mutable latest-state field.
 
-Groups are `alarms`, `steps`, `zones`, `basic_settings`, `auto_time`, `timer`. Earlier validated groups survive a later failure. Requested freshness is reset for each admitted refresh without deleting last-good values/timestamps. Unknown auto-time remains unknown, not disabled. Observations are in memory and reset after reload; no historical values are injected into HA.
+Groups are `alarms`, `steps`, `zones`, `basic_settings`, `auto_time`, `timer`. Earlier validated groups survive a later failure. Requested freshness is reset for each admitted refresh without deleting last-good values/timestamps. Valid unknown auto-time is HA `unknown` with its observed minute (possibly null), freshness and original last-read timestamp; never-read remains unavailable. The six semantic last-good groups are cached privately and restored after reload/Core restart with original timestamps and `fresh: false`. No controller, connection, owner, expiry, session/cleanup result or automatic option is restored; interactive status always starts pristine. This is a last-observation cache, not historical Recorder import, and cannot guarantee durability across disk failure or a kill/power loss before writing finishes.
 
 ## Bounds and safety limits
 

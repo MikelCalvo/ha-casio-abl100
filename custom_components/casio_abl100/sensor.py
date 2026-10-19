@@ -167,7 +167,7 @@ class LastTimeZoneReadSensor(WatchSensor):
 
 
 class SettingsSensor(WatchSensor):
-    """Independent last-good configuration, intentionally not persisted."""
+    """Independent last-good configuration, restored stale from private storage."""
     snapshot_key = None
 
     @property
@@ -213,6 +213,10 @@ class AutoTimeSensor(SettingsSensor):
         key='automatic_time_adjustment', translation_key='automatic_time_adjustment',
         device_class=SensorDeviceClass.ENUM, options=['enabled', 'disabled'],
     )
+
+    @property
+    def available(self):
+        return self.snapshot is not None
 
     @property
     def native_value(self):

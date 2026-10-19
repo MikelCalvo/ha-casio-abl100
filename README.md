@@ -38,12 +38,12 @@ Names omit the device prefix, which Home Assistant adds once. Entity IDs depend 
 | Manual zone query | Read time zones | Leer zonas horarias | Configuration, not current clock values |
 | Combined query | Read watch data | Leer datos del reloj | All supported groups in one owned native session |
 | Basic settings | Time format | Formato horario | `12h`/`24h`, tone and short/long light attributes |
-| Auto-time configuration | Automatic time adjustment | Ajuste automático de hora | Enabled/disabled when known; unavailable when unknown |
+| Auto-time configuration | Automatic time adjustment | Ajuste automático de hora | Enabled/disabled when known; `unknown` with observation metadata when valid but unknown, unavailable when never read |
 | Encoded timer | Timer encoded duration | Duración codificada del temporizador | Encoded seconds and hour/minute/second components, not a running countdown |
 
-Each group has independent observation time and freshness. Before a successful read it is unavailable, not zero or off. A failed refresh retains last-good values/time and marks the affected group not fresh. A later group failure in a combined read does not erase earlier completed groups; whole-session and cleanup outcomes are separate. HA can omit extra attributes while a sensor is unavailable, so unknown auto-time has no externally verifiable freshness or last-read metadata.
+Each group has independent observation time and freshness. Before a successful read it is unavailable, not zero or off. A failed refresh retains last-good values/time and marks the affected group not fresh. A later group failure in a combined read does not erase earlier completed groups; whole-session and cleanup outcomes are separate. A valid auto-time observation with unknown enable is HA `unknown`, with `fresh`, original `last_read` and observed `adjustment_minute` (possibly null); it is never replaced by disabled or a default minute.
 
-Observations are **in memory and reset on integration reload/Core restart**. Registry identities are preserved. Step data for another date becomes unavailable; alarm times do not expire at midnight.
+The six semantic last-good groups are cached in a private local HA Store file per entry and transport-address binding, and restored after reload/Core restart with **original timestamps and `fresh: false`**. Only validated commits are saved, not raw bytes, names, addresses, connection/session status or automatic options. This is not encrypted storage, Recorder history or guaranteed durability across disk failure, SIGKILL or power loss before writing finishes. Changing transport address invalidates the old cache; removing the entry removes its cache. All 23 registry identities remain unchanged. Steps keep their original record date/history: yesterday is never presented as today's steps, and alarm times do not expire at midnight.
 
 ## Manual combined read
 
@@ -65,7 +65,7 @@ Timeouts and cleanup are cooperative, not forced termination of an unresponsive 
 
 The source-described 400-byte ABL-100WE block contains **seven previous-day summary slots plus today's separate total**, not seven days of full hourly detail. This is reverse-engineered capacity, not an official retention guarantee. Dates are anchored to the validated record date, yesterday through seven days ago.
 
-`daily_history` maps ISO dates to totals or `null`. A legitimate zero remains zero; missing sentinel `0xFFFFFFFE` or an out-of-range count becomes unknown for that slot without shifting later dates. Failed reads retain last-good data with `fresh: false`. This is not persistent storage, automatic backfill or historical Recorder/statistics import. The joint trial received the snapshot but did not compare all seven historical totals on the device.
+`daily_history` maps ISO dates to totals or `null`. A legitimate zero remains zero; missing sentinel `0xFFFFFFFE` or an out-of-range count becomes unknown for that slot without shifting later dates. Failed reads retain last-good data with `fresh: false`. The last valid semantic snapshot is cached across reload/restart without changing its dates; this is not automatic backfill or historical Recorder/statistics import. The joint trial received the snapshot but did not compare all seven historical totals on the device.
 
 ## Experimental installation
 
@@ -77,7 +77,7 @@ Back up the integration and configuration and use only a recoverable installatio
 4. Select a discovered watch or enter its exact Bluetooth address. No watch is preconfigured.
 5. Use a **connectable** ESPHome Bluetooth proxy. Advertisement forwarding alone is insufficient.
 
-Existing identities are retained; new read groups add entities. Reloading resets observations until a fresh read. Do not delete/re-add the watch just to update code.
+Existing identities are retained; new read groups add entities. Reloading restores validated last-good observations stale, without initiating a read. Do not delete/re-add the watch just to update code.
 
 ## Optional automatic window readers
 
@@ -97,13 +97,13 @@ With both options off, use an explicit manual button as above. With exactly one 
 
 If the **same physical watch** changes its Bluetooth address after a pairing reset, use the existing entry's **⋮ → Reconfigure** action. Do not remove/re-add it or edit HA storage. Turn both automatic modes off first; reconfiguration is refused if either is enabled or malformed, including a submission-time race.
 
-Explicitly select or type the new address after confirming the physical device. The selected entry's transport address changes while its entry/device/entity identities, title and options remain. Other entries' current addresses and retained identities remain reserved. The native reload clears observations; reconfiguration alone is not a successful read, new pairing or ERR fix. See [Spanish instructions](docs/reconfigure.es.md).
+Explicitly select or type the new address after confirming the physical device. The selected entry's transport address changes while its entry/device/entity identities, title and options remain. Other entries' current addresses and retained identities remain reserved. A changed transport address invalidates the old observation cache before entities load; returning to the old address without a new read does not resurrect it. Reconfiguration alone is not a successful read, new pairing or ERR fix. See [Spanish instructions](docs/reconfigure.es.md).
 
 ## Protocol and safety limits
 
 - Current primary and secondary clock reads are **not implemented or validated**. Zone/DST configuration and step-record timestamps are not running-clock samples. See [clock-reading limits](docs/clock-reading-limits.md).
 - Encoded timer arithmetic is not proof of an active countdown. Zero is not silently converted to 60 minutes. Light mode is short/long, not an asserted measured duration.
-- Unknown auto-time enable is never replaced with disabled or a default minute. A group success enum cannot authenticate metadata that HA does not expose.
+- Unknown auto-time enable is never replaced with disabled or a default minute. Its valid unknown observation is available with metadata, but a group success enum alone is not evidence of a current clock or completed time adjustment.
 - Notifications have no transaction ID. Local phase guards reject early/duplicate frames but cannot prove peripheral causality of an identical late response.
 - No calibrated battery percentage, step-goal read, settings write, alarm editing or watch-button event is claimed.
 - Notification setup writes a GATT CCCD, distinct from changing a watch setting. The lifelog END `0411000000`, which may clear hourly details, is deliberately not sent.

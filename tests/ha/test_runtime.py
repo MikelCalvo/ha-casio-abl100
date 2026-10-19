@@ -83,8 +83,11 @@ async def test_step_history_real_service_keeps_ids_commands_failure_and_reload_b
         assert await hass.config_entries.async_reload(entry.entry_id)
         await hass.async_block_till_done()
         assert entity_ids() == ids and connect.call_count == 2
-        assert hass.states.get(step_id).state == 'unavailable'
-        assert 'daily_history' not in hass.states.get(step_id).attributes
+        assert hass.states.get(step_id).state == '1485'
+        assert hass.states.get(step_id).attributes['fresh'] is False
+        assert hass.states.get(step_id).attributes['daily_history'] == expected
+        assert hass.states.get(step_id).attributes['record_date'] == '2026-08-01'
+        assert hass.states.get(ids['last_sync']).state == stamp
         assert await hass.config_entries.async_unload(entry.entry_id)
 
 
@@ -330,9 +333,11 @@ async def test_real_service_read_failure_and_reload_keep_one_device_and_translat
         ids_after = {state.entity_id for state in hass.states.async_all()
                      if state.domain in ('sensor', 'binary_sensor', 'button') and 'casio' in state.entity_id}
         assert ids_after == set(ids)
-        assert hass.states.get(alarm_id).state == 'unavailable'
-        assert hass.states.get(signal_id).state == 'unavailable'
-        assert hass.states.get(alarms['AA:BB:CC:DD:EE:FF_last_alarm_read'].entity_id).state == 'unavailable'
+        assert hass.states.get(alarm_id).state == '23:59'
+        assert hass.states.get(alarm_id).attributes['fresh'] is False
+        assert hass.states.get(signal_id).state == 'on'
+        assert hass.states.get(signal_id).attributes['fresh'] is False
+        assert hass.states.get(alarms['AA:BB:CC:DD:EE:FF_last_alarm_read'].entity_id).state == last
         assert len({device.id for device in dr.async_get(hass).devices
                     if (DOMAIN, 'AA:BB:CC:DD:EE:FF') in device.identifiers}) == 1
         assert len([entity for entity in er.async_get(hass).entities.values()

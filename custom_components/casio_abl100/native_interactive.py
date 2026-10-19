@@ -436,6 +436,7 @@ class _InteractiveRead(NativeSyncRead):
                 except BaseException:
                     c.group_results[group] = 'failed'
                     raise
+                self.session._queue_observation_save(group)
                 c.publish()
             # Explicit success, not merely last query submission, authorizes
             # the next cycle. Each transport has quiesced its group receivers.

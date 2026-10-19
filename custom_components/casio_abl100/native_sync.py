@@ -177,6 +177,7 @@ class NativeSyncRead(NativeRead):
             except BaseException:
                 self.session.sync_group_results[group] = 'failed'
                 raise
+            self.session._queue_observation_save(group)
             self.session._schedule_alarm_delivery()
 
     def remove_notifications(self):

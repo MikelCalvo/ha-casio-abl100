@@ -167,7 +167,11 @@ async def test_real_step_button_waits_for_fresh_exact_advert_then_publishes_hist
     assert previous.closed and not previous.listeners and not previous.tasks
     assert {e.entity_id: (e.unique_id, e.device_id) for e in registry.entities.values() if e.config_entry_id == steps.watch.entry_id} == ids
     assert len([d for d in dr.async_get(steps.hass).devices if (steps.watch.domain, ADDRESS) in d.identifiers]) == 1
-    assert steps.hass.states.get(SENSOR).state == 'unavailable'
+    assert steps.hass.states.get(SENSOR).state == '1485'
+    assert steps.hass.states.get(SENSOR).attributes['fresh'] is False
+    assert steps.watch.runtime_data.record == previous.record
+    assert steps.watch.runtime_data.last_sync == previous.last_sync
+    assert steps.hass.states.get(SENSOR).attributes['daily_history'] == state.attributes['daily_history']
     assert len(steps.wire.calls) == 10
 
 

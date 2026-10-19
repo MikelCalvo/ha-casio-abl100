@@ -6,7 +6,8 @@ from datetime import date
 from bleak.exc import BleakError
 from bleak_retry_connector import BleakClientWithServiceCache, establish_connection
 from homeassistant.components import bluetooth
-from homeassistant.const import Platform
+from homeassistant.const import Platform, EVENT_HOMEASSISTANT_STOP
+from .observations import EntryObservations, _DESTINATIONS
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.util import dt as dt_util
 from .protocol import ProtocolError
@@ -90,6 +91,17 @@ class WatchSession:
         self.timer_snapshot = None
         self.timer_last_sync = None
         self.timer_fresh = False
+        self.observations = None
+
+    def _queue_observation_save(self, group):
+        """Observation failures cannot revoke a validated synchronous commit."""
+        if self.observations is None:
+            return
+        try:
+            value, timestamp, _freshness = _DESTINATIONS[group]
+            self.observations.capture(group, getattr(self, value), getattr(self, timestamp))
+        except (Exception, asyncio.CancelledError):
+            _LOGGER.warning('Observation capture failed')
 
     def subscribe(self, callback):
         self.listeners.add(callback)
@@ -204,6 +216,7 @@ class WatchSession:
                 self.record = record
                 self.last_sync = synced_at
                 self.fresh = True
+                self._queue_observation_save('steps')
                 if not native:
                     self._notify()
         except BaseException as error:
@@ -318,6 +331,7 @@ class WatchSession:
                 self.alarm_snapshot = snapshot
                 self.alarm_last_sync = synced_at
                 self.alarms_fresh = True
+                self._queue_observation_save('alarms')
         except BaseException as error:
             self.alarms_fresh = False
             self._schedule_alarm_delivery()
@@ -386,6 +400,7 @@ class WatchSession:
                 self.zone_snapshot = snapshot
                 self.zone_last_sync = observed_at
                 self.zones_fresh = True
+                self._queue_observation_save('zones')
         except BaseException as error:
             # A cancelled queue waiter owns neither readiness nor freshness.
             if active:
@@ -460,6 +475,8 @@ class WatchSession:
                         await asyncio.gather(*tasks, return_exceptions=True)
         finally:
             self.listeners.clear()
+            if self.observations is not None:
+                await self.observations.async_close()
 
 
 async def async_setup_entry(hass, entry):
@@ -471,6 +488,13 @@ async def async_setup_entry(hass, entry):
         if any(type(value) is not bool for value in modes) or all(modes):
             from homeassistant.exceptions import ConfigEntryError
             raise ConfigEntryError('Invalid automatic read options')
+        manager.observations = EntryObservations(hass, entry.entry_id, manager.address, entry)
+        await manager.observations.async_load_into(manager)
+
+        async def stop_observations(_event):
+            await manager.observations.async_close()
+
+        entry.async_on_unload(hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, stop_observations))
         await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
         if entry.options.get('auto_read_steps') is True or entry.options.get('auto_read_all') is True:
             from .auto_read import AutoStepReader
@@ -491,6 +515,15 @@ async def async_setup_entry(hass, entry):
             await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
         raise
     return True
+
+
+async def async_remove_entry(hass, entry):
+    """Join the original writer before unlink, even after refused unload."""
+    manager = getattr(entry, 'runtime_data', None)
+    observations = manager.observations if isinstance(manager, WatchSession) else None
+    if observations is None:
+        observations = EntryObservations(hass, entry.entry_id, entry.data['address'], entry)
+    await observations.async_remove()
 
 
 async def _async_options_updated(hass, entry):

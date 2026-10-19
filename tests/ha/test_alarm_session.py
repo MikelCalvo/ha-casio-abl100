@@ -45,12 +45,14 @@ async def test_unknown_before_manual_read_and_no_setup_poll():
     cancel_update = Mock()
     add_update_listener = Mock(return_value=cancel_update)
     on_unload = Mock()
-    hass = SimpleNamespace(config_entries=SimpleNamespace(
+    cancel_stop = Mock()
+    hass = SimpleNamespace(bus=SimpleNamespace(async_listen_once=Mock(return_value=cancel_stop)), config_entries=SimpleNamespace(
         async_forward_entry_setups=forward, async_unload_platforms=AsyncMock(return_value=True),
     ))
-    entry = SimpleNamespace(data={'address': ADDR}, unique_id=ADDR, options={},
+    entry = SimpleNamespace(entry_id='syntheticalarmentry', data={'address': ADDR}, unique_id=ADDR, options={},
                             add_update_listener=add_update_listener, async_on_unload=on_unload)
-    with patch('custom_components.casio_abl100.establish_connection') as connect:
+    observations = SimpleNamespace(async_load_into=AsyncMock(), async_close=AsyncMock())
+    with patch('custom_components.casio_abl100.EntryObservations', return_value=observations), patch('custom_components.casio_abl100.establish_connection') as connect:
         await async_setup_entry(hass, entry)
         assert entry.runtime_data.alarm_snapshot is None
         assert entry.runtime_data.alarm_last_sync is None
@@ -58,7 +60,11 @@ async def test_unknown_before_manual_read_and_no_setup_poll():
         connect.assert_not_called()
     assert len(calls) == 1
     add_update_listener.assert_called_once()
-    on_unload.assert_called_once_with(cancel_update)
+    assert on_unload.call_count == 2
+    assert on_unload.call_args_list[0].args == (cancel_stop,)
+    assert on_unload.call_args_list[1].args == (cancel_update,)
+    hass.bus.async_listen_once.assert_called_once()
+    observations.async_load_into.assert_awaited_once_with(entry.runtime_data)
     hass.config_entries.async_unload_platforms.assert_not_called()
 
 
