@@ -270,7 +270,8 @@ async def test_repeated_cycle_fault_successor_and_native_reload_reset(unified, r
     assert_clean(p)
 
 
-@pytest.mark.parametrize('code', [None, True, False, 1.5, 'PRIVATE_STATUS_CANARY', [], {}, -2147483649, 2147483648])
+@pytest.mark.parametrize('code', [None, True, False, 1.5, 'PRIVATE_STATUS_CANARY', [], {}, -2147483649, 2147483648],
+                         ids=['null', 'true', 'false', 'float', 'private_string', 'list', 'dict', 'below_int32', 'above_int32'])
 async def test_defensive_synthetic_status_types_are_null_at_public_sink(unified, code, caplog, capsys):
     p, w = unified, unified.wire
     c = await connect_ui(p)
