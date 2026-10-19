@@ -352,7 +352,7 @@ UI_JSON_ADDITIONS = {'strings.json': {'buttons': {'connect_interactive': {'name'
 OBSERVATIONS_INVERSE = {'__init__.py': {'baseline_sha256': 'f5c6ef8271204b30720f9540f44fbd552e43ed5744def4bc5460b458b80d6053',
                  'hunks': [[8,
                             10,
-                            '8e86a28763135412d466cd7029f0aaeea5ed24769a8649b96ab1ab86654df872',
+                            'ed5b199f5fd918e1d082706de8b4e41a866365aa0acf814d705a082ba90d8cd6',
                             'from homeassistant.const import Platform\n'],
                            [93,
                             104,
@@ -379,8 +379,8 @@ OBSERVATIONS_INVERSE = {'__init__.py': {'baseline_sha256': 'f5c6ef8271204b30720f
                             'ab5d4eb48d40b953acf7094732485213909235ad1656661e5a8e6de5a14fc996',
                             ''],
                            [517,
-                            526,
-                            '4b2f8c2d2b29a47742a904ce0768e729178e08e8ecc167b527d5df6ca3c621da',
+                            522,
+                            '645912c49535e7f6d3058dda3c6039055a9657f8b884e673bff0003b1f423205',
                             '']]},
  'sensor.py': {'baseline_sha256': '42a1dc67f79ca9d06291cf1a68b9568c486a45a1bc796123e30e12d7fdb1c0ca',
                'hunks': [[169,
@@ -402,7 +402,7 @@ OBSERVATIONS_INVERSE = {'__init__.py': {'baseline_sha256': 'f5c6ef8271204b30720f
                                       439,
                                       '76b4ad4c721c82507151db869969c5af6d8a1687b0d9bdafe3a0d8ecaab1d927',
                                       '']]}}
-OBSERVATIONS_SHA256 = 'cbd5250fda71102faf288089482d7745b17fead6dda2abbd35c96df69da2afc3'
+OBSERVATIONS_SHA256 = '3281ac06f65f6e7e0c9b5672de2f5cf4c0619c71b6d29701fc6fa0650aa59126'
 
 
 def installed_source(name):

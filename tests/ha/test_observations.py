@@ -123,11 +123,11 @@ class Entry:
         return task
 
 
-def cache():
+def cache(hass=None, entry_id=ENTRY):
     m = api()
     # Queue tests fake only Store, never the product writer or codec.
     with patch.object(m.ObservationStore, '__init__', return_value=None):
-        return m.EntryObservations(SimpleNamespace(data={}, loop=asyncio.get_running_loop()), ENTRY, ADDRESS, Entry())
+        return m.EntryObservations(hass or SimpleNamespace(data={}, loop=asyncio.get_running_loop()), entry_id, ADDRESS, Entry())
 
 
 @pytest.mark.asyncio
@@ -261,3 +261,53 @@ async def test_loaded_cache_sanitizes_future_and_invalid_groups_without_save():
         c.capture('timer', samples()['timer'], STAMP)
         await c.async_close()
         assert s.auto_time_snapshot is None and not writes
+
+
+@pytest.mark.asyncio
+async def test_remove_cancellation_still_joins_writer_and_unlinks():
+    m = api(); entered = asyncio.Event(); release = asyncio.Event(); disk = {}
+    async def save(store, data):
+        entered.set(); await release.wait(); disk.update(data)
+    async def remove(store): disk.clear()
+    with patch.object(m.ObservationStore, 'async_save', save), patch.object(m.ObservationStore, 'async_remove', remove):
+        c = cache(); c.capture('timer', samples()['timer'], STAMP)
+        await entered.wait()
+        removal = asyncio.create_task(c.async_remove())
+        await asyncio.sleep(0); removal.cancel(); await asyncio.sleep(0)
+        assert not removal.done() and not c.entry.created[0].cancelling()
+        release.set()
+        with pytest.raises(asyncio.CancelledError): await removal
+        c.capture('timer', samples()['timer'], STAMP)
+        await c.async_close()
+        assert not disk and all(t.done() for t in c.entry.created)
+
+
+@pytest.mark.asyncio
+async def test_remove_authority_is_per_ha_key_and_releases_closed_generations():
+    import gc
+    import weakref
+    m = api()
+    assert callable(getattr(m, 'async_remove_entry_observations', None)), 'Missing original Store removal authority'
+    hass = SimpleNamespace(data={}, loop=asyncio.get_running_loop())
+    other_hass = SimpleNamespace(data={}, loop=asyncio.get_running_loop())
+    removed = []
+    async def remove(store): removed.append(store)
+    with patch.object(m.ObservationStore, 'async_remove', remove):
+        first = cache(hass); await first.async_close()
+        old = weakref.ref(first); del first; gc.collect()
+        assert old() is not None, 'Successful unload lost original Store'
+        second = cache(hass)
+        gc.collect()
+        assert old() is None, 'Ordinary reload retained a closed generation'
+        await second.async_close()
+        another_key = cache(hass, 'otherentry')
+        another_ha = cache(other_hass)
+        entry = SimpleNamespace(entry_id=ENTRY, data={'address': ADDRESS})
+        await m.async_remove_entry_observations(hass, entry)
+        assert removed == [second.store]
+        assert not another_key._removed and not another_ha._removed
+        second_ref = weakref.ref(second); del second; gc.collect()
+        assert second_ref() is None, 'Remove retained its invalidated owner'
+        await m.async_remove_entry_observations(other_hass, entry)
+        assert removed[-1] is another_ha.store
+        await another_key.async_remove()

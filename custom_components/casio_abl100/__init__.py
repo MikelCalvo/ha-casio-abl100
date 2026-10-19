@@ -7,7 +7,7 @@ from bleak.exc import BleakError
 from bleak_retry_connector import BleakClientWithServiceCache, establish_connection
 from homeassistant.components import bluetooth
 from homeassistant.const import Platform, EVENT_HOMEASSISTANT_STOP
-from .observations import EntryObservations, _DESTINATIONS
+from .observations import EntryObservations, async_remove_entry_observations, _DESTINATIONS
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.util import dt as dt_util
 from .protocol import ProtocolError
@@ -518,12 +518,8 @@ async def async_setup_entry(hass, entry):
 
 
 async def async_remove_entry(hass, entry):
-    """Join the original writer before unlink, even after refused unload."""
-    manager = getattr(entry, 'runtime_data', None)
-    observations = manager.observations if isinstance(manager, WatchSession) else None
-    if observations is None:
-        observations = EntryObservations(hass, entry.entry_id, entry.data['address'], entry)
-    await observations.async_remove()
+    """Invalidate the original Store even after successful native unload."""
+    await async_remove_entry_observations(hass, entry)
 
 
 async def _async_options_updated(hass, entry):

@@ -6,11 +6,13 @@ import hashlib
 import logging
 import re
 
+from homeassistant.core import CoreState
 from homeassistant.helpers.storage import Store
 from .protocol import DailySteps, StepRecord
 from .settings import AutoTimeSettings, TimerConfiguration, ZoneConfiguration
 
 _LOGGER = logging.getLogger(__name__)
+_OWNERS = 'casio_abl100.observation_owners'
 _DESTINATIONS = {
     'alarms': ('alarm_snapshot', 'alarm_last_sync', 'alarms_fresh'),
     'steps': ('record', 'last_sync', 'fresh'),
@@ -231,25 +233,45 @@ class ObservationStore(Store):
         raise ValueError('Unsupported observation storage version')
 
 
+async def async_remove_entry_observations(hass, entry):
+    """Reach the original Store after HA has deleted entry.runtime_data."""
+    observations = hass.data.get(_OWNERS, {}).get(entry.entry_id)
+    if observations is None:
+        observations = EntryObservations(hass, entry.entry_id, entry.data['address'], entry)
+    await observations.async_remove()
+
+
 class EntryObservations:
     """One non-BLE coalescing writer; captures never await or touch disk."""
 
     def __init__(self, hass, entry_id, address, entry):
         self.hass, self.entry, self.entry_id, self.address = hass, entry, entry_id, address
-        self.store = ObservationStore(hass, 1, storage_key(entry_id), private=True,
-                                      minor_version=1, max_readable_version=1)
+        owners = hass.data.setdefault(_OWNERS, {})
+        previous = owners.get(entry_id)
+        if previous is not None and not previous._closed:
+            raise ValueError('Observation owner is still active')
+        # Normal close joins all writes. Only STOP may leave a valid save in
+        # Store's FINAL_WRITE callback. Transfer that exact Store, not a list of
+        # old sessions, across any reload before FINAL_WRITE or remove.
+        self._deferred = previous is not None and previous._deferred
+        self.store = previous.store if self._deferred else ObservationStore(
+            hass, 1, storage_key(entry_id), private=True,
+            minor_version=1, max_readable_version=1)
         self._groups = {}
         self._pending = None
         self._writer = None
         self._closed = False
         self._close_retry_used = False
         self._removed = False
-        self._writable = True
+        self._writable = previous._writable if self._deferred else True
         try:
             self._binding = address_binding(entry_id, address)
         except (ValueError, TypeError):
             self._binding = None
             self._disable_writes()
+        # One owner per HA/key survives successful unload; replaced closed
+        # generations are released, and remove releases the final owner.
+        owners[entry_id] = self
 
     def _disable_writes(self):
         self._writable = False
@@ -273,6 +295,13 @@ class EntryObservations:
                 and type(payload.get('binding')) is str and payload['binding'] != self._binding):
             try:
                 await self.store.async_remove()
+                # Public remove cancels FINAL_WRITE, but Store retains its
+                # in-memory payload. A new binding must not load that payload
+                # again if reconfigured back before a new validated capture.
+                self.store = ObservationStore(
+                    self.hass, 1, storage_key(self.entry_id), private=True,
+                    minor_version=1, max_readable_version=1)
+                self._deferred = False
             except (Exception, asyncio.CancelledError):
                 _LOGGER.warning('Observation removal failed')
                 if asyncio.current_task().cancelling():
@@ -316,6 +345,7 @@ class EntryObservations:
             self._pending = None
             try:
                 await self.store.async_save(payload)
+                self._deferred = getattr(self.hass, 'state', None) is CoreState.stopping
             except (Exception, asyncio.CancelledError):
                 # Do not retry a persistent fault in a loop. A later valid
                 # capture or one close attempt may offer the latest payload.
@@ -365,5 +395,8 @@ class EntryObservations:
             if asyncio.current_task().cancelling():
                 cancelled = True
         self._pending = None
+        owners = self.hass.data.get(_OWNERS, {})
+        if owners.get(self.entry_id) is self:
+            del owners[self.entry_id]
         if cancelled:
             raise asyncio.CancelledError

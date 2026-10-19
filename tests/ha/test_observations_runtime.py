@@ -424,3 +424,181 @@ async def test_fresh_ha_after_stop_loads_private_disk_observations(real_observat
         assert not second.wire.calls and second.session.auto_reader is None
         assert second.hass.states.get('sensor.casio_abl_100we_steps_today').state == '1485'
         await second.hass.async_stop(force=True)
+
+
+@pytest.mark.parametrize('refuse_unload', [False, True])
+@pytest.mark.parametrize('generation', ['none', 'options', 'stop_reload'])
+async def test_stop_remove_keeps_original_store_authority(unified, real_observation_disk, tmp_path, refuse_unload, generation):
+    from pathlib import Path
+    import json
+    from homeassistant.const import EVENT_HOMEASSISTANT_STOP
+    from homeassistant.core import CoreState
+    from custom_components.casio_abl100.observations import ObservationStore, storage_key
+    p = unified
+    p.hass.config.config_dir = str(tmp_path)
+    await drive(asyncio.create_task(press(p)), p)
+    await p.hass.async_block_till_done()
+    if generation == 'options':
+        before = observations(p.watch.runtime_data)
+        form = await p.hass.config_entries.options.async_init(p.watch.entry_id)
+        await p.hass.config_entries.options.async_configure(
+            form['flow_id'], {'auto_read_steps': False, 'auto_read_all': False})
+        await p.hass.async_block_till_done()
+        p.session = p.watch.runtime_data
+        assert projection(observations(p.session)) == projection(before)
+        assert all(f is False for _v, _t, f in observations(p.session))
+    original = p.watch.runtime_data
+    path = Path(p.hass.config.path('.storage', storage_key(p.watch.entry_id)))
+    assert path.is_file()
+    wire_before = list(p.wire.calls)
+    entered = asyncio.Event()
+    release = asyncio.Event()
+    states = []
+    witness = {}
+    real_save = ObservationStore.async_save
+
+    async def held_save(store, data):
+        entered.set()
+        await release.wait()
+        states.append(store.hass.state)
+        await real_save(store, data)
+
+    async def remove_during_stop(_event):
+        release.set()
+        await original.observations.async_close()
+        assert states and all(state is CoreState.stopping for state in states)
+        if generation == 'stop_reload':
+            before = observations(original)
+            assert await p.hass.config_entries.async_reload(p.watch.entry_id)
+            await p.hass.async_block_till_done()
+            p.session = p.watch.runtime_data
+            witness['reloaded'] = p.session is not original
+            witness['restored'] = all(v is not None for v, _t, _f in observations(p.session))
+            if witness['restored']:
+                witness['projection_preserved'] = projection(observations(p.session)) == projection(before)
+                witness['timestamps_preserved'] = [t for _v, t, _f in observations(p.session)] == [t for _v, t, _f in before]
+            witness['stale'] = all(f is False for _v, _t, f in observations(p.session))
+        if refuse_unload:
+            with patch.object(p.hass.config_entries, 'async_unload_platforms', return_value=False):
+                result = await p.hass.config_entries.async_remove(p.watch.entry_id)
+        else:
+            result = await p.hass.config_entries.async_remove(p.watch.entry_id)
+        witness.update(remove_result=result, state=p.hass.state.value,
+                       runtime_present=hasattr(p.watch, 'runtime_data'),
+                       exists_after_remove=path.exists())
+        assert not path.exists(), 'Remove did not unlink cache'
+
+    p.hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, remove_during_stop)
+    with patch.object(ObservationStore, 'async_save', held_save):
+        await drive(asyncio.create_task(press(p)), p)
+        wire_before = list(p.wire.calls)
+        for _ in range(100):
+            if entered.is_set(): break
+            await asyncio.sleep(0)
+        assert entered.is_set()
+        await p.hass.async_stop(force=True)
+    assert witness, 'STOP remove callback was not reached'
+    assert witness['remove_result'] == {'require_restart': refuse_unload}
+    assert witness['runtime_present'] is refuse_unload
+    assert witness['exists_after_remove'] is False
+    assert p.wire.calls == wire_before
+    if generation == 'stop_reload':
+        assert all(witness[k] for k in ('reloaded', 'restored', 'projection_preserved', 'timestamps_preserved', 'stale'))
+    witness['exists_after_final_write'] = path.exists()
+    witness['final_state'] = p.hass.state.value
+    print('SPEC_STOP_REMOVE_WITNESS=' + json.dumps(witness, sort_keys=True))
+    # Avoid the framework's known empty-platform polling teardown issue only
+    # after the disk observation is complete; never affect the tested boundary.
+    if refuse_unload:
+        from homeassistant.helpers.entity_platform import async_get_platforms
+        platforms = [x for x in async_get_platforms(p.hass, 'casio_abl100') if x.config_entry is p.watch]
+        await p.hass.async_block_till_done()
+        from custom_components.casio_abl100 import PLATFORMS
+        await p.hass.config_entries.async_unload_platforms(p.watch, PLATFORMS)
+        for platform in platforms:
+            platform.async_unsub_polling()
+        await p.watch.runtime_data.shutdown()
+    assert not path.exists(), 'FINAL_WRITE resurrected cache after successful manager remove'
+    original._queue_observation_save('timer')
+    await original.observations.async_close()
+    assert not path.exists(), 'Late generation capture recreated removed cache'
+
+
+async def test_running_remove_joins_original_writer_and_isolates_other_entry(unified, real_observation_disk, tmp_path):
+    from pathlib import Path
+    from tests.ha.test_reconfigure_runtime import entry_for, OTHER
+    from tests.ha.test_observations import samples, STAMP
+    from custom_components.casio_abl100.observations import ObservationStore, storage_key
+    p = unified
+    p.hass.config.config_dir = str(tmp_path)
+    await read(p)
+    other = entry_for(p.hass, OTHER, OTHER, title='Other')
+    assert await p.hass.config_entries.async_setup(other.entry_id)
+    other_session = other.runtime_data
+    other_session.observations.capture('timer', samples()['timer'], STAMP)
+    await p.hass.async_block_till_done()
+    other_path = Path(p.hass.config.path('.storage', storage_key(other.entry_id)))
+    other_bytes = other_path.read_bytes()
+    original = p.session
+    path = Path(p.hass.config.path('.storage', storage_key(p.watch.entry_id)))
+    entered = asyncio.Event(); release = asyncio.Event()
+    real_save = ObservationStore.async_save
+    async def held(store, data):
+        entered.set(); await release.wait(); await real_save(store, data)
+    with patch.object(ObservationStore, 'async_save', held):
+        await drive(asyncio.create_task(press(p)), p)
+        await entered.wait()
+        wire = list(p.wire.calls)
+        removal = asyncio.create_task(p.hass.config_entries.async_remove(p.watch.entry_id))
+        await asyncio.sleep(0)
+        assert not removal.done()
+        release.set()
+        assert await removal == {'require_restart': False}
+    assert not hasattr(p.watch, 'runtime_data')
+    assert not path.exists() and p.wire.calls == wire
+    original._queue_observation_save('timer')
+    await original.observations.async_close()
+    assert not path.exists()
+    assert other.runtime_data is other_session
+    assert other_path.read_bytes() == other_bytes
+    assert await p.hass.config_entries.async_reload(other.entry_id)
+    assert other.runtime_data.timer_snapshot == samples()['timer']
+    assert other.runtime_data.timer_fresh is False
+    assert await p.hass.config_entries.async_unload(other.entry_id)
+
+
+async def test_stop_reconfigure_cannot_restore_invalidated_deferred_binding(unified, real_observation_disk, tmp_path):
+    from pathlib import Path
+    from homeassistant.const import EVENT_HOMEASSISTANT_STOP
+    from homeassistant.config_entries import SOURCE_RECONFIGURE
+    from tests.ha.test_reconfigure_runtime import NEW
+    from custom_components.casio_abl100.observations import ObservationStore, storage_key
+    p = unified
+    p.hass.config.config_dir = str(tmp_path)
+    await read(p)
+    entered = asyncio.Event(); release = asyncio.Event(); witness = []
+    original = p.session
+    real_save = ObservationStore.async_save
+    async def held(store, data):
+        entered.set(); await release.wait(); await real_save(store, data)
+    async def reconfigure_during_stop(_event):
+        release.set()
+        await original.observations.async_close()
+        for target in (NEW, ADDRESS):
+            with patch('custom_components.casio_abl100.config_flow.bluetooth.async_discovered_service_info', return_value=[]):
+                form = await p.hass.config_entries.flow.async_init('casio_abl100', context={
+                    'source': SOURCE_RECONFIGURE, 'entry_id': p.watch.entry_id})
+                result = await p.hass.config_entries.flow.async_configure(form['flow_id'], {'address': target})
+            await p.hass.async_block_till_done()
+            p.session = p.watch.runtime_data
+            witness.append((result.get('reason'), all(v is None for v, _t, _f in observations(p.session))))
+    p.hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, reconfigure_during_stop)
+    with patch.object(ObservationStore, 'async_save', held):
+        await drive(asyncio.create_task(press(p)), p)
+        await entered.wait()
+        wire = list(p.wire.calls)
+        await p.hass.async_stop(force=True)
+    assert witness == [('reconfigure_successful', True)] * 2
+    assert p.wire.calls == wire
+    path = Path(p.hass.config.path('.storage', storage_key(p.watch.entry_id)))
+    assert not path.exists(), 'Invalidated deferred binding recreated cache'
