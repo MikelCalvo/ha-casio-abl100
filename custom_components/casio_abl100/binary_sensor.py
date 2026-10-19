@@ -39,5 +39,48 @@ class HourlySignalSensor(BinarySensorEntity):
         return {'fresh': self.session.alarms_fresh}
 
 
+class InteractiveConnectionSensor(HourlySignalSensor):
+    """Observation of this entry's native link, not a watch-screen claim."""
+
+    entity_description = BinarySensorEntityDescription(
+        key='interactive_connected', translation_key='interactive_connected',
+        icon='mdi:bluetooth-connect',
+    )
+
+    def __init__(self, session):
+        super().__init__(session)
+        self._attr_unique_id = f'{session.identity}_interactive_connected'
+
+    @property
+    def available(self):
+        # Unknown must remain available so HA's formatter retains explanations.
+        return True
+
+    @property
+    def is_on(self):
+        controller = self.session.interactive_session
+        link = controller.link_state if controller is not None else 'unknown'
+        return {'connected': True, 'disconnected': False, 'unknown': None}[link]
+
+    @property
+    def extra_state_attributes(self):
+        controller = self.session.interactive_session
+        if controller is None:
+            from .native_sync import GROUPS
+            return dict(phase='idle', link_state='unknown', usable=False,
+                        wait_expires_at=None, idle_expires_at=None, session_expires_at=None,
+                        operation_result='never', group_results=dict.fromkeys(GROUPS, 'not_attempted'),
+                        cleanup_result='not_attempted', close_reason=None)
+        attrs = {key: getattr(controller, key) for key in (
+            'phase', 'link_state', 'operation_result', 'cleanup_result', 'close_reason')}
+        attrs['usable'] = bool(controller.usable)
+        attrs['group_results'] = dict(controller.group_results)
+        for key in ('wait_expires_at', 'idle_expires_at', 'session_expires_at'):
+            value = getattr(controller, key)
+            attrs[key] = value.isoformat() if value is not None else None
+        return attrs
+
+
 async def async_setup_entry(hass, entry, async_add_entities):
-    async_add_entities([HourlySignalSensor(entry.runtime_data)])
+    async_add_entities([HourlySignalSensor(entry.runtime_data),
+                        InteractiveConnectionSensor(entry.runtime_data)])

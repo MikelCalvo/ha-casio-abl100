@@ -276,9 +276,90 @@ JSON_BASE = {'strings.json': '612c38f0cb7928138d97742cee58b2e0b31a63372621da3f9b
 INTERACTIVE_INVERSE = {'__init__.py': {'installed_sha256': '2f4003d80d27a67231c50c9d76d077477c558ab8c88bb0fb56d9b3f03958d163', 'hunks': [[74, 75, '426335538439bcec5d0147c2f196fd0f08ddcfc9096e42b339154ff2ed3c25a3', ''], [411, 430, 'a71237999e15c1b9bbde6bf883b2f6661f69539d4a76429afcdf33bc31aa8943', ''], [445, 448, '1d60f5169045bcb3170f494f8ecfa4d9860cdf0879118553e8e8e21aedf5a6e6', '                if self.auto_reader is not None:\n                    await self.auto_reader.stop()\n'], [449, 460, 'e673c22b1a68267d75c1045c6d0ed440e00b3737826657e1f49613f09a966ee5', '                # The reader has already joined its owned read, including any\n                # cooperative disconnect. Do not cancel that cleanup twice.\n                tasks = set(self.tasks)\n                for task in tasks:\n                    task.cancel()\n                if tasks:\n                    await asyncio.gather(*tasks, return_exceptions=True)\n'], [505, 511, '00332a526e28e2a85cafbbfa82e6a602237bfae5fa45007a58df118fa31405c0', '        unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)\n']]}, 'native_sync_adapter.py': {'installed_sha256': '74e55d1dfece6ce68e5eec2c0cdc819f7171f73e08cb474da9a6804029d90e78', 'hunks': [[21, 49, '008a94c234ce0a93b47b56c5c527a3ade0d968821faaf24d6d531d300368405a', ''], [56, 62, '1440df158bf49bd75291126571adc57205bcf39f3db2c5b5c3a050f81321fc9f', ''], [65, 72, '593c9c8ba5ab215374e36d57e2a9493f3f27b2963736157a9a93043e79ccdd10', '        await super().start_notify(self.primary, receive)\n        self.guard()\n        self.primary_ready = True\n'], [86, 100, '4f3f05ec00645c0397295e548cc1f7025d03395e185973acf7c4f9bab99148e6', '']]}}
 
 
+UI_INVERSE = {'button.py': {'accepted_core_sha256': '02e75b972195cb504f3220d997c3c58dd76771613ab978341a3ec93b6c300d60',
+               'hunks': [[1, 3, '9bafe2d64788667dcd2d5332499afb885b0bcdd42469179df7e418ec76851527', ''],
+                         [4, 6, '48c143ab605726f860b48a2ea081fe558f9fda6d83e87bf468c12d2ce00345e4', ''],
+                         [8, 41, 'dc786eb8c9be769e84589e6a5066b13d9dce0c04155c6b7cae87ca6755a0ae54', ''],
+                         [53, 57, '0b88c76f65032a53c29b5fd1e8d361f0dd2e4df726baf59273c9a3293093724a', ''],
+                         [67, 68, 'e60fc4d1794b38fef46c4c08f8f050aeb06168a97369fd6983adf17196f9094a', ''],
+                         [87, 91, '0b88c76f65032a53c29b5fd1e8d361f0dd2e4df726baf59273c9a3293093724a', ''],
+                         [101, 102, 'e60fc4d1794b38fef46c4c08f8f050aeb06168a97369fd6983adf17196f9094a', ''],
+                         [122, 123, 'e60fc4d1794b38fef46c4c08f8f050aeb06168a97369fd6983adf17196f9094a', ''],
+                         [146, 147, 'e60fc4d1794b38fef46c4c08f8f050aeb06168a97369fd6983adf17196f9094a', ''],
+                         [148, 208, 'c52260f6af9a57e4f8cb1988e754d0909d3170765832a28557a41fabe5cd6c36', ''],
+                         [212,
+                          215,
+                          '99826dc867d11d756f62567b6dfb81c86b3ae1d8e07b8e89c983f5c654c4b791',
+                          '                        ReadTimeZonesButton(entry.runtime_data), '
+                          'ReadAllButton(entry.runtime_data)])\n']]},
+ 'binary_sensor.py': {'accepted_core_sha256': '5af1aaee0c38429916a9453a6e71351511aff1b2b601792934e463fde431b518',
+                      'hunks': [[41,
+                                 83,
+                                 '720c968d900758f2b92c27bc8a1a9fe12a40bde57048dce8006b61c87dd0f9b3',
+                                 ''],
+                                [84,
+                                 86,
+                                 '98ebe2cf6dff5c3496d083bd4cf14453011b333511d2c6c9e7cc7989bc532bcf',
+                                 '    async_add_entities([HourlySignalSensor(entry.runtime_data)])\n']]}}
+
+UI_JSON_ADDITIONS = {'strings.json': {'buttons': {'connect_interactive': {'name': 'Connect watch'},
+                              'read_interactive': {'name': 'Refresh connected watch'},
+                              'close_interactive': {'name': 'Close watch connection'}},
+                  'binary_sensors': {'interactive_connected': {'name': 'Interactive connection'}},
+                  'exceptions': {'interactive_connect_failed': {'message': 'Unable to connect the watch'},
+                                 'interactive_read_failed': {'message': 'Unable to refresh the connected '
+                                                                        'watch; completed groups are '
+                                                                        'retained'},
+                                 'interactive_close_failed': {'message': 'Unable to confirm closure of the '
+                                                                         'watch connection'},
+                                 'interactive_busy': {'message': 'The watch is busy; no action was queued'},
+                                 'interactive_not_connected': {'message': 'No usable interactive watch '
+                                                                          'connection'}}},
+ 'translations/en.json': {'buttons': {'connect_interactive': {'name': 'Connect watch'},
+                                      'read_interactive': {'name': 'Refresh connected watch'},
+                                      'close_interactive': {'name': 'Close watch connection'}},
+                          'binary_sensors': {'interactive_connected': {'name': 'Interactive connection'}},
+                          'exceptions': {'interactive_connect_failed': {'message': 'Unable to connect the '
+                                                                                   'watch'},
+                                         'interactive_read_failed': {'message': 'Unable to refresh the '
+                                                                                'connected watch; completed '
+                                                                                'groups are retained'},
+                                         'interactive_close_failed': {'message': 'Unable to confirm closure '
+                                                                                 'of the watch connection'},
+                                         'interactive_busy': {'message': 'The watch is busy; no action was '
+                                                                         'queued'},
+                                         'interactive_not_connected': {'message': 'No usable interactive '
+                                                                                  'watch connection'}}},
+ 'translations/es.json': {'buttons': {'connect_interactive': {'name': 'Conectar reloj'},
+                                      'read_interactive': {'name': 'Actualizar reloj conectado'},
+                                      'close_interactive': {'name': 'Cerrar conexión del reloj'}},
+                          'binary_sensors': {'interactive_connected': {'name': 'Conexión interactiva'}},
+                          'exceptions': {'interactive_connect_failed': {'message': 'No se pudo conectar el '
+                                                                                   'reloj'},
+                                         'interactive_read_failed': {'message': 'No se pudo actualizar el '
+                                                                                'reloj conectado; se '
+                                                                                'conservan los grupos '
+                                                                                'completados'},
+                                         'interactive_close_failed': {'message': 'No se pudo confirmar el '
+                                                                                 'cierre de la conexión del '
+                                                                                 'reloj'},
+                                         'interactive_busy': {'message': 'El reloj está ocupado; no se ha '
+                                                                         'puesto ninguna acción en cola'},
+                                         'interactive_not_connected': {'message': 'No hay ninguna conexión '
+                                                                                  'interactiva utilizable'}}}}
+
+
 def installed_source(name):
     """Invert exact approved hunks, then verify the entire installed module."""
     source = (ROOT / name).read_text()
+    if name in UI_INVERSE:
+        oracle = UI_INVERSE[name]
+        lines = source.splitlines(keepends=True)
+        for start, end, expected_hash, original in reversed(oracle['hunks']):
+            assert digest(''.join(lines[start:end]).encode()) == expected_hash, (name, start)
+            lines[start:end] = original.splitlines(keepends=True)
+        source = ''.join(lines)
+        assert digest(source.encode()) == oracle['accepted_core_sha256'], name
     if name not in INTERACTIVE_INVERSE:
         return source
     oracle = INTERACTIVE_INVERSE[name]
@@ -316,6 +397,13 @@ def test_only_exact_authorized_python_seams_change():
 def test_existing_json_names_keys_and_translations_are_preserved():
     for name, expected_hash in JSON_BASE.items():
         obj = json.loads((ROOT / name).read_text())
+        additions = UI_JSON_ADDITIONS[name]
+        for key, expected in additions['buttons'].items():
+            assert obj['entity']['button'].pop(key) == expected
+        for key, expected in additions['binary_sensors'].items():
+            assert obj['entity']['binary_sensor'].pop(key) == expected
+        for key, expected in additions['exceptions'].items():
+            assert obj['exceptions'].pop(key) == expected
         obj['config']['abort'].pop('auto_read_enabled')
         obj['options']['step']['init'].pop('description')
         assert obj['options']['step']['init']['data'].pop('auto_read_all')

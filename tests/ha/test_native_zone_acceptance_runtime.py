@@ -344,9 +344,9 @@ async def test_real_ha_names_and_measured_ids(language, hass, enable_custom_inte
             'last_time_zone_read': 'sensor.casio_abl_100we_ultima_lectura_de_zonas_horarias',
         },
     }[language]
-    from tests.ha.test_zone_entities import SYNC_KEYS
-    assert {key: e.entity_id for key, e in entities.items() if key not in SYNC_KEYS} == expected
-    assert entities.keys() == expected.keys() | SYNC_KEYS
+    from tests.ha.test_zone_entities import SYNC_KEYS, INTERACTIVE_KEYS
+    assert {key: e.entity_id for key, e in entities.items() if key not in SYNC_KEYS | INTERACTIVE_KEYS} == expected
+    assert entities.keys() == expected.keys() | SYNC_KEYS | INTERACTIVE_KEYS
     for key, name in names.items():
         assert hass.states.get(entities[key].entity_id).attributes['friendly_name'] == 'Casio ABL-100WE ' + name
         assert entities[key].disabled_by is None

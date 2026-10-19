@@ -54,7 +54,7 @@ async def armed(zones, direct=False):
 async def test_public_native_zone_service_three_gets_one_group_atomic_values(zones):
     ids = {e.unique_id.removeprefix(ADDRESS + '_'): e.entity_id for e in er.async_get(zones.hass).entities.values() if e.config_entry_id == zones.watch.entry_id}
     assert KEYS <= ids.keys(), 'Missing four time-zone entities'
-    assert len(ids) == 11 + 4 + 4
+    assert len(ids) == 11 + 4 + 4 + 4
     assert not zones.wire.calls
     for key in KEYS - {'read_time_zones'}:
         assert zones.hass.states.get(ids[key]).state == 'unavailable'

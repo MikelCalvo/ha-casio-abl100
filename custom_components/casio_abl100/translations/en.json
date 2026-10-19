@@ -84,11 +84,15 @@
       }
     },
     "binary_sensor": {
+      "interactive_connected": {"name": "Interactive connection"},
       "hourly_signal": {
         "name": "Hourly time signal"
       }
     },
     "button": {
+      "connect_interactive": {"name": "Connect watch"},
+      "read_interactive": {"name": "Refresh connected watch"},
+      "close_interactive": {"name": "Close watch connection"},
       "read_all": {
         "name": "Read watch data"
       },
@@ -104,6 +108,11 @@
     }
   },
   "exceptions": {
+    "interactive_connect_failed": {"message": "Unable to connect the watch"},
+    "interactive_read_failed": {"message": "Unable to refresh the connected watch; completed groups are retained"},
+    "interactive_close_failed": {"message": "Unable to confirm closure of the watch connection"},
+    "interactive_busy": {"message": "The watch is busy; no action was queued"},
+    "interactive_not_connected": {"message": "No usable interactive watch connection"},
     "sync_read_failed": {
       "message": "Unable to read all watch data; completed groups are retained"
     },
