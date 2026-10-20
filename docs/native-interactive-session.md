@@ -1,6 +1,14 @@
 # Native interactive watch session
 
-This local candidate adds three native Home Assistant buttons and one link-status binary sensor to the existing watch device. The original nineteen identities remain; there are twenty-three entities. Independent final-source review, operational binding, installation and a coordinated physical trial are separate gates. Local HA tests use synthetic external Bluetooth wire traffic; they do not establish physical connection stability or repair the previously observed watch-side ERR.
+## Current installed pilot — 2026-10-20
+
+Reviewed component revision `badfe909c74f63a2b2d81c69b3b872df596e1b1c` is installed. Its three native buttons and link-status binary sensor share the existing watch device with the read entities and [13 alarm/SIG draft controls](native-alarm-editing.md): **36 identities in total**, preserving all 23 pre-editing identities. This documentation-only revision is not a deployment.
+
+The retained native owner completed a coordinated disabled-alarm-5 time change `00:00` → `00:01` and restoration to `00:00`, with native readback and operator comparison (`12:01`, then `12:00` on the watch). Clean explicit Close and fresh post-use source, identity, ownership/proxy and node-health checks were authenticated. **Both terminal screens showed ERR**. Neither a verified alarm outcome nor native disconnect proves a normal watch screen or everyday link reliability; ERR's cause remains unknown. The operator's roughly 20 seconds is an estimate, not measured timing. Both automatic modes remain off.
+
+### Historical interactive-only checkpoint
+
+The interactive increment originally added these four identities to nineteen, making twenty-three. Review, installation and physical acceptance were then pending. That inventory and pending status are historical; the current installed component includes the alarm editor. Local HA tests still use synthetic external Bluetooth IO and do not by themselves establish physical stability or validate enable/SIG toggling or uncertain-write recovery.
 
 ## Controls
 
@@ -13,12 +21,13 @@ This local candidate adds three native Home Assistant buttons and one link-statu
 
 Home Assistant adds the existing device prefix once. Default entity IDs use the selected HA language; suffixes above, not display names or slugs, are the stable registry identity. Existing user-renamed entities remain renamed after reload.
 
-For a separately authorized coordinated trial:
+For a coordinated manual session (not authorization for another physical trial):
 
-1. Keep other clients from taking the watch connection. Do not unpair, reset or change watch settings.
-2. Press **Connect watch / Conectar reloj** once. Await `phase: waiting` with a future UTC `wait_expires_at` before the operator opens the watch's CNCT window. The button finishes only after the native link and services are confirmed. Connect does **not** read application data.
+1. Keep both automatic modes off and keep other clients from taking the watch connection. Do not unpair or reset. For a read-only session, do not stage or Apply settings.
+2. Press **Connect watch / Conectar reloj** once. Await the **Interactive connection / Conexión interactiva** sensor's `phase: waiting` with a future UTC `wait_expires_at`, then open CNCT by holding **C/MODE (lower left) for at least three seconds**. The button finishes only after the native link and services are confirmed. Connect does **not** read application data or send setting SETs.
 3. Once status is `on`, `link_state: connected`, `phase: connected` and `usable: true`, press **Refresh connected watch / Actualizar reloj conectado**. It reads the supported fixed groups on that same link, without reconnecting. A later explicit refresh requests a new cycle.
-4. Press **Close watch connection / Cerrar conexión del reloj** and await completion. Close remains available while connecting, acquiring notifications, reading or cleaning up. It bypasses the lifetime mutex and joins the original owner's cleanup; submitting close is not proof that cleanup finished.
+4. For an explicitly intended alarm edit, follow the separate [Apply/readback procedure](native-alarm-editing.md) or [Spanish guide](alarm-editing.es.md). Editing a draft alone never writes the watch; Apply uses this same native owner.
+5. Press **Close watch connection / Cerrar conexión del reloj** and await completion. Close remains available while connecting, acquiring notifications, reading, applying or cleaning up. It bypasses the lifetime mutex and joins the original owner's cleanup; submitting close is not proof that cleanup finished. Inspect `cleanup_result` and the terminal watch screen separately.
 
 The four existing one-shot read buttons retain their ordinary meanings outside an interactive reservation. During that reservation they are unavailable and reject direct presses rather than queueing work for after close. Both automatic modes retain their existing meanings and consume busy opportunities without a deferred retry. There is no new stored option.
 
@@ -77,6 +86,6 @@ is not a BLE reliability repair.
 
 The accepted core uses a 120-second idle limit, 300-second absolute link lifetime and 60-second refresh limit. Its existing fresh-RAW wait is bounded separately at 360 seconds. Limits revoke further work; already-held notification acquisition and cooperative disconnect still need their backend cleanup time. No forced release deadline is claimed.
 
-No new client, scanner, setting write, time synchronization, pairing, firmware operation, retry, reconnect or keepalive is added. Service failures have fixed per-action translated messages, with no raw backend text; real caller cancellation remains cancellation and joins admitted cleanup. Failed cleanup remains explicitly uncertain.
+Connect/Refresh/Close themselves add no setting SET, time synchronization, pairing, firmware operation, retry, reconnect or keepalive. Explicit alarm **Apply** is a separate writer borrowing this same owner, not another client or scanner. Service failures have fixed per-action translated messages, with no raw backend text; real caller cancellation remains cancellation and joins admitted cleanup. Failed cleanup remains explicitly uncertain.
 
 The wire has no transaction IDs. Local guards reject idle and pre-query frames, but cannot authenticate an identical delayed old reply arriving after a repeated identical query starts. No quiet delay disguises that limit. See [unified read semantics](native-unified-sync.md) and [clock-reading limits](clock-reading-limits.md).

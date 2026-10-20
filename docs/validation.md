@@ -1,6 +1,43 @@
 # Pilot validation
 
-## Local alarm/SIG editing checkpoint — not a release
+## Current installed boundary — alarm-5 roundtrip, 2026-10-20
+
+Reviewed component revision **`badfe909c74f63a2b2d81c69b3b872df596e1b1c`**
+is installed: **34 component files and 36 entity identities**, preserving all
+23 pre-editing identities on the existing watch device. This documentation-only
+revision describes unchanged component/test bytes; its Git HEAD is not a new
+installed component. Source gates and independent source reviews predate this
+documentation update. Their external native IO was synthetic; no production
+suite was rerun for these prose changes, and no new deployment or device action
+is implied.
+
+| Verification layer | Confirmed result | Limit |
+| --- | --- | --- |
+| Native requested change/readback | Disabled alarm 5 `00:00` → `00:01`, then `00:01` → `00:00`; both verified | One time-change/restoration pair on the tested setup, not general reliability |
+| Native preservation | Alarm 5 remained disabled; other alarms and SIG preserved | No enable or SIG toggle was requested or physically validated |
+| Operator display comparison | `12:01`, then `12:00`, on the watch's 12-hour alarm display | Alarm value comparison, not a current running-clock read |
+| Explicit Close and fresh post-use checks | Clean closure, terminal owners, released proxy; installed source/identity preservation and continuing node health authenticated | Point-in-time postflight, not future stability or an ERR fix |
+| Watch terminal screens | **ERR on both write trials** | Cause unresolved despite verified values |
+| Operator timing report | Approximately 20 seconds | An estimate, not measured service/connection/closure duration |
+
+The implemented enable/SIG writer paths and uncertainty journal/reconciliation
+have source/synthetic evidence, **not physical acceptance**. Uncertain-write
+recovery was not exercised on the watch. Both automatic modes remain **off**;
+automatic dispatch and unattended use are unvalidated. Other settings writers
+remain withheld, current primary/secondary clock reads and time synchronization
+are unimplemented, and everyday reliability remains open. See
+[alarm draft semantics](native-alarm-editing.md), [interactive controls](native-interactive-session.md)
+and [usage in Spanish](alarm-editing.es.md).
+
+## Historical checkpoints
+
+The sections below retain their **then-current** revision, inventory and test
+boundaries. “Not installed”, “unimplemented” and “review pending” refer to their
+named historical artifacts, not the current installed boundary above. Counts
+from overlapping synthetic selections must not be added as a total or treated
+as physical-device samples. Rejected intermediate candidates stay rejected.
+
+### Historical local alarm/SIG editing checkpoint — before installation
 
 The local source adds 13 nonpersistent draft controls and explicit Apply/readback
 through the retained interactive native owner. Focused real-HA services with a
@@ -17,7 +54,7 @@ are private; independent complete-unit SPEC and QUALITY remain pending. See
 claims below are unchanged.
 
 
-## Current installed boundary: joint read on 2026-10-18
+### Historical installed joint read — 2026-10-18
 
 Installed component revision: **`e3690ff299d907b2867d19c65287fc9e19cce392`**.
 This supersedes the earlier alarm-only pilot below. One coordinated native
@@ -64,13 +101,13 @@ reviewed private operational wrapper passed 48 tests, including the real HA
 unavailable-entity formatter boundary. These are different, overlapping
 verification layers, not additional hardware reads or reliability samples.
 
-Automatic combined dispatch is **not implemented or enabled**. The legacy
-`auto_read_steps` option remains step-only and off. The next increment is an
-explicit opt-in combined consumer with one owner and no loss of the first
-qualifying advertisement. Current primary/secondary time reads are not
-established; see [clock limits](clock-reading-limits.md).
+At this historical gate, automatic combined dispatch was **not implemented or
+enabled**. The legacy `auto_read_steps` option remained step-only and off. The
+planned next increment was an explicit opt-in combined consumer with one owner
+and no loss of the first qualifying advertisement. Current primary/secondary
+time reads were not established; see [clock limits](clock-reading-limits.md).
 
-### Previous installed alarm-only boundary
+### Historical installed alarm-only boundary
 
 The historical pilot at component revision `a897b0078a73deeaafbec0c1265be4848592f343`
 published a complete alarm/SIG snapshot at `2026-10-18T01:41:26+00:00`, with 11
@@ -80,14 +117,14 @@ with synthetic external IO, and its private deployment wrapper passed 12 recover
 tests. Those earlier counts and unknown screen apply to that trial, not the new
 joint read or its confirmed ERR.
 
-## Historical gates
+### Historical address-reconfiguration gates
 
 The sections below retain their **then-current** revision and test boundaries.
 Statements such as “not installed” or “review pending” apply to those historical
 gates, not to today’s inventory. They do not supersede the installed boundary
-above, and overlapping test counts must not be added together.
+at the start of this document, and overlapping test counts must not be added together.
 
-### Native address reconfiguration: historical local review candidate
+#### Native address reconfiguration: historical local review candidate
 
 This increment is based on exact local baseline `fd6228bc28586f385ab130a03cc4f7fa32e5099f`. The original worktree was clean and is left unchanged. Its retained baseline rerun passed **444 offline tests (five dependency deprecations) and 42 real-HA runtime tests**, with synthetic BLE. The initial reconfiguration candidate added 28 runtime cases and passed 444 offline / 70 runtime tests, but independent SPEC found one pre-existing user-flow reservation gap: HA's native ignored entries were omitted and could be replaced. That candidate remains blocked and was not deployed. Revision 1 adds 10 runtime cases using native ignored-entry production plus ignored/disabled address-and-identity controls. Causal RED preserved 3 behavioral failures and 7 passing controls; after the minimal reservation fix, all 10 pass. The revised combined selection passes **444 offline and 80 real-HA runtime cases**, exit 0 each. These are replacement-suite counts, not additional physical reads; independent SPEC and QUALITY of the revised artifact remain pending.
 
@@ -101,7 +138,7 @@ The earlier offline ConfigEntry double now supplies its real `unique_id` field; 
 
 No live HA, ESPHome, ADB, SSH, watch or deployment operation was performed. Independent review, deployment authorization and physical acceptance remain separate gates. See [English procedure](../README.md#native-bluetooth-address-reconfiguration) and [procedimiento en español](reconfigure.es.md).
 
-## Historical acceptance boundary retained from the base
+### Historical acceptance boundary retained from the base
 
 This document retains historical implementation/review gates below. Since those gates, alarm revision `fefd06b10375bea34e84ec060f34acc2c9cb86c5` was installed with 13 component-file hashes verified. One fresh complete read of AL1–AL5 and SIG on 2026-10-15 was confirmed by the operator: enabled and disabled alarms, and disabled SIG, matched the watch. The watch still showed `ERR`; the detailed capture had already ended before that successful read, so its cause is unknown. A SIG-on test, separate-session alarm repeatability and general reliability remain open. No watch setting/time or pairing change was made.
 
@@ -111,7 +148,7 @@ The new focused tests first failed at the missing API, then at substantive empty
 
 Seven previous-day summaries plus a separate current total are source-described protocol capacity, not a manufacturer retention guarantee. `daily_history` is a bounded snapshot attribute, not persistent history or retrospective Recorder/statistics import. The transport, session logic, existing IDs and diagnostics whitelist are unchanged. That history-only gate did not include automatic synchronization. The optional reader described below adds step-window requests, not settings editing or an `ERR` fix.
 
-## Optional native step-window reader: historical local boundary
+### Optional native step-window reader: historical local boundary
 
 The combined history/reader candidate is **local, uninstalled and not physically validated**. The installed pilot remains alarm revision `fefd06b10375bea34e84ec060f34acc2c9cb86c5`, with manual step and alarm actions. There has been no new physical test: the accepted manual step results remain 229 and 276, and the accepted AL1–AL5/SIG snapshot does not resolve the watch's `ERR`.
 
@@ -119,7 +156,7 @@ The daily-history increment `986976b`, step commit guards/options at `83f9af3`, 
 
 The composed code revision `9d8d245` passes **444 offline tests and 42 real-HA runtime tests**, with synthetic BLE and no radio hardware; a separate parent execution reproduced both results with process exit 0. The offline run reports five existing dependency deprecations. Runtime coverage includes actual manager callback deduplication and metadata-timer dispatch, entry options/reload isolation, manual-read contention, failure privacy, setup rollback and cancellation/unload cleanup. A narrowly updated ConfigEntry test double preserves the original unknown-alarm/no-read assertions while supplying HA's options/listener lifecycle APIs. Final independent reviews of the complete bundle remain pending. These counts overlap earlier layer selections and must not be summed with them; historical counts elsewhere apply only to their named revisions/layers.
 
-### Intended behavior and evidence limits
+#### Historical intended behavior and evidence limits
 
 - At this historical gate, the standard integration **Configure** options exposed English/Spanish `auto_read_steps`, default **false**. A change reloaded only the selected entry, preserving the then-existing 11 entity identities and both manual buttons. Reload then reset observations; the current local durable-observation candidate instead restores the six validated semantic groups stale with their original timestamps, without reading or restoring automatic/session authority. Its real-HA tests cover reload and two fresh HA instances with a real private file through STOP/FINAL_WRITE; this is offline evidence, not installation or physical validation. Valid unknown auto-time now exposes HA `unknown` plus observation metadata; that does not retroactively verify the historical unavailable trial.
 - An entry-owned public HA Bluetooth **PASSIVE** callback matches only the exact configured address with connectable availability. A one-second timer reads public Bluetooth metadata because HA deduplicates unchanged-payload callbacks even as packet timestamps advance. This is not watch GATT polling or a second ESPHome scanner.
@@ -132,7 +169,7 @@ This detects **observed timestamp bursts, not physical `CNCT` gestures**. Phone,
 
 For a future coordinated acceptance, enable the option through Configure, allow setup/reload suppression to settle, then open a fresh `CNCT` window near a connectable proxy without pressing the HA step button. With the option off, use the existing manual button during `CNCT`. Preserve failures rather than repeatedly retrying to obtain a success. Both procedures require separately coordinated physical acceptance; they are not completed tests of this feature.
 
-## Physical step results on installed revision `008f026`
+### Historical physical step results on then-installed revision `008f026`
 
 On **2026-10-15**, the installed ALL_FEATURES-first implementation at commit [`008f026d6177a8a29592a872987b560dd9b723db`](https://github.com/MikelCalvo/ha-casio-abl100/commit/008f026d6177a8a29592a872987b560dd9b723db) completed one explicitly initiated physical read through Home Assistant and an ESPHome Bluetooth proxy. Home Assistant published **229 steps**, dated **2026-10-15**, and the operator confirmed **229 on the watch display**.
 
@@ -140,7 +177,7 @@ A second separately initiated `CNCT` session on the same date published **276 st
 
 This establishes two end-to-end manual reads and one successful reconnection with an updated count on the tested setup. It does **not** establish long-term reliability, continuous synchronization, other models, clock/alarm support, or button-triggered automations. It also does not prove that the additional subscription was the sole cause of success: an earlier minimal-reader session had already passed notification setup before failing at a later parser boundary.
 
-## Source and deployment identity
+#### Historical source and deployment identity — `008f026`
 
 - Tested integration version: `0.1.0`, experimental, without a stable release.
 - Both successful physical reads used component files from `008f026d6177a8a29592a872987b560dd9b723db`. The newer local alarm-reader code at `3ae255ae8ea27505ee2adcae4c17622ef86cdeda` has not been installed. Its synthetic test results below must not be attributed to the installed revision or treated as another hardware test.
@@ -148,7 +185,7 @@ This establishes two end-to-end manual reads and one successful reconnection wit
 - The public repository preserves development history with private test logs, generated bytecode and an excluded third-party capture removed. Its commit IDs differ from the original private history.
 - The public test fixture is newly constructed synthetic data, not a historical watch capture. Its **1485-step example is not a physical result** and must not be confused with the measured 229 and 276 steps.
 
-## Historical installed-step validation layers
+#### Historical installed-step validation layers
 
 | Layer | Result | Boundary |
 | --- | --- | --- |
@@ -165,7 +202,7 @@ This establishes two end-to-end manual reads and one successful reconnection wit
 
 The original public tree passed 47 offline and 7 real-HA runtime tests with synthetic BLE. The five/seven-byte header correction then passed 62 offline and 7 runtime tests. Those are historical gates for earlier revisions, not extra successful hardware reads.
 
-## First successful physical session
+#### First successful physical step session — 2026-10-15
 
 1. The operator opened ordinary `CNCT` mode near the room proxy, with the phone's Bluetooth disabled. One actor initiated one HA **Read steps** service request.
 2. The proxy connected without a cached service database, completed service discovery and reported MTU 512. That reported size is not evidence of a fault: the complete read succeeded in this session.
@@ -178,7 +215,7 @@ The original public tree passed 47 offline and 7 real-HA runtime tests with synt
 
 No end/clear request, scratchpad initialization, time/DST/city, alarm, pairing or connection-parameter change was sent by the integration.
 
-## Second successful physical session
+#### Second successful physical step session — 2026-10-15
 
 - The operator reported **276 displayed steps** and opened a fresh `CNCT` window. One HA **Read steps** service request was made, without another manual retry.
 - The proxy used cached services and reported MTU 23. That cached-path report does **not** establish the effective negotiated on-air MTU; it must not be treated as a controlled MTU comparison with the first session.
@@ -186,21 +223,21 @@ No end/clear request, scratchpad initialization, time/DST/city, alarm, pairing o
 - HA updated the count from **229 to 276**, with `record_date: 2026-10-15`, `fresh: true`, and synchronization at **2026-10-15T00:41:02Z**. This was a new validated read, not retention of the previous value. From the HA request to the published state took approximately **14.1 s**, including connection setup.
 - The proxy slot was free afterward. The sensor node remained available, with subsequent humidity and uptime reports. The component hashes still matched `008f026`, and scoped transport logging was restored. No watch settings, integration code or firmware were changed.
 
-## Protocol changes and earlier failures
+### Historical protocol changes and earlier failures
 
-### Announcement length
+#### Announcement length
 
 The earliest reader required exactly five DRSP announcement bytes. Upstream `izivkov/gshock_api` ABL examples at `ae817310` also show `00 11 90 01 00 00 00`, a seven-byte form. Android GShockAPI `1.7.6` (`5b1043a`, `StepCounterIO.onDrspReceived`) reads the command, category and 24-bit little-endian length from the first five bytes when at least five are available.
 
 The reader now accepts only the known five- and seven-byte forms, with command `00`, category `11` and length 400 in bytes 2–4. The final two bytes are not part of the length; their purpose is not established. Duplicate announcements within the acceptance window, missing data, overflow and extra fragments are rejected. The raw unsequenced Convoy format does not permit general content-based deduplication or reorder recovery.
 
-### Subscription order
+#### Subscription order
 
 Android GShockAPI `1.7.6` and Python `gshock_api` subscribe to ALL_FEATURES before the lifelog channels in the examined ABL sessions. The implemented variant resolves `26eb002d-b012-49a8-b1f8-394fb2032b0f` within Casio features service `26eb000d-b012-49a8-b1f8-394fb2032b0f`, validates notify/CCCD metadata, discards that channel's payload and awaits its subscription before DRSP and Convoy. No general Android initialization or settings-writing helper was copied.
 
 Optional integration DEBUG diagnostics contain fixed stage names, monotonic durations, error classes and primary characteristic/CCCD metadata. They do not include raw payloads, the watch address or exception text. Privacy of unrelated library logs is a separate boundary.
 
-### Historical physical failures
+#### Historical physical failures
 
 Earlier revisions did not produce valid steps:
 
@@ -211,7 +248,7 @@ Earlier revisions did not produce valid steps:
 
 These failures remain part of the evidence. Two successful ALL_FEATURES-first sessions do not retroactively diagnose their exact causes, and no reliability percentage is claimed.
 
-## Historical alarm-reader candidate gate (before installation)
+### Historical alarm-reader candidate gate (before installation)
 
 The code candidate is `3ae255ae8ea27505ee2adcae4c17622ef86cdeda`. It retains the accepted step reader and adds an explicitly initiated **read-only** alarm snapshot. Subsequent documentation-only commits do not change those component files. No physical alarm query, settings write, installation or restart was performed to validate this candidate.
 
@@ -228,7 +265,7 @@ The code candidate is `3ae255ae8ea27505ee2adcae4c17622ef86cdeda`. It retains the
 | Diagnostics/privacy | Existing five-key diagnostics whitelist; no alarm times, flags, auxiliary bytes, address or error text | Own logging/diagnostics only, not all third-party library logs |
 | Physical alarm read / activated flags | **Not performed / unconfirmed** | Requires separately coordinated watch comparison |
 
-### Alarm protocol evidence and scope
+#### Historical alarm protocol evidence and scope
 
 The [module 3565 manual](https://support.casio.com/global/en/wat/manual/3565_en/UQIDSYhietkkjq.html) documents five daily alarms AL1–AL5 and a separate hourly signal SIG. Pinned [Kotlin GShockAPI 1.7.6](https://github.com/izivkov/GShockAPI/tree/5b1043a888ea3d97331c0c701f2da776ff638d8f) (`Alarms.kt`, `AlarmsIO.kt`, `IGShockManager.kt`) and [Python gshock_api](https://github.com/izivkov/gshock_api/tree/ae817310dd9551d5e6e53ee61d89af4e8d954767) provide the request/record interpretation. Historical third-party ABL traffic contains five- and seventeen-byte alarm responses with slots disabled; it is not a capture from the pilot watch and is not redistributed here. It does not validate activated bits.
 
@@ -236,7 +273,7 @@ The candidate resolves the feature service and required properties from discover
 
 Each call owns its phase/futures, rejects locally early, malformed, duplicate or error replies and disconnects before returning a complete snapshot. Missing/failed reads never fabricate disabled alarms. The session serializes steps and alarms but keeps their observations, freshness and successful timestamps separate. A positive public task-cancellation count is conservatively treated as caller cancellation, including an already-present count; it cannot distinguish all previously handled cancellation history. Backend-only cancellation at count zero becomes a sanitized read error. Timeouts require cooperative cancellation rather than guaranteeing abort of an uncooperative backend.
 
-### Observable limits and review provenance
+#### Historical observable limits and review provenance
 
 Alarm notification frames contain no transaction ID. A response phase is armed only as the public query-write operation begins, rejecting callbacks delivered before that point. A queued old same-opcode callback delivered after invocation can be indistinguishable from an immediate genuine response. An adversarial probe for the stronger pre-radio-send guarantee remains failing and is retained privately; that guarantee is **not claimed or part of the local phase contract**. Neither write completion nor the `fresh` attribute proves radio-level causality.
 
@@ -244,17 +281,34 @@ A complete observation is committed synchronously after successful transport cle
 
 The entity implementer's original RED output files were not retained. Its missing-module result proves absence only. A later independent control used archived baseline source with the new real-HA setup assertion and failed at **3 entities versus 11**; that is an independent regression-strength check, not a reconstruction of the original execution. Current full-suite runs and independent reviews are tied to the candidate above. Synthetic fixture examples, private probes and hardware results remain separate evidence layers.
 
-## Target versions
+## Validation environment versions
 
 Home Assistant `2026.9.4`, ESPHome `2026.9.1`, Bleak `3.0.2`, bleak-retry-connector `4.7.0`, bleak-esphome `4.0.0`, aioesphomeapi `46.2.0`, habluetooth `6.26.11`.
 
-## Remaining acceptance (current)
+## Remaining acceptance — current
 
-- The joint HA-owned read refreshed alarms and steps together. Separate-session repeatability, activated SIG, longer-term reconnects and real active-transfer cancellation/unload remain unverified. Keep failed samples; do not retry until success and call that reliability.
-- The latest joint trial's watch screen was **ERR** despite successful observable-group publication. Its cause remains unresolved.
-- History was received as a dated zero/null snapshot but not independently compared for all seven days. Automatic fresh-window reads and unattended operation remain unvalidated; automatic reading is still off.
-- Persistent interactive session lifetime and opt-in automatic combined reading remain separate product goals; the manual combined transaction does not fulfill them.
-- Current primary/secondary running-clock reads lack a validated GET/decoder contract. Zone/DST **configuration** was received in the joint trial but is not a running-clock sample.
-- Alarm editing, clock/settings writes and watch-button events are not implemented in this branch. Added settings were received but not individually visually compared; unknown auto-time remains unverifiable. No further physical work is armed by this documentation update.
+- Disabled alarm-5 time editing and restoration are physically confirmed, with
+  native preservation comparison and clean explicit Close. Enable/SIG toggles,
+  uncertain-write recovery, other alarm/time combinations, longer-term reconnects
+  and real active-transfer cancellation/unload remain unvalidated. Keep failures;
+  repeated retries until success are not reliability evidence.
+- **ERR remains unresolved**: it appeared in the historical joint read and on
+  both alarm-write terminal screens. A native success or released proxy is not
+  evidence of normal watch-side session completion.
+- Bounded interactive controls and both optional automatic readers are
+  implemented and installed. That does not establish unlimited session lifetime,
+  automatic fresh-window acceptance or unattended reliability. Both automatic
+  modes remain off.
+- The dated history snapshot was not independently compared for all seven days.
+  Other read-only settings from the historical joint trial were not individually
+  visually compared; its unavailable auto-time observation remains unverifiable.
+  Later source handling of valid unknown values does not retroactively accept it.
+- Current primary/secondary running clocks lack a validated GET/decoder contract.
+  Zone/DST configuration is not a clock sample. Other settings writers, time
+  synchronization and watch-button events remain withheld/unimplemented; only
+  the alarm/SIG draft writer exists. No new physical work is armed by this update.
 
-The operator also reports Android CasioGShockSmartSync phone actions working. That is a useful independent session reference, not proof of our unimplemented features. Raw logs, device addresses, credentials, registry backups and third-party captures are intentionally excluded from this repository.
+The reported success of Android CasioGShockSmartSync phone actions is an
+independent session reference, not proof of this integration's unimplemented
+features or an ERR diagnosis. Raw logs, device addresses, credentials, registry
+backups and third-party captures remain private and excluded from this repository.
