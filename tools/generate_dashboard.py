@@ -52,7 +52,9 @@ _REQUIRED = {
         "switch",
     ),
 }
-_ENTITY_ID = re.compile(r"[a-z0-9_]+\.[a-z0-9](?:[a-z0-9_]*[a-z0-9])?", re.ASCII)
+_ENTITY_ID = re.compile(
+    r"(?!.*__)[a-z0-9_]+\.[a-z0-9](?:[a-z0-9_]*[a-z0-9])?", re.ASCII
+)
 ERROR_MESSAGES = (
     "Invalid registry export; use a row list, data.entities storage export or successful WebSocket result.",
     "Select a nonempty config entry ID explicitly.",

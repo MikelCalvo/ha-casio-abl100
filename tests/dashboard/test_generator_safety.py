@@ -22,6 +22,7 @@ INVALID_IDS = [
     ("connect_interactive", "button.quality_"),
     ("alarm_1_time_draft", "time._"),
     ("alarm_1_enabled_draft", "switch.__"),
+    ("steps_today", "sensor.quality__name"),
 ]
 
 
@@ -41,7 +42,9 @@ def run_cli(*args):
 
 
 @pytest.mark.parametrize(
-    "key,entity_id", INVALID_IDS, ids=["leading", "trailing", "single", "double"]
+    "key,entity_id",
+    INVALID_IDS,
+    ids=["leading", "trailing", "single", "double", "consecutive"],
 )
 def test_api_rejects_ha_invalid_entity_object_boundaries(key, entity_id):
     rows = registry()
@@ -55,7 +58,9 @@ def test_api_rejects_ha_invalid_entity_object_boundaries(key, entity_id):
 
 
 @pytest.mark.parametrize(
-    "key,entity_id", INVALID_IDS, ids=["leading", "trailing", "single", "double"]
+    "key,entity_id",
+    INVALID_IDS,
+    ids=["leading", "trailing", "single", "double", "consecutive"],
 )
 def test_cli_rejects_ha_invalid_entity_object_boundaries(tmp_path, key, entity_id):
     rows = registry()
@@ -72,9 +77,7 @@ def test_cli_rejects_ha_invalid_entity_object_boundaries(tmp_path, key, entity_i
     assert not output.exists()
 
 
-@pytest.mark.parametrize(
-    "object_id", ["q", "0", "quality_name", "quality__name", "quality_1"]
-)
+@pytest.mark.parametrize("object_id", ["q", "0", "quality_name", "quality_1"])
 def test_valid_custom_entity_object_boundaries_are_preserved(tmp_path, object_id):
     rows = registry()
     entity_id = "sensor." + object_id
