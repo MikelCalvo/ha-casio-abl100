@@ -66,8 +66,19 @@ class AlarmDraftStorage(AlarmWriteSafety):
 
     async def _save_fence(self, revision, status):
         record = self._fence_record(revision, status)
-        await self.retirement._io(_write_metadata, self.retirement.path, record)
-        self.fence = record
+        committed = False
+        def write():
+            nonlocal committed
+            _write_metadata(self.retirement.path, record)
+            committed = True
+        try:
+            await self.retirement._io(write)
+        finally:
+            # _io joins the executor even on cancellation. A successful write
+            # remains authoritative when cancellation hides its return value;
+            # failed writes must retain the previous conservative fence.
+            if committed:
+                self.fence = record
 
     async def async_prepare(self, revision):
         # Acknowledged before native Apply; a crash leaves GET-only recovery,
@@ -82,10 +93,17 @@ class AlarmDraftStorage(AlarmWriteSafety):
     async def async_reconcile_retirement(self, draft):
         # Only an explicit complete GET or definite pre-SET baseline conflict
         # reaches this method; never a restore, discard or uncertain submission.
-        if self.fence is not None and self.fence['status'] == 'pending':
-            async with self.lock:
-                await self._save_fence(self.fence['revision'], 'reconciled')
-        draft.retirement_blocked = False
+        async with self.lock:
+            if self.fence is not None:
+                if self.fence['status'] == 'pending':
+                    await self._save_fence(self.fence['revision'], 'reconciled')
+                elif self.fence['status'] == 'retired' and draft.revision == self.fence['revision']:
+                    # GET can recover a cancelled acknowledgement, but cannot
+                    # expose the already-applied revision as a fresh edit.
+                    draft.clear(self.fence['revision'])
+                    draft.saved_revision = None
+                    draft.restored = False
+            draft.retirement_blocked = False
 
     async def async_close(self):
         try:
