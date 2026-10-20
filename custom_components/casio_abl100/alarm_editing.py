@@ -34,7 +34,8 @@ class AlarmDraft:
 
     @property
     def needs_reconciliation(self):
-        return self.safety.blocked if self.safety is not None else self._needs_reconciliation
+        return (getattr(self, 'retirement_blocked', False)
+                or (self.safety.blocked if self.safety is not None else self._needs_reconciliation))
 
     @needs_reconciliation.setter
     def needs_reconciliation(self, value):

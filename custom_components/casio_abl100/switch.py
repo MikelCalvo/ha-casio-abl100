@@ -53,7 +53,24 @@ class WatchConnectionSwitch(DraftEntity, SwitchEntity):
         options = {**entry.options, 'auto_connect_retained': enabled}
         if enabled:
             options.update(auto_read_steps=False, auto_read_all=False)
+        # Revoke synchronously before the options listener can unload entities.
+        # That single listener still owns reload; this action only joins the
+        # captured original observer/root, not unrelated HA background work.
+        reader = self.session.auto_reader
+        controller = self.session.interactive_session
+        if not enabled:
+            if reader is not None:
+                reader.suspend()
+            if controller is not None:
+                controller.request_close('unload')
         self.hass.config_entries.async_update_entry(entry, options=options)
+        if not enabled:
+            try:
+                if reader is not None:
+                    await reader.stop()
+            finally:
+                if controller is not None:
+                    await controller._join()
 
     async def async_turn_on(self, **kwargs):
         await self._set(True)

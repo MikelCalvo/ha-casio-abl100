@@ -105,7 +105,10 @@ async def test_unknown_cold_setup_and_explicit_getonly_preserves_history(editing
         await p.session.apply_alarm_draft()
     p.wire.failure_stage = None
     with patch('custom_components.casio_abl100.dt_util.now',return_value=__import__('datetime').datetime(2026,10,18)):
-        await drive(asyncio.create_task(p.session.read_interactive()),p)
+        # Already connected: use the real blocking HA service rather than a
+        # 1000-yield advertisement helper that can outrun executor fsync.
+        async with asyncio.timeout(3):
+            await press(p, 'read_interactive')
     assert not p.session.alarm_safety.blocked
     assert p.session.alarm_draft.outcome.result == 'unknown'
     assert len(p.wire.sets) == 1
@@ -140,7 +143,10 @@ async def test_invalid_record_blocks_apply_but_getonly_can_recover(editing,fault
     with pytest.raises(HomeAssistantError):
         await p.session.apply_alarm_draft()
     with patch('custom_components.casio_abl100.dt_util.now',return_value=__import__('datetime').datetime(2026,10,18)):
-        await drive(asyncio.create_task(p.session.read_interactive()),p)
+        # Already connected: use the real blocking HA service rather than a
+        # 1000-yield advertisement helper that can outrun executor fsync.
+        async with asyncio.timeout(3):
+            await press(p, 'read_interactive')
     assert not p.session.alarm_safety.blocked and not p.wire.sets
     await p.session.close_interactive()
 

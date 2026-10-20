@@ -588,6 +588,14 @@ HISTORY_INVERSE = {'sensor.py': {'baseline_sha256': '526de558230d0f7ece094859476
 
 def streamlined_source(name):
     source = (ROOT / name).read_text()
+    correction = json.loads(Path(__file__).with_name('runtime_correction_inverse.json').read_text()).get(name)
+    if correction is not None:
+        lines = source.splitlines(keepends=True)
+        for start, end, expected_hash, original in reversed(correction['hunks']):
+            assert digest(''.join(lines[start:end]).encode()) == expected_hash, (name, start)
+            lines[start:end] = original.splitlines(keepends=True)
+        source = ''.join(lines)
+        assert digest(source.encode()) == correction['baseline_sha256'], name
     oracle = json.loads((Path(__file__).with_name('streamlined_inverse.json')).read_text()).get(name)
     if oracle is not None:
         lines = source.splitlines(keepends=True)

@@ -516,6 +516,9 @@ class WatchSession:
         self._schedule_alarm_delivery()
         try:
             outcome = await controller.apply_alarms(intent, revision, anchor)
+            if outcome.result == 'local_save_failed':
+                raise HomeAssistantError(translation_domain=DOMAIN,
+                                         translation_key='alarm_draft_save_failed')
             if outcome.result not in ('verified', 'unchanged'):
                 raise HomeAssistantError(translation_domain=DOMAIN, translation_key=(
                     'alarm_apply_conflict' if outcome.result == 'conflict' else 'alarm_apply_failed'))

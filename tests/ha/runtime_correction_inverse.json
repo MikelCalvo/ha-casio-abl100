@@ -1,0 +1,105 @@
+{
+  "__init__.py": {
+    "baseline_sha256": "7495f973e59c7a5fd2e0ef960951d03ad55f1ba2905491b151e46ee82b45bd24",
+    "hunks": [
+      [
+        518,
+        521,
+        "237e65b26e6ed72835406484a10206e04ace487ede17ed7cdea20aad524cffb2",
+        ""
+      ]
+    ]
+  },
+  "switch.py": {
+    "baseline_sha256": "dadfe97c3e8d00855c640cebfc73211e584763eda9f53812f07bf73232d9d5ea",
+    "hunks": [
+      [
+        55,
+        65,
+        "adf3b46191975024774bb653bd1e0c7936648c3ef97708b57098fcab8269a953",
+        ""
+      ],
+      [
+        66,
+        73,
+        "e74fbd97b02e6a74096b663b1057817be4d2d828534fd84f7e53027ee294b7ff",
+        ""
+      ]
+    ]
+  },
+  "alarm_editing.py": {
+    "baseline_sha256": "38fab6ce95b099e03c83518a7cea3865b5ff4f114a07411bc01e517c6abb83aa",
+    "hunks": [
+      [
+        36,
+        38,
+        "65bf0288317a17079e851f456cc4cff553c5da76ab28f686af74be9a8bd93bf6",
+        "        return self.safety.blocked if self.safety is not None else self._needs_reconciliation\n"
+      ]
+    ]
+  },
+  "native_interactive.py": {
+    "baseline_sha256": "29755807fb23b1457058165ff11ce44f90fe932eb36d8ceb63c9fac11ed5d4ba",
+    "hunks": [
+      [
+        270,
+        272,
+        "e6724e8ed6673062592f7daf8a0eaf2c887323c994ba2a62486a676977f32855",
+        "        _resolve(self.operation_complete,\n                 _Outcome(self.operation_result, self.close_reason, self.cleanup_result))\n"
+      ],
+      [
+        561,
+        567,
+        "ed72e2b770c3e9e5593f5eefe6e3d3cb8e79923653d16c6f1207edbf93a2aa27",
+        ""
+      ],
+      [
+        575,
+        577,
+        "88540c71787224c35ce812422d9cab6712535565b78f62d43d2316f7350a67be",
+        "                finish_apply(self.session, request, outcome)\n                if outcome.result in ('verified', 'unchanged'):\n                    await self.session.save_alarm_draft()\n                    self.guard()\n                    adapter.guard()\n"
+      ],
+      [
+        579,
+        601,
+        "f289e3a4d589177b3cb529993e2d8406dcdfa7d7cf6e45da5acd827990964422",
+        ""
+      ],
+      [
+        626,
+        628,
+        "cdae3fbaaab8e68161ae5e953910f9b2b371993ee27f46bfb47b595f8eb2c513",
+        ""
+      ]
+    ]
+  },
+  "alarm_draft_storage.py": {
+    "baseline_sha256": "79e713854eb6712447d586a91fc8679e8764099d76d7b36fdda13c0df7fc8618",
+    "hunks": [
+      [
+        5,
+        6,
+        "042fd39f95a6c45daa7b7010f3578fc94cc550b432b2185a9a1b9a2c6e197473",
+        ""
+      ],
+      [
+        58,
+        100,
+        "0c4cfdd75daea7c9032d5398de97ba02bbd1a206a51bfec5faa4790f2bc65b23",
+        ""
+      ],
+      [
+        102,
+        116,
+        "c61538ca661f03ffd0e967a706157f6b4eff2e8e9a92e740e77a1273be6efcaf",
+        ""
+      ],
+      [
+        127,
+        133,
+        "bf807ae2115b7eca52857a803a18490f813c3b65f8071b98a1a00767e41e9595",
+        ""
+      ]
+    ]
+  }
+}

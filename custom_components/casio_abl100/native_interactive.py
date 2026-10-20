@@ -268,8 +268,8 @@ class NativeInteractiveSession:
         # Resolve pending work only after teardown. Completed handoffs retain
         # their own outcome even if close or another refresh advanced the UI.
         _resolve(self.ready, _Outcome('failed', self.close_reason, self.cleanup_result))
-        _resolve(self.operation_complete,
-                 _Outcome(self.operation_result, self.close_reason, self.cleanup_result))
+        _resolve(self.operation_complete, getattr(self, 'local_save_outcome',
+                 _Outcome(self.operation_result, self.close_reason, self.cleanup_result)))
         _resolve(self.closed, _Outcome(
             'failed' if self.cleanup_result in ('failed', 'generation_lost') else 'success',
             self.close_reason, self.cleanup_result,
@@ -559,6 +559,12 @@ class _InteractiveRead(NativeSyncRead):
             if c.apply_request is not None:
                 from .native_alarm_edit import AlarmApplyView, finish_apply
                 request = c.apply_request
+                store = self.session.draft_storage
+                if store is not None:
+                    self.session.alarm_draft.retirement_blocked = True
+                    await store.async_prepare(request.revision)
+                    self.guard()
+                    adapter.guard()
                 outcome = await AlarmApplyView(self, adapter).apply(request)
                 self.guard()
                 adapter.guard()
@@ -567,13 +573,32 @@ class _InteractiveRead(NativeSyncRead):
                         outcome.result, False, lambda: (self.guard(), adapter.guard()))
                     self.guard()
                     adapter.guard()
-                finish_apply(self.session, request, outcome)
-                if outcome.result in ('verified', 'unchanged'):
-                    await self.session.save_alarm_draft()
-                    self.guard()
-                    adapter.guard()
+                # Native terminal acceptance is synchronous and detached before
+                # local persistence can fail/cancel. _finish cannot invent unknown.
                 c.operation_result = outcome.result
                 c.apply_request = None
+                if outcome.result in ('verified', 'unchanged'):
+                    try:
+                        if store is not None:
+                            await store.async_retire(request.revision)
+                            self.session.alarm_draft.retirement_blocked = False
+                        finish_apply(self.session, request, outcome)
+                        await self.session.save_alarm_draft()
+                    except BaseException:
+                        # Known native result survives even if retirement could
+                        # not be acknowledged. Pending fence then requires GET.
+                        self.session.alarm_draft.outcome = outcome
+                        self.session.alarm_draft.write_submitted = outcome.write_submitted
+                        from .alarm_editing import AlarmApplyOutcome
+                        c.local_save_outcome = AlarmApplyOutcome('local_save_failed', outcome.write_submitted)
+                        c.request_close('local_save_failed')
+                        raise
+                else:
+                    if store is not None and outcome.result == 'conflict' and not outcome.write_submitted:
+                        # The fresh baseline rejected before any SET; there is
+                        # no uncertain submission for the new fence to protect.
+                        await store.async_reconcile_retirement(self.session.alarm_draft)
+                    finish_apply(self.session, request, outcome)
                 c.operation_caller = None
                 c._idle()
                 _resolve(complete, outcome)
@@ -599,6 +624,8 @@ class _InteractiveRead(NativeSyncRead):
                     setattr(self.session, freshness, True)
                     if group == 'alarms' and self.session.alarm_safety is not None:
                         await self.session.alarm_safety.async_reconcile()
+                        if self.session.draft_storage is not None:
+                            await self.session.draft_storage.async_reconcile_retirement(self.session.alarm_draft)
                         self.guard()
                         adapter.guard()
                     c.group_results[group] = 'success'
