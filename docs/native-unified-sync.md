@@ -3,9 +3,11 @@
 `button.press` on **Read watch data** (`read_all`, Spanish **Leer datos del reloj**)
 starts one explicitly initiated native ESPHome transaction. Setup does not contact
 the watch. Enable the watch's Bluetooth connection window only when coordinating
-a manual read. `auto_read_steps` retains its step-only meaning. The local candidate
-also adds the separate default-off `auto_read_all` consumer described below;
-that new automatic behavior is not installed or physically accepted.
+a manual read. `auto_read_steps` retains its step-only meaning. Reviewed component
+revision `badfe909c74f63a2b2d81c69b3b872df596e1b1c` is installed and includes the
+separate default-off `auto_read_all` consumer described below. Both automatic
+modes remain off; automatic dispatch is not physically accepted. This
+documentation-only update is not a deployment.
 
 ## One owner, fixed order
 
@@ -50,8 +52,11 @@ Failed/unattempted groups retain last-good values and timestamps with freshness
 false. A cleanup-only failure likewise keeps all valid observations but prevents
 overall success. Caller cancellation/unload wins over backend and cleanup errors;
 owned finite cleanup is joined, including repeated cancellation. Queue waiters
-own neither active readiness nor freshness. No new observations are persisted;
-reload starts unknown while keeping entity registry identities.
+own neither active readiness nor freshness. The current component caches the six
+validated semantic groups privately and restores them after reload with original
+timestamps and `fresh: false`, retaining entity registry identities. It does not
+restore a session, owner, task or automatic activation. See the
+[interactive observation limits](native-interactive-session.md#truthful-status).
 
 The button exposes only bounded status attributes:
 
@@ -71,9 +76,13 @@ frames, but cannot prove peripheral causality of an identical late response.
 Unrelated notifications do not refresh another group. Real installed API methods
 retain address/handle filtering.
 
-## Four added entities (15 local base entities become 19)
+## Read entities and current inventory
 
-All existing alarm/step/zone identities and individual actions are preserved.
+The original unified-read increment added four entities to fifteen, making
+nineteen. The current installed component has 34 component files and 36 entity
+identities: those nineteen, four interactive controls/status entities and thirteen
+alarm/SIG draft controls. Existing alarm/step/zone identities and individual
+actions are preserved. The four unified-read additions are:
 
 - `read_all`: Read watch data / Leer datos del reloj.
 - `time_format`: Time format / Formato horario, `12h` or `24h`;
@@ -81,10 +90,12 @@ All existing alarm/step/zone identities and individual actions are preserved.
   No public power-saving capability assertion is made.
 - `automatic_time_adjustment`: Automatic time adjustment / Ajuste automático de
   hora, enabled/disabled translated enum; `adjustment_minute`, `fresh`,
-  `last_read`. Unknown enable remains unavailable, never disabled. Reading this
-  configuration does not set or synchronize time. HA omits extra attributes
-  while an entity is unavailable; the unknown minute stays `None` in the
-  observation rather than being invented.
+  `last_read`. In the current component, a valid observation with unknown enable
+  is HA `unknown`, with freshness, its original timestamp and observed adjustment
+  minute (possibly null); never-read remains unavailable. Unknown is never disabled
+  or an invented minute. Reading this configuration does not set or synchronize
+  time. This source behavior does not retroactively validate the historical
+  unavailable observation below.
 - `timer_encoded_duration`: Timer encoded duration / Duración codificada del
   temporizador, encoded arithmetic seconds (unit `s`); `encoded_hours`,
   `encoded_minutes`, `encoded_seconds`, `fresh`, `last_read`. This is not a running
@@ -114,7 +125,7 @@ are synthetic. The decisive fake feeds request-provided append/completion
 predicates, including wrong address/handle and service-DONE replies; two entries
 share one wire. Separate offline suites exercise borrowed-group framing.
 
-## Physical pilot and remaining limits
+## Historical physical joint read — 2026-10-18
 
 Component revision `e3690ff299d907b2867d19c65287fc9e19cce392` passed independent
 SPEC and QUALITY review, was installed reversibly, and completed one coordinated
@@ -138,15 +149,17 @@ this transaction is not presented as their fix. The historical failures are not
 erased by a later useful sample. See [validation](validation.md) for the exact
 installed boundary, values, unknown history and retained historical gates.
 
-## Optional automatic unified consumer (local candidate)
+## Optional automatic unified consumer (installed, physical acceptance pending)
 
 `auto_read_all` defaults false, independently of legacy step-only `auto_read_steps`.
 Both are strict booleans and mutually exclusive; malformed/conflicting stored
 options fail setup before forwarding platforms. Options errors do not mutate or
 reload an entry. Valid saves use the existing single selected-entry reload listener.
 Either enabled mode blocks Bluetooth address reconfiguration, even at submission.
-There are no new entities, migrations or changed identities: 26 component files,
-19 entity keys on the same device. Both false means no automatic observer/task.
+This automatic consumer adds no entities, migrations or identity changes. The
+complete current installed component has 34 files and 36 entity identities on
+the same device, including later interactive and alarm-editing additions. Both
+options false means no automatic observer/task.
 
 All mode attaches one local RAW handler to the selected HA-owned native ESPHome
 API generation and one passive generation-maintenance timer. It sends no new
@@ -179,7 +192,8 @@ handles and joins cooperative cleanup under repeated cancellation; refused unloa
 retains observed claims. Native transport, query order, group commits, link latch,
 timeouts and cleanup remain unchanged.
 
-The installed manual physical sample above belongs only to `e3690ff`, not this
-automatic candidate. Automatic physical acceptance and reliability remain pending;
+The historical manual physical sample above belongs only to `e3690ff`, not to
+automatic dispatch in the installed component. Automatic physical acceptance and
+reliability remain pending;
 ERR remains unresolved. Both automatic modes stay off in the pilot. No physical
 test or automatic work is armed by this documentation.
