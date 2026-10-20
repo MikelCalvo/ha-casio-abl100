@@ -16,7 +16,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from custom_components.casio_abl100 import DOMAIN
 from tests.ha.test_native_alarm_runtime import native, spin_until, ADDRESS, TARGET, SOURCE
 from tests.ha.test_unified_sync_runtime import unified, drive, assert_clean, GROUPS, QUERIES
-from tests.ha.test_zone_entities import OLD_KEYS, ZONE_KEYS, SYNC_KEYS
+from tests.ha.test_zone_entities import OLD_KEYS, ZONE_KEYS, SYNC_KEYS, ALARM_EDIT_KEYS
 from tests.ha.test_auto_unified_admission_runtime import producer
 
 INTERACTIVE_KEYS = {'connect_interactive', 'read_interactive', 'close_interactive', 'interactive_connected'}
@@ -92,9 +92,9 @@ async def test_exact_identity_translated_names_ids_and_initial_formatter(hass, e
         assert await hass.config_entries.async_setup(watch.entry_id)
         await hass.async_block_till_done()
         mapping = entities(p)
-        assert mapping.keys() == OLD_KEYS | ZONE_KEYS | SYNC_KEYS | INTERACTIVE_KEYS, 'Exactly old nineteen plus native four'
-        assert len(mapping) == 23 and len({e.device_id for e in mapping.values()}) == 1
-        assert len({e.unique_id for e in mapping.values()}) == 23
+        assert mapping.keys() == OLD_KEYS | ZONE_KEYS | SYNC_KEYS | INTERACTIVE_KEYS | ALARM_EDIT_KEYS, 'Exact old 23 plus 13 drafts'
+        assert len(mapping) == 36 and len({e.device_id for e in mapping.values()}) == 1
+        assert len({e.unique_id for e in mapping.values()}) == 36
         for key, (suffix, name) in NAMES[language].items():
             domain = 'binary_sensor' if key == 'interactive_connected' else 'button'
             assert mapping[key].entity_id == f'{domain}.casio_abl_100we_{suffix}'

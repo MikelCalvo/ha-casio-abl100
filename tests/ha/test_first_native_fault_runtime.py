@@ -79,7 +79,7 @@ async def test_public_first_read_discriminates_real_native_histories(unified, he
     assert p.session.alarms_fresh is False and cleanup_count(w) == 1
     assert queries(w) == before and c.root.done()
     assert {key: (e.entity_id, e.unique_id, e.device_id) for key, e in entities(p).items()} == ids
-    assert len(ids) == 23
+    assert len(ids) == 36
     assert_clean(p)
     # New diagnostic oracle at HA's actual terminal State.as_dict boundary.
     diagnostic(p, expected, code)

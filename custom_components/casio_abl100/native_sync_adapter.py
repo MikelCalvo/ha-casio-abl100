@@ -58,6 +58,11 @@ class NativeSyncAdapter(NativeAlarmAdapter):
         if self.primary_entered:
             raise ValueError('Unexpected repeated primary entry')
         self.primary_entered = True
+        await self._ensure_primary_subscription()
+
+    async def _ensure_primary_subscription(self):
+        """Idempotent lifetime acquisition, independent of read-cycle cursor."""
+        self.guard()
         if self.primary_ready:
             return
         def receive(_char, data):

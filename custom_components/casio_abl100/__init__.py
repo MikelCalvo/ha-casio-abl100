@@ -14,7 +14,7 @@ from .protocol import ProtocolError
 from .transport import ReadError, disconnect_client, read_record, read_alarms as read_alarm_snapshot
 
 DOMAIN = 'casio_abl100'
-PLATFORMS = (Platform.SENSOR, Platform.BUTTON, Platform.BINARY_SENSOR)
+PLATFORMS = (Platform.SENSOR, Platform.BUTTON, Platform.BINARY_SENSOR, Platform.TIME, Platform.SWITCH)
 MODEL = 'ABL-100WE'
 _LOGGER = logging.getLogger(__name__)
 
@@ -437,6 +437,62 @@ class WatchSession:
         if self.interactive_session is None:
             raise _failed()
         await self.interactive_session.refresh()
+
+    @property
+    def alarm_draft(self):
+        # Old standalone read fixtures need no editing or ConfigEntry imports.
+        if not hasattr(self, '_alarm_draft'):
+            from .alarm_editing import AlarmDraft
+            self._alarm_draft = AlarmDraft()
+        return self._alarm_draft
+
+    def _admit_alarm_stage(self):
+        from .alarm_editing import operable
+        if not operable(self) or self.alarm_draft.applying:
+            raise HomeAssistantError('Alarm draft unavailable')
+
+    def stage_alarm_time(self, slot, value):
+        self._admit_alarm_stage()
+        self.alarm_draft.stage_time(slot, value, self.alarm_snapshot)
+        self._schedule_alarm_delivery()
+
+    def stage_alarm_enabled(self, slot, value):
+        self._admit_alarm_stage()
+        self.alarm_draft.stage_enabled(slot, value, self.alarm_snapshot)
+        self._schedule_alarm_delivery()
+
+    def stage_hourly_signal(self, value):
+        self._admit_alarm_stage()
+        self.alarm_draft.stage_signal(value, self.alarm_snapshot)
+        self._schedule_alarm_delivery()
+
+    def discard_alarm_draft(self):
+        self._admit_alarm_stage()
+        self.alarm_draft.clear()
+        self._schedule_alarm_delivery()
+
+    async def apply_alarm_draft(self):
+        from .alarm_editing import operable
+        draft = self.alarm_draft
+        controller = self.interactive_session
+        if (not operable(self) or draft.applying or not draft.pending
+                or draft.needs_reconciliation or draft.conflicted
+                or controller is None or not controller.usable):
+            raise HomeAssistantError('Alarm apply unavailable')
+        revision, intent, anchor = draft.freeze()
+        # Reservation and immutable revision precede the first await.
+        draft.applying = True
+        draft.apply_revision = revision
+        draft.phase = 'admitted'
+        draft.write_submitted = False
+        self._schedule_alarm_delivery()
+        try:
+            outcome = await controller.apply_alarms(intent, revision, anchor)
+            if outcome.result not in ('verified', 'unchanged'):
+                raise HomeAssistantError(translation_domain=DOMAIN, translation_key='alarm_apply_failed')
+        finally:
+            draft.applying = False
+            self._schedule_alarm_delivery()
 
     async def close_interactive(self):
         """Close bypasses the lifetime mutex and joins original cleanup."""

@@ -446,9 +446,140 @@ OBSERVATIONS_INVERSE = {'__init__.py': {'baseline_sha256': 'f5c6ef8271204b30720f
 OBSERVATIONS_SHA256 = '3281ac06f65f6e7e0c9b5672de2f5cf4c0619c71b6d29701fc6fa0650aa59126'
 
 
+VALUE_EDITING_INVERSE = {'__init__.py': {'installed16227ef_sha256': 'c36c6a7e76ca654d2822d79d86dc5010cd08e4fe340dfdf872b38a3af0b83e30',
+                 'hunks': [[16,
+                            17,
+                            '8e1e7071dbba1880c192e8b111cd519385c8031b9aa732bfe06aa56fc05e6aa6',
+                            'PLATFORMS = (Platform.SENSOR, Platform.BUTTON, Platform.BINARY_SENSOR)\n'],
+                           [440,
+                            496,
+                            'b4f09fd7739c9aa34a7fbbda61c08f8c3d7607724676309933b73974721f61eb',
+                            '']]},
+ 'button.py': {'installed16227ef_sha256': '94b572eb8b4d0e9ad85ae10dad9198dd305bcac10e61a4f97e852dee07406174',
+               'hunks': [[202,
+                          203,
+                          'da6c9fb24058d892093f6eb60351cce74c7f542ef19aafbd048aa8cc31c3444e',
+                          "                if controller.phase == 'reading':\n"],
+                         [217, 250, 'b692daa3623bfda01754b7e5ee20ccc34c8f7ffba29c4e8833174ca06b30b2d0', ''],
+                         [253,
+                          255,
+                          'b3716e8ab65b2f2780a08f6f9e24f79a8460b2d6850e85995d21b87a9a3a51eb',
+                          "                          for action in ('connect', 'read', 'close'))])\n"]]},
+ 'native_interactive.py': {'installed16227ef_sha256': '80d77245700955ca6c8aec8844ccf2c6a0e835ab2459eeca2cfe450a68cc0296',
+                           'hunks': [[31,
+                                      38,
+                                      '4b3c9f5ad8e5e5791aba4a1391454654208ec8215ef6c5d02060a7df1ea68262',
+                                      ''],
+                                     [83,
+                                      84,
+                                      'd8c7edeea682aabaec216b186c1315c5f3c61ac46751adadff4ae4577c7729a2',
+                                      ''],
+                                     [216,
+                                      218,
+                                      'aa09a550ce52e0397d272fb0c1647ab0bb4adf75753d4f3e568104e104d7aa5d',
+                                      "                    reason = 'read_failed' if self.operation_caller "
+                                      "is not None else 'connect_failed'\n"],
+                                     [236,
+                                      246,
+                                      '759f677eafde43f219111d3d6366fa4f91012eff381c620c28abe75da177c712',
+                                      ''],
+                                     [320,
+                                      342,
+                                      '8ee377a726787863c56239c2a374336191d2695ae1e7450c8351cdd8fb799498',
+                                      ''],
+                                     [384,
+                                      401,
+                                      '26bd33ecc6c247e9c4b040cf50eaf5e6a80cb544c61fa5400ffb5dba2e453496',
+                                      ''],
+                                     [404,
+                                      406,
+                                      'e44d6553c958704c515171a658ae3c71852d3ab805eeedcf0b590e9f3bc6f14f',
+                                      ''],
+                                     [500,
+                                      502,
+                                      '349dc92d9174841978c5eaeda47ad0ffb64ec67cc715a997dba1c455718cdf84',
+                                      "            reason = 'read_failed' if c.operation_caller is not None "
+                                      "else 'connect_failed'\n"],
+                                     [524,
+                                      537,
+                                      '0ae7a12b0a880fbe7663b551c6905d2f2e0ffe94305ec1c03c23c3633fdcb5be',
+                                      ''],
+                                     [556,
+                                      558,
+                                      '9a30b258ec6f8b88cf870b482038402b4a8498beba30796edc1faa4f00bab5ed',
+                                      '']]},
+ 'native_sync_adapter.py': {'installed16227ef_sha256': '334b4e353f5585f9047dd06f825af07e308b773d8aeb3d0dfc6d4fde56b98350',
+                            'hunks': [[60,
+                                       65,
+                                       'b77ea9f57a22db9ce753869332713578bef01b87258ba65a38c6de58fbc816ed',
+                                       '']]},
+ 'strings.json': {'installed16227ef_sha256': 'bf0256e137f31f9c1e9e94be7c84c23f2b98db2bf704adaa700c5b6ff23d452a',
+                  'hunks': [[32, 34, '9249351c62cbdfea00fb58705d0dc774fbeae0995c5d218db5460e8c374fde24', ''],
+                            [94, 96, '741c1c022fc988519acb8ed7f8a16b064717f3ed5e51ef92a2b2d203e0894995', ''],
+                            [114,
+                             115,
+                             'ad9cdd690dedabc5cc596a30c5fbbaadbc652417f1d8231072acdd800d1b8b0a',
+                             '']]},
+ 'translations/en.json': {'installed16227ef_sha256': 'bf0256e137f31f9c1e9e94be7c84c23f2b98db2bf704adaa700c5b6ff23d452a',
+                          'hunks': [[32,
+                                     34,
+                                     '9249351c62cbdfea00fb58705d0dc774fbeae0995c5d218db5460e8c374fde24',
+                                     ''],
+                                    [94,
+                                     96,
+                                     '741c1c022fc988519acb8ed7f8a16b064717f3ed5e51ef92a2b2d203e0894995',
+                                     ''],
+                                    [114,
+                                     115,
+                                     'ad9cdd690dedabc5cc596a30c5fbbaadbc652417f1d8231072acdd800d1b8b0a',
+                                     '']]},
+ 'translations/es.json': {'installed16227ef_sha256': '7f422c60dbbb5b7abfe6ee856668749e96d932427761d4aeed4b08b2e4f62878',
+                          'hunks': [[32,
+                                     34,
+                                     'c69ad294e8320b57fdb21a7d377c56fcbb85ddf46a7c5b5adaead23b31357441',
+                                     ''],
+                                    [94,
+                                     96,
+                                     'bf0b10eab37b7aa2131fed1597980e7032eaa6131d3a4ae77b8ac46dfce64a25',
+                                     ''],
+                                    [114,
+                                     115,
+                                     'cd274605f0586e38550fd2b1dfd162ad572a34ce6d4e441a49395df9339f1682',
+                                     '']]}}
+NEW_ALARM_MODULES = {'alarm_write.py': '2cff26befd829fd9a5b6340cb060cec0af4ce4ffb0c32ef5ec4711d689dc826f',
+ 'alarm_editing.py': '12dece7464445864840291712924f74e2590c05f7633b265573869c932c459bd',
+ 'native_alarm_edit.py': '86d2f7da45330740627dc594b20394e54354bac5b71f14fa1b600a11561915bf',
+ 'time.py': 'a14b92c7c86c38bd8a2875bec781a4fb759de2b3885d5054a5c0ead288868fe4',
+ 'switch.py': '6133f26f512e7ec9c08515c95efd9821a130c37a0aeb85bcfe10404d4b36e292'}
+
+
+def value_editing_source(name):
+    """Reconstruct exact installed16227ef before any historical inversion."""
+    source = (ROOT / name).read_text()
+    if name in VALUE_EDITING_INVERSE:
+        oracle = VALUE_EDITING_INVERSE[name]
+        lines = source.splitlines(keepends=True)
+        for start,end,expected_hash,original in reversed(oracle['hunks']):
+            assert digest(''.join(lines[start:end]).encode()) == expected_hash, (name,start)
+            lines[start:end] = original.splitlines(keepends=True)
+        source = ''.join(lines)
+        assert digest(source.encode()) == oracle['installed16227ef_sha256'], name
+    return source
+
+
+def test_value_editing_inverse_restores_installed16227ef_and_exact_new_paths():
+    assert set(VALUE_EDITING_INVERSE) == {'__init__.py','button.py','native_interactive.py',
+        'native_sync_adapter.py','strings.json','translations/en.json','translations/es.json'}
+    assert set(NEW_ALARM_MODULES) == {'alarm_write.py','alarm_editing.py','native_alarm_edit.py','time.py','switch.py'}
+    for name in VALUE_EDITING_INVERSE:
+        value_editing_source(name)
+    for name,expected_hash in NEW_ALARM_MODULES.items():
+        assert digest((ROOT / name).read_bytes()) == expected_hash, name
+
+
 def installed_source(name):
     """Invert exact approved hunks, then verify the entire installed module."""
-    source = (ROOT / name).read_text()
+    source = value_editing_source(name)
     if name in FIRST_FAULT_INVERSE:
         oracle = FIRST_FAULT_INVERSE[name]
         lines = source.splitlines(keepends=True)
@@ -490,10 +621,10 @@ def digest(data):
 
 
 def test_exact_component_inventory_and_unowned_bytes():
-    expected = set(IMMUTABLE) | set(INVERSE) | set(JSON_BASE) | {'native_interactive.py', 'observations.py'}
+    expected = set(IMMUTABLE) | set(INVERSE) | set(JSON_BASE) | {'native_interactive.py', 'observations.py'} | set(NEW_ALARM_MODULES)
     actual = {str(p.relative_to(ROOT)) for p in ROOT.rglob('*')
               if p.is_file() and '__pycache__' not in p.parts}
-    assert actual == expected and len(actual) == 28
+    assert actual == expected and len(actual) == 33
     assert digest((ROOT / 'observations.py').read_bytes()) == OBSERVATIONS_SHA256
     installed_source('native_interactive.py')
     for name, expected_hash in IMMUTABLE.items():
@@ -511,7 +642,7 @@ def test_only_exact_authorized_python_seams_change():
 
 def test_existing_json_names_keys_and_translations_are_preserved():
     for name, expected_hash in JSON_BASE.items():
-        obj = json.loads((ROOT / name).read_text())
+        obj = json.loads(value_editing_source(name))
         additions = UI_JSON_ADDITIONS[name]
         for key, expected in additions['buttons'].items():
             assert obj['entity']['button'].pop(key) == expected

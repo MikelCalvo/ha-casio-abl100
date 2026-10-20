@@ -30,6 +30,8 @@
     }
   },
   "entity": {
+    "time": {"alarm_1_time_draft": {"name": "Alarm 1 time draft"}, "alarm_2_time_draft": {"name": "Alarm 2 time draft"}, "alarm_3_time_draft": {"name": "Alarm 3 time draft"}, "alarm_4_time_draft": {"name": "Alarm 4 time draft"}, "alarm_5_time_draft": {"name": "Alarm 5 time draft"}},
+    "switch": {"alarm_1_enabled_draft": {"name": "Alarm 1 enabled draft"}, "alarm_2_enabled_draft": {"name": "Alarm 2 enabled draft"}, "alarm_3_enabled_draft": {"name": "Alarm 3 enabled draft"}, "alarm_4_enabled_draft": {"name": "Alarm 4 enabled draft"}, "alarm_5_enabled_draft": {"name": "Alarm 5 enabled draft"}, "hourly_signal_draft": {"name": "Hourly signal draft"}},
     "sensor": {
       "time_format": {
         "name": "Time format"
@@ -90,6 +92,8 @@
       }
     },
     "button": {
+      "apply_alarm_draft": {"name": "Apply alarm draft"},
+      "discard_alarm_draft": {"name": "Discard alarm draft"},
       "connect_interactive": {"name": "Connect watch"},
       "read_interactive": {"name": "Refresh connected watch"},
       "close_interactive": {"name": "Close watch connection"},
@@ -108,6 +112,7 @@
     }
   },
   "exceptions": {
+    "alarm_apply_failed": {"message": "Unable to verify alarm draft; inspect result and reconcile by reading if required"},
     "interactive_connect_failed": {"message": "Unable to connect the watch"},
     "interactive_read_failed": {"message": "Unable to refresh the connected watch; completed groups are retained"},
     "interactive_close_failed": {"message": "Unable to confirm closure of the watch connection"},

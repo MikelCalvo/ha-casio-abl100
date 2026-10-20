@@ -53,7 +53,8 @@ async def test_setup_separates_transport_address_from_registry_identity(
         assert await hass.config_entries.async_setup(entry.entry_id)
         await hass.async_block_till_done()
         expected_identity = identity or NEW
-        assert set(entities(hass, entry)) == {f'{expected_identity}_{key}' for key in SUFFIXES}
+        from tests.ha.test_zone_entities import ALARM_EDIT_KEYS
+        assert set(entities(hass, entry)) == {f'{expected_identity}_{key}' for key in SUFFIXES | ALARM_EDIT_KEYS}
         devices = dr.async_entries_for_config_entry(dr.async_get(hass), entry.entry_id)
         assert len(devices) == 1
         assert devices[0].identifiers == {(DOMAIN, expected_identity)}
@@ -109,7 +110,7 @@ async def test_native_reconfigure_preserves_eleven_ids_device_and_manual_route(
         assert (entry.entry_id, entry.unique_id, entry.title, dict(entry.options), entry.version, entry.minor_version) == metadata
         assert entry.runtime_data is not old_session and entry.runtime_data.address == NEW
         assert entry.runtime_data.auto_reader is None
-        assert entities(hass, entry) == before and len(before) == 11 + 4 + 4 + 4
+        assert entities(hass, entry) == before and len(before) == 11 + 4 + 4 + 4 + 13
         assert entities(hass, other) == other_before and other.runtime_data is other_session
         assert {item.id: item.identifiers for item in dr.async_get(hass).devices} == before_devices
         assert old_session.closed and not old_session.listeners and not old_session.tasks
@@ -295,7 +296,7 @@ async def test_unloaded_entry_uses_native_reload_once_and_keeps_options_absent(
         reload_entry.assert_called_once_with(entry.entry_id)
         assert entry.runtime_data.address == NEW and entry.unique_id == OLD
         assert entry.options == {} and entry.runtime_data.auto_reader is None
-        assert len(entities(hass, entry)) == 11 + 4 + 4 + 4
+        assert len(entities(hass, entry)) == 11 + 4 + 4 + 4 + 13
         connect.assert_not_called()
         assert await hass.config_entries.async_unload(entry.entry_id)
 

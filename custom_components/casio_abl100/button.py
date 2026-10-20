@@ -200,7 +200,7 @@ class InteractiveButton(ReadAlarmsButton):
                 controller = self.session.interactive_session
                 if controller is None or not controller.active or controller.close_reason is not None:
                     raise _error('interactive_not_connected')
-                if controller.phase == 'reading':
+                if controller.phase in ('reading', 'applying'):
                     raise _error('interactive_busy')
                 if not controller.usable:
                     raise _error('interactive_not_connected')
@@ -215,7 +215,41 @@ class InteractiveButton(ReadAlarmsButton):
 
 
 async def async_setup_entry(hass, entry, async_add_entities):
+    from .alarm_editing import DraftEntity, operable
+
+    class AlarmDraftButton(DraftEntity, ButtonEntity):
+        def __init__(self, session, action):
+            self.action = action
+            key = f'{action}_alarm_draft'
+            super().__init__(session, key)
+            self.entity_description = ButtonEntityDescription(key=key, translation_key=key)
+
+        @property
+        def available(self):
+            if not super().available:
+                return False
+            if self.action == 'discard':
+                return True
+            draft = self.session.alarm_draft
+            controller = self.session.interactive_session
+            return bool(draft.pending and not draft.needs_reconciliation and not draft.conflicted
+                        and controller is not None and controller.usable)
+
+        async def async_press(self):
+            _cancelled()
+            if self.action == 'discard':
+                self.session.discard_alarm_draft()
+                return
+            try:
+                await self.session.apply_alarm_draft()
+            except asyncio.CancelledError:
+                _cancelled()
+                raise _error('alarm_apply_failed') from None
+            except Exception:
+                raise _error('alarm_apply_failed') from None
+
     async_add_entities([ReadStepsButton(entry.runtime_data), ReadAlarmsButton(entry.runtime_data),
                         ReadTimeZonesButton(entry.runtime_data), ReadAllButton(entry.runtime_data),
                         *(InteractiveButton(entry.runtime_data, action)
-                          for action in ('connect', 'read', 'close'))])
+                          for action in ('connect', 'read', 'close')),
+                        *(AlarmDraftButton(entry.runtime_data, action) for action in ('apply', 'discard'))])

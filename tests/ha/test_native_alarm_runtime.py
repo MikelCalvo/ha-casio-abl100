@@ -287,7 +287,7 @@ async def test_native_real_button_wait_read_and_existing_publication(native):
         for e in er.async_get(hass).entities.values()
         if e.config_entry_id == native.watch.entry_id
     }
-    assert len(ids) == 11 + 4 + 4 + 4 and not native.wire.calls
+    assert len(ids) == 11 + 4 + 4 + 4 + 13 and not native.wire.calls
     from tests.ha.test_zone_entities import assert_zone_addition
     assert_zone_addition(native.hass, native.watch)
     task = await armed(native)

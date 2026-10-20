@@ -32,6 +32,13 @@ def _failed():
 
 
 @dataclass(frozen=True)
+class _AlarmApplyRequest:
+    intent: object
+    revision: int
+    anchor: object
+
+
+@dataclass(frozen=True)
 class _NativeFault:
     """First observed native loss, never resource or operation authority."""
 
@@ -74,6 +81,7 @@ class NativeInteractiveSession:
         self.connect_caller = asyncio.current_task()
         self.operation_caller = None
         self.operation_complete = None
+        self.apply_request = None
         loop = asyncio.get_running_loop()
         self.ready = loop.create_future()
         self.closed = loop.create_future()
@@ -206,7 +214,8 @@ class NativeInteractiveSession:
                 elif self.root.cancelling():
                     reason = 'owner_cancelled'
                 else:
-                    reason = 'read_failed' if self.operation_caller is not None else 'connect_failed'
+                    reason = ('apply_failed' if self.apply_request is not None else
+                              'read_failed' if self.operation_caller is not None else 'connect_failed')
                 self.request_close(reason)
         finally:
             if self.reader is not None and not self.reader.generation_valid():
@@ -225,6 +234,16 @@ class NativeInteractiveSession:
         if self.maintenance_handle is not None:
             self.maintenance_handle.cancel()
             self.maintenance_handle = None
+        if self.apply_request is not None:
+            from .alarm_editing import AlarmApplyOutcome
+            from .native_alarm_edit import finish_apply
+            draft = self.session.alarm_draft
+            outcome = AlarmApplyOutcome('unknown' if draft.write_submitted else 'failed_before_write',
+                                        draft.write_submitted)
+            finish_apply(self.session, self.apply_request, outcome)
+            self.operation_result = outcome.result
+            self.apply_request = None
+            _resolve(self.operation_complete, outcome)
         if self.operation_result == 'reading':
             self.operation_result = ('cancelled' if self.close_reason == 'caller_cancelled' else
                                     'partial' if 'success' in self.group_results.values() else 'failed')
@@ -299,6 +318,28 @@ class NativeInteractiveSession:
         if outcome.result != 'success':
             raise _failed() from None
 
+    async def apply_alarms(self, intent, revision, anchor):
+        from .alarm_editing import operable
+        caller = asyncio.current_task()
+        if caller.cancelling():
+            raise asyncio.CancelledError
+        if (not operable(self.session) or self.session.interactive_session is not self
+                or not self.usable or self.operation_caller is not None):
+            raise _failed()
+        complete = asyncio.get_running_loop().create_future()
+        self.operation_caller = caller
+        self.operation_complete = complete
+        self.apply_request = _AlarmApplyRequest(intent, revision, anchor)
+        self._native_stage = 'unknown'
+        self.operation_result = 'applying'
+        self._idle_deadline = None
+        self.idle_expires_at = None
+        self._refresh_deadline = asyncio.get_running_loop().time() + REFRESH_SECONDS
+        self.phase = 'applying'
+        self.publish()
+        self.wake.set()
+        return await self._wait_caller(complete)
+
     async def close(self, reason='explicit_close'):
         complete = self.closed
         self.request_close(reason)
@@ -341,9 +382,28 @@ class _InteractiveAPI(NativeAPI):
         c, adapter = self.reader.controller, self.reader.adapter
         query = ('get15' if data == b'\x15' else 'get16' if data == b'\x16' else None)
         alarm = adapter is not None and handle == adapter.query.handle
+        setting = (c.apply_request is not None and adapter is not None
+                   and handle == adapter.primary.handle and len(data) in (5, 17)
+                   and data[0] in (0x15, 0x16))
+        if setting:
+            # Conservative possible submission at native method invocation,
+            # before awaiting ATT, never inferred from completion or readback.
+            from .alarm_editing import operable
+            self.reader.guard()
+            adapter.guard()
+            if not operable(self.reader.session):
+                raise _failed()
+            draft = self.reader.session.alarm_draft
+            draft.write_submitted = True
+            draft.phase = 'set15' if data[0] == 0x15 else 'set16'
+            self.reader.session.alarms_fresh = False
+            c._native_stage = draft.phase + '_submit'
+            c.publish()
         if alarm and query is not None:
             c._native_stage = query + '_submit'
         result = await super().bluetooth_gatt_write(address, handle, data, *args, **kwargs)
+        if setting:
+            c._native_stage = ('set15' if data[0] == 0x15 else 'set16') + '_wait'
         if alarm and query is not None:
             # Only local write-without-response completion, never a watch ACK.
             c._native_stage = query + '_wait'
@@ -438,7 +498,8 @@ class _InteractiveRead(NativeSyncRead):
                 c.operation_caller or c.connect_caller).cancelling():
             reason = 'caller_cancelled'
         else:
-            reason = 'read_failed' if c.operation_caller is not None else 'connect_failed'
+            reason = ('apply_failed' if c.apply_request is not None else
+                      'read_failed' if c.operation_caller is not None else 'connect_failed')
         c.request_close(reason)
 
     async def transfer(self, adapter):
@@ -461,6 +522,19 @@ class _InteractiveRead(NativeSyncRead):
             if c.operation_caller is None:
                 continue
             complete = c.operation_complete
+            if c.apply_request is not None:
+                from .native_alarm_edit import AlarmApplyView, finish_apply
+                request = c.apply_request
+                outcome = await AlarmApplyView(self, adapter).apply(request)
+                self.guard()
+                adapter.guard()
+                finish_apply(self.session, request, outcome)
+                c.operation_result = outcome.result
+                c.apply_request = None
+                c.operation_caller = None
+                c._idle()
+                _resolve(complete, outcome)
+                continue
             if c._cycles:
                 adapter.rearm_cycle()
             for group, read, destinations in zip(GROUPS, READERS, DESTINATIONS, strict=True):
@@ -480,6 +554,8 @@ class _InteractiveRead(NativeSyncRead):
                     setattr(self.session, value, snapshot)
                     setattr(self.session, timestamp, observed_at)
                     setattr(self.session, freshness, True)
+                    if group == 'alarms' and hasattr(self.session, '_alarm_draft'):
+                        self.session.alarm_draft.needs_reconciliation = False
                     c.group_results[group] = 'success'
                 except BaseException:
                     c.group_results[group] = 'failed'

@@ -56,7 +56,7 @@ async def test_real_button_reload_restores_six_groups_stale_without_io(unified):
     reg = er.async_get(p.hass)
     reg.async_update_entity('sensor.casio_abl_100we_alarm_1', new_entity_id='sensor.my_alarm', name='My alarm')
     ids = registry(p)
-    assert len(ids) == 23
+    assert len(ids) == 36
     from tests.ha.test_zone_entities import OLD_KEYS, ZONE_KEYS
     assert {ADDRESS + '_' + k for k in OLD_KEYS | ZONE_KEYS} <= set(ids)
     stamps = [datetime(2026, 10, 18, 12, i, 1, 123456, timezone.utc) for i in range(6)]
@@ -71,6 +71,7 @@ async def test_real_button_reload_restores_six_groups_stale_without_io(unified):
     calls = list(p.wire.calls)
     await reload(p)
     after = observations(p.session)
+    assert not p.session.alarm_draft.pending and p.session.alarm_draft.revision == 0
     assert all(v is not None for v, _t, _f in after), 'Reload lost accepted observations'
     assert projection(after) == projection(before)
     assert [t for _v, t, _f in after] == stamps
@@ -96,7 +97,7 @@ async def test_real_button_reload_restores_six_groups_stale_without_io(unified):
         assert datetime.fromisoformat(p.hass.states.get('sensor.casio_abl_100we_' + entity).state) == stamp.replace(microsecond=0)
     for entity, stamp in zip(('time_format', 'automatic_time_adjustment', 'timer_encoded_duration'), stamps[3:], strict=True):
         assert p.hass.states.get('sensor.casio_abl_100we_' + entity).as_dict()['attributes']['last_read'] == stamp.isoformat()
-    assert len(p.session.listeners) == 23 and p.session.auto_reader is None
+    assert len(p.session.listeners) == 36 and p.session.auto_reader is None
     assert p.session.interactive_session is None and p.session.sync_result == 'never'
     assert p.session.sync_group_results == dict.fromkeys(GROUPS, 'not_attempted')
     assert p.session.sync_cleanup_result == 'not_attempted' and dict(p.watch.options) == {}
@@ -262,7 +263,7 @@ async def test_remove_after_failed_unload_cannot_resurrect_store(unified, real_o
     from homeassistant.helpers.entity_platform import async_get_platforms
     platforms = [platform for platform in async_get_platforms(p.hass, 'casio_abl100')
                  if platform.config_entry is p.watch]
-    assert len(platforms) == 3
+    assert {platform.domain for platform in platforms} == {'sensor', 'button', 'binary_sensor', 'time', 'switch'}
     with patch.object(ObservationStore, 'async_save', held):
         task = asyncio.create_task(press(p)); await drive(task, p)
         for _ in range(100):
@@ -320,7 +321,7 @@ async def test_setup_load_failures_are_nonfatal_and_never_start_ble(unified, rea
     else:
         assert await p.hass.config_entries.async_setup(p.watch.entry_id)
     await p.hass.async_block_till_done(); p.session = p.watch.runtime_data
-    assert len(registry(p)) == 23 and p.session.auto_reader is None
+    assert len(registry(p)) == 36 and p.session.auto_reader is None
     assert p.wire.calls == calls
     if kind == 'group':
         assert p.session.auto_time_snapshot.enabled is None and p.session.timer_snapshot is None

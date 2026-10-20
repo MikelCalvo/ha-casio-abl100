@@ -48,7 +48,7 @@ async def test_first_raw_packet_completes_all_groups_no_reemission(producer, add
     # Cached BLEDevice type deliberately disagrees. Only the live RAW can authorize type.
     p.device.details['address_type'] = 1 - address_type
     reader = await select_mode(p)
-    assert keys(p) == ids and len(ids) == 23
+    assert keys(p) == ids and len(ids) == 36
     scanner = p.scanner.async_on_raw_advertisements
     raw = next(cb for cb, types in p.wire.handlers
                if cb != scanner)

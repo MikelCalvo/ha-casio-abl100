@@ -300,8 +300,8 @@ async def test_valid_alarm_is_committed_before_later_step_failure_and_outer_clea
 @pytest.mark.asyncio
 async def test_new_settings_entities_and_independent_observations(unified):
     keys = {e.unique_id.removeprefix(ADDRESS + '_') for e in er.async_get(unified.hass).entities.values() if e.config_entry_id == unified.watch.entry_id}
-    from tests.ha.test_zone_entities import OLD_KEYS, ZONE_KEYS
-    assert keys == OLD_KEYS | ZONE_KEYS | {'read_all', 'time_format', 'automatic_time_adjustment', 'timer_encoded_duration'} | {'connect_interactive', 'read_interactive', 'close_interactive', 'interactive_connected'}
+    from tests.ha.test_zone_entities import OLD_KEYS, ZONE_KEYS, ALARM_EDIT_KEYS
+    assert keys == OLD_KEYS | ZONE_KEYS | ALARM_EDIT_KEYS | {'read_all', 'time_format', 'automatic_time_adjustment', 'timer_encoded_duration'} | {'connect_interactive', 'read_interactive', 'close_interactive', 'interactive_connected'}
     prefix = 'sensor.casio_abl_100we_'
     for key in ('time_format', 'automatic_time_adjustment', 'timer_encoded_duration'):
         assert unified.hass.states.get(prefix + key).state == 'unavailable'
@@ -844,7 +844,7 @@ async def test_actual_translated_new_names_and_default_registry_ids(hass, enable
         assert await hass.config_entries.async_setup(watch.entry_id)
         await hass.async_block_till_done()
         entities = {e.unique_id.removeprefix(ADDRESS + '_'): e for e in er.async_get(hass).entities.values() if e.config_entry_id == watch.entry_id}
-        assert len(entities) == 23 and len({e.device_id for e in entities.values()}) == 1
+        assert len(entities) == 36 and len({e.device_id for e in entities.values()}) == 1
         for key, (suffix, label) in names[language].items():
             domain = 'button' if key == 'read_all' else 'sensor'
             assert entities[key].entity_id == f'{domain}.casio_abl_100we_{suffix}'

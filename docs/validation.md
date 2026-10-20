@@ -1,5 +1,19 @@
 # Pilot validation
 
+## Local alarm/SIG editing checkpoint — not a release
+
+The local source adds 13 nonpersistent draft controls and explicit Apply/readback
+through the retained interactive native owner. Focused real-HA services with a
+synthetic external memory wire exercise staging without IO, Connect without SET,
+canonical SET15/16, held readback, mismatch/unknown and GET-only reconciliation.
+This is not installation or physical write acceptance. Full owning validation
+is blocked by an ungranted zone-acceptance fixture that excludes only previous
+additions; an early setup-failure fixture also fails on the pristine baseline.
+Independent complete-unit SPEC and QUALITY remain pending. See
+[alarm draft semantics and limits](native-alarm-editing.md). Historical physical
+claims below are unchanged.
+
+
 ## Current installed boundary: joint read on 2026-10-18
 
 Installed component revision: **`e3690ff299d907b2867d19c65287fc9e19cce392`**.

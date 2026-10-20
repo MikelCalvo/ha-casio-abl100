@@ -30,6 +30,8 @@
     }
   },
   "entity": {
+    "time": {"alarm_1_time_draft": {"name": "Borrador de hora de alarma 1"}, "alarm_2_time_draft": {"name": "Borrador de hora de alarma 2"}, "alarm_3_time_draft": {"name": "Borrador de hora de alarma 3"}, "alarm_4_time_draft": {"name": "Borrador de hora de alarma 4"}, "alarm_5_time_draft": {"name": "Borrador de hora de alarma 5"}},
+    "switch": {"alarm_1_enabled_draft": {"name": "Borrador de activación de alarma 1"}, "alarm_2_enabled_draft": {"name": "Borrador de activación de alarma 2"}, "alarm_3_enabled_draft": {"name": "Borrador de activación de alarma 3"}, "alarm_4_enabled_draft": {"name": "Borrador de activación de alarma 4"}, "alarm_5_enabled_draft": {"name": "Borrador de activación de alarma 5"}, "hourly_signal_draft": {"name": "Borrador de señal horaria"}},
     "sensor": {
       "time_format": {
         "name": "Formato horario"
@@ -90,6 +92,8 @@
       }
     },
     "button": {
+      "apply_alarm_draft": {"name": "Aplicar borrador de alarmas"},
+      "discard_alarm_draft": {"name": "Descartar borrador de alarmas"},
       "connect_interactive": {"name": "Conectar reloj"},
       "read_interactive": {"name": "Actualizar reloj conectado"},
       "close_interactive": {"name": "Cerrar conexión del reloj"},
@@ -108,6 +112,7 @@
     }
   },
   "exceptions": {
+    "alarm_apply_failed": {"message": "No se pudo verificar el borrador de alarmas; revisa el resultado y reconcilia mediante lectura si es necesario"},
     "interactive_connect_failed": {"message": "No se pudo conectar el reloj"},
     "interactive_read_failed": {"message": "No se pudo actualizar el reloj conectado; se conservan los grupos completados"},
     "interactive_close_failed": {"message": "No se pudo confirmar el cierre de la conexión del reloj"},
