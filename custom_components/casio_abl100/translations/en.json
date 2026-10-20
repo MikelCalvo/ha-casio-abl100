@@ -117,7 +117,7 @@
     "alarm_apply_empty": {"message": "There are no pending changes to send."},
     "alarm_apply_reconciliation": {"message": "Read the watch to reconcile the previous send."},
     "alarm_apply_conflict": {"message": "The watch changed; discard the draft and edit again."},
-    "alarm_draft_save_failed": {"message": "Unable to save the local draft; no changes were sent."},
+    "alarm_draft_save_failed": {"message": "Unable to save the local draft."},
     "alarm_apply_failed": {"message": "Unable to verify alarm draft; inspect result and reconcile by reading if required"},
     "interactive_connect_failed": {"message": "Unable to connect the watch"},
     "interactive_read_failed": {"message": "Unable to refresh the connected watch; completed groups are retained"},

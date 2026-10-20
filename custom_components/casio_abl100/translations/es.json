@@ -117,7 +117,7 @@
     "alarm_apply_empty": {"message": "No hay cambios pendientes para enviar."},
     "alarm_apply_reconciliation": {"message": "Lee el reloj para reconciliar el envío anterior."},
     "alarm_apply_conflict": {"message": "El reloj ha cambiado; descarta el borrador y vuelve a editar."},
-    "alarm_draft_save_failed": {"message": "No se pudo guardar el borrador local; no se enviaron cambios."},
+    "alarm_draft_save_failed": {"message": "No se pudo guardar el borrador local."},
     "alarm_apply_failed": {"message": "No se pudo verificar el borrador de alarmas; revisa el resultado y reconcilia mediante lectura si es necesario"},
     "interactive_connect_failed": {"message": "No se pudo conectar el reloj"},
     "interactive_read_failed": {"message": "No se pudo actualizar el reloj conectado; se conservan los grupos completados"},
