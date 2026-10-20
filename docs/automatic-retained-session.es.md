@@ -1,6 +1,6 @@
 # Conexión automática retenida (experimental)
 
-**Estado: código probado sin hardware; no instalado ni validado físicamente.** La revisión instalada `badfe909` no incluye este incremento. No actives opciones ni abras una oportunidad Bluetooth para probar esta documentación sin una coordinación aparte.
+**Estado:** la base `2b665d1` está instalada, con 36 identidades y los tres modos automáticos desactivados. El incremento de uso diario añade el interruptor de escucha y refrescos periódicos; su código nuevo necesita instalación y aceptación física propias. No abras una oportunidad Bluetooth sin una coordinación aparte.
 
 ## Tres modos, uno como máximo
 
@@ -8,19 +8,21 @@ En **Configurar** hay tres booleanos, todos desactivados por defecto:
 
 - `auto_read_steps`: lectura puntual de pasos/historial; conserva su significado.
 - `auto_read_all`: lectura puntual de los seis grupos y cierre; conserva su significado.
-- `auto_connect_retained`: conecta automáticamente ante una oportunidad RAW admisible, hace **una lectura completa inicial**, y conserva el propietario nativo original para posteriores acciones explícitas.
+- `auto_connect_retained`: conecta automáticamente ante una oportunidad RAW admisible, hace **una lectura completa inicial**, y conserva el propietario nativo original para refrescos periódicos y acciones explícitas.
 
-Los valores malformados o combinaciones incompatibles impiden la configuración. Guardar recarga solo la entrada seleccionada y conserva las identidades de sus 36 entidades. Desactiva los tres modos antes de cambiar la dirección Bluetooth. La carga, recarga o restauración de observaciones antiguas no inicia trabajo.
+Los valores malformados o combinaciones incompatibles impiden la configuración. Guardar recarga solo la entrada seleccionada y conserva las 36 identidades anteriores y el nuevo interruptor de escucha, 37 en total. Desactiva los tres modos antes de cambiar la dirección Bluetooth. La carga, recarga o restauración de observaciones antiguas no inicia trabajo.
 
 ## Qué se conserva y qué no
 
 El modo retenido observa la conexión ESPHome que ya pertenece a HA. Solo un anuncio RAW vivo de la dirección exacta, con nombre ABL-100 compatible y tipo público/aleatorio válido, puede aportar un permiso de un solo uso. Se comprueban propietario, entrada cargada, fuente y generación originales, cancelación y edad no futura de como máximo cinco segundos antes de mutar estado y al consumirlo. No hay segundo escáner, cliente, conexión ni espera de otro anuncio. El nombre es una heurística, no una identificación de CNCT: otras ventanas pueden coincidir.
 
-Tras la lectura inicial no hay sondeo GATT, relectura periódica, keepalive, aplicación automática de borradores ni escritura de hora. **Actualizar reloj conectado** reutiliza el enlace; **Aplicar borrador de alarmas** sigue exigiendo una intención explícita, su diario de seguridad y lectura de comprobación. Una edición local por sí sola no escribe. Las seis observaciones siguen siendo progresivas: un fallo posterior no borra grupos válidos anteriores ni fabrica ceros o datos nuevos.
+Tras la lectura inicial, el mismo propietario vuelve a leer los seis grupos cada 30 segundos desde el final de la operación anterior. Si está ocupado, no solapa ni encola lecturas. No hay keepalive, aplicación automática de borradores ni escritura de hora. **Actualizar reloj conectado** reutiliza el enlace; **Aplicar borrador de alarmas** sigue exigiendo una intención explícita, su diario de seguridad y lectura de comprobación. Una edición local por sí sola no escribe. Las seis observaciones siguen siendo progresivas: un fallo posterior no borra grupos válidos anteriores ni fabrica ceros o datos nuevos.
 
 Solo este modo suprime las políticas HA de inactividad (120 segundos) y duración absoluta (300 segundos); sus atributos de caducidad son `null`. No promete que el reloj mantenga físicamente el enlace. Se mantienen las adquisiciones y consultas finitas, la caducidad de 60 segundos de Actualizar/Aplicar, la comprobación periódica de generación y los cierres definitivos por pérdida nativa. Un Aplicar incierto conserva la barrera de reconciliación; no se reintenta al reconectar.
 
 El botón manual **Conectar reloj** sin argumentos sigue siendo acotado y no lee datos de aplicación. El permiso automático no puede reutilizarse ni convertirse en una espera manual al invalidarse; tampoco puede pedirse retención ilimitada manual sin permiso.
+
+El interruptor **Escuchar al reloj** guarda esta preferencia entre recargas y reinicios. El panel muestra una sola acción contextual de inicio/parada; no despierta un reloj que no anuncia. Véase el [flujo de uso diario](streamlined-connection.es.md).
 
 ## Cierre y nueva oportunidad
 

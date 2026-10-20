@@ -133,7 +133,7 @@ async def test_retained_read_archive_dashboard_release_and_reload_compose(
             for e in registry.entities.values()
             if e.config_entry_id == p.watch.entry_id
         ]
-        assert len(entries) == 36
+        assert len(entries) == 37
         for index, entry in enumerate(sorted(entries, key=lambda e: e.unique_id)):
             registry.async_update_entity(
                 entry.entity_id, new_entity_id=f"{entry.domain}.composed_watch_{index}"
@@ -163,7 +163,7 @@ async def test_retained_read_archive_dashboard_release_and_reload_compose(
             for e in registry.entities.values()
             if e.config_entry_id == other_watch.entry_id
         }
-        assert len(foreign) == 36 and not set(refs(panel)) & foreign
+        assert len(foreign) == 37 and not set(refs(panel)) & foreign
         for entity_id in refs(panel):
             assert p.hass.states.get(entity_id) is not None
         refresh = next(

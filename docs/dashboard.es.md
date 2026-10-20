@@ -179,7 +179,9 @@ node tests/dashboard/check_frontend.cjs /ruta/a/frontend examples/dashboard.synt
 # TYPESCRIPT_PATH puede indicar el módulo typescript si no es resoluble por Node.
 ```
 
-Esto es **validación estructural y composición de acciones, no E2E visual**.
-No se ha renderizado el panel en navegador ni medido su disposición móvil;
-no se han realizado escrituras o validaciones físicas del reloj. No se ofrece
-compatibilidad automática con versiones futuras que cambien los productores.
+Esta puerta es **validación estructural y composición de acciones, no E2E visual**.
+Por separado se ha inspeccionado una vista previa auténtica con el registro
+anterior de 36 entidades en escritorio y a 390 px, sin desbordamiento horizontal
+y con navegación a Información. No acredita todavía el interruptor nuevo en un
+registro de 37 entidades, ni escrituras o aceptación física del reloj. Las
+versiones futuras que cambien los productores necesitan nuevas comprobaciones.

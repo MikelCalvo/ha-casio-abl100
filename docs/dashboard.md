@@ -174,7 +174,9 @@ node tests/dashboard/check_frontend.cjs /path/to/frontend examples/dashboard.syn
 # Set TYPESCRIPT_PATH to the typescript module if Node cannot resolve it.
 ```
 
-This is **structural/action composition, not visual E2E**. The dashboard has not
-been rendered in a browser or checked for mobile layout. No physical watch
-writes or validation were performed. Future versions that change producers need
-new compatibility checks, not an assumed automatic guarantee.
+This gate is **structural/action composition, not visual E2E**. Separately, an
+authentic legacy-36 registry preview was inspected in desktop and 390px browser
+viewports, without horizontal overflow and with working Information navigation.
+That does not validate the new switch in a modern-37 registry, physical watch
+writes or hardware acceptance. Future producer changes need new compatibility
+checks, not an assumed automatic guarantee.

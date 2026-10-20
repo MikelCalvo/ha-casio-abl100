@@ -2,9 +2,9 @@
 
 ## Current installed pilot — 2026-10-20
 
-Reviewed component revision `badfe909c74f63a2b2d81c69b3b872df596e1b1c` is installed. Its three native buttons and link-status binary sensor share the existing watch device with the read entities and [13 alarm/SIG draft controls](native-alarm-editing.md): **36 identities in total**, preserving all 23 pre-editing identities. The new source increment is not a deployment.
+Base `2b665d1` is installed with **36 preserved identities**. Its three native buttons and link-status binary sensor share the existing device with read entities and [13 alarm/SIG draft controls](native-alarm-editing.md). This source adds a 37th listening switch and periodic retained reads; publication is not installation or physical acceptance.
 
-The retained native owner completed a coordinated disabled-alarm-5 time change `00:00` → `00:01` and restoration to `00:00`, with native readback and operator comparison (`12:01`, then `12:00` on the watch). Clean explicit Close and fresh post-use source, identity, ownership/proxy and node-health checks were authenticated. **Both terminal screens showed ERR**. Neither a verified alarm outcome nor native disconnect proves a normal watch screen or everyday link reliability; ERR's cause remains unknown. The operator's roughly 20 seconds is an estimate, not measured timing. Both automatic modes remain off.
+The historical `badfe909` native owner completed a coordinated disabled-alarm-5 time change `00:00` → `00:01` and restoration to `00:00`, with native readback and operator comparison (`12:01`, then `12:00` on the watch). Clean explicit Close and fresh post-use source, identity, ownership/proxy and node-health checks were authenticated. **Both terminal screens showed ERR**. Neither a verified alarm outcome nor native disconnect proves a normal watch screen or everyday link reliability; ERR's cause remains unknown. The operator's roughly 20 seconds is an estimate, not measured timing. All three automatic modes were off at that historical trial.
 
 ### Historical interactive-only checkpoint
 
@@ -23,21 +23,21 @@ Home Assistant adds the existing device prefix once. Default entity IDs use the 
 
 For a coordinated manual session (not authorization for another physical trial):
 
-1. Keep both automatic modes off and keep other clients from taking the watch connection. Do not unpair or reset. For a read-only session, do not stage or Apply settings.
+1. Keep all three automatic modes off and keep other clients from taking the watch connection. Do not unpair or reset. For a read-only session, do not stage or Apply settings.
 2. Press **Connect watch / Conectar reloj** once. Await the **Interactive connection / Conexión interactiva** sensor's `phase: waiting` with a future UTC `wait_expires_at`, then open CNCT by holding **C/MODE (lower left) for at least three seconds**. The button finishes only after the native link and services are confirmed. Connect does **not** read application data or send setting SETs.
 3. Once status is `on`, `link_state: connected`, `phase: connected` and `usable: true`, press **Refresh connected watch / Actualizar reloj conectado**. It reads the supported fixed groups on that same link, without reconnecting. A later explicit refresh requests a new cycle.
 4. For an explicitly intended alarm edit, follow the separate [Apply/readback procedure](native-alarm-editing.md) or [Spanish guide](alarm-editing.es.md). Editing a draft alone never writes the watch; Apply uses this same native owner.
 5. Press **Close watch connection / Cerrar conexión del reloj** and await completion. Close remains available while connecting, acquiring notifications, reading, applying or cleaning up. It bypasses the lifetime mutex and joins the original owner's cleanup; submitting close is not proof that cleanup finished. Inspect `cleanup_result` and the terminal watch screen separately.
 
-The four existing one-shot read buttons retain their ordinary meanings outside an interactive reservation. During that reservation they are unavailable and reject direct presses rather than queueing work for after close. Both automatic modes retain their existing meanings and consume busy opportunities without a deferred retry. New source adds the separate default-off `auto_connect_retained` option described below; the installed pilot does not yet contain it.
+The four existing one-shot read buttons retain their ordinary meanings outside an interactive reservation. During that reservation they are unavailable and reject direct presses rather than queueing work for after close. The two one-shot automatic modes retain their existing meanings and consume busy opportunities without a deferred retry. The separate default-off `auto_connect_retained` option is described below; its new listening switch and periodic refresh are not yet physically accepted.
 
-## Automatic retained connection (source-tested, uninstalled)
+## Automatic retained connection and daily-use source
 
-`auto_connect_retained: false` is a third strict, mutually exclusive automatic option. A fresh single-use RAW admission selects its original native source and live address type, is validated before state mutation and consumed through the existing native wait path; no second advertisement/client is used. The observer calls `connect_interactive(admission=ticket, retain_until_disconnect=True)`, then `read_interactive()` once. The root remains reserved after that short task returns. A ticket without retained mode, or retained mode without a ticket, is rejected. The zero-argument manual API remains bounded and does no application read.
+`auto_connect_retained: false` is a third strict, mutually exclusive automatic option. A fresh single-use RAW admission selects its original native source and live address type, is validated before state mutation and consumed through the existing native wait path; no second advertisement/client is used. The observer calls `connect_interactive(admission=ticket, retain_until_disconnect=True)`, then `read_interactive()` once. The root remains reserved after that short task returns, and requests full GET-only refreshes every 30 seconds after the preceding operation completes. Busy operations delay the tick without overlap or queued work. A ticket without retained mode, or retained mode without a ticket, is rejected. The zero-argument manual API remains bounded and does no application read.
 
 Only this automatic mode omits idle/absolute-session deadlines and their public expiry values (null). Periodic original-generation checks, native link-loss latches, finite acquisition/query bounds and the 60-second explicit Refresh/Apply deadline remain. Close, observer stop, unload and HA STOP join the original cleanup. Failed unload resumes passive observation but cannot retry the closing burst. Terminal cleanup establishes a new quiet-gap watermark; queued closing-burst RAW cannot immediately reconnect. No draft is automatically applied and journal/reconciliation semantics are unchanged.
 
-These are offline real-HA/native-API source tests with synthetic external IO, not installed or physical acceptance. One operator-confirmed manual sample included a MODE press; it is not a causal experiment, a keepalive requirement or an ERR fix. See [Spanish guide](automatic-retained-session.es.md).
+These are offline real-HA/native-API source tests with synthetic external IO, not physical acceptance of retained listening or periodic reads. See the [daily-use workflow](streamlined-connection.es.md) for saved listening and drafts. One operator-confirmed manual sample included a MODE press; it is not a causal experiment, a keepalive requirement or an ERR fix. See [Spanish guide](automatic-retained-session.es.md).
 
 ## Truthful status
 

@@ -1,13 +1,13 @@
 # Native alarm/SIG draft controls
 
-## Current installed pilot — 2026-10-20
+## Source and installed pilot — 2026-10-20
 
-Reviewed component revision `badfe909c74f63a2b2d81c69b3b872df596e1b1c` is
-installed with 34 component files and 36 entity identities on the existing
-watch device. It preserves the original 23 identities and adds 13 controls:
-five time drafts, five enable drafts, one hourly-signal draft and explicit
-Apply/Discard buttons. This documentation revision changes no component bytes
-and is not a new deployment. Both automatic-read modes remain off.
+The installed base is `2b665d1`, with 36 preserved entity identities and all
+three automatic modes off. This source adds a 37th listening switch and durable
+local alarm drafts; it still needs its own installation and physical acceptance.
+The original editor consists of five time drafts, five enable drafts, one
+hourly-signal draft and explicit Apply/Discard buttons. The earlier physical
+time roundtrip below used the historical `badfe909` pilot, not this new runtime.
 
 A coordinated native Apply changed **disabled alarm 5 `00:00` → `00:01`**;
 a second Apply restored **`00:00`**. New native readback verified each result,
@@ -36,7 +36,9 @@ the physical time roundtrip does not retroactively accept them.
 Editing a time, enable or SIG control only stages a local sparse override.
 Untouched fields reflect the last observation; absent observations remain
 unknown, not midnight or disabled. Reading cannot overwrite an override.
-Drafts are not stored or restored. Reload discards pending execution intent.
+Sparse draft values, their semantic anchor and revision are saved locally and
+restored as pending edits. No execution intent, native resources or automatic
+Apply is restored. See [daily-use connection and draft semantics](streamlined-connection.es.md).
 
 Times have minute semantics. `HH:MM` and `HH:MM:00` are accepted; nonzero
 seconds, microseconds and timezone-bearing values are rejected, not rounded.
@@ -45,7 +47,7 @@ is not a claim about a frontend minute-only widget.
 
 ## Explicit connected Apply
 
-1. Keep both automatic modes off and use one operator with competing phone/
+1. For this manual procedure, keep all three automatic modes off and use one operator with competing phone/
    client connections excluded. First record the observed values and intended
    restoration; a new physical change needs its own coordinated decision.
 2. Use **Connect watch / Conectar reloj**. Wait for the connection sensor's

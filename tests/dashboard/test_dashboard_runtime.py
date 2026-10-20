@@ -42,10 +42,11 @@ async def test_real_registry_renames_two_entries_retained_identity_and_public_at
             if e.config_entry_id == p.watch.entry_id
         ]
 
-    assert len(selected()) == 36
+    expected_domains = {**DOMAINS, "watch_connection": "switch"}
+    assert len(selected()) == 37
     keys = {e.unique_id.removeprefix(p.watch.unique_id + "_"): e for e in selected()}
-    assert set(keys) == set(DOMAINS)
-    assert {key: e.domain for key, e in keys.items()} == DOMAINS
+    assert set(keys) == set(expected_domains)
+    assert {key: e.domain for key, e in keys.items()} == expected_domains
 
     # Populate real public state through HA service and installed native client.
     task = asyncio.create_task(
@@ -143,7 +144,7 @@ async def test_real_registry_renames_two_entries_retained_identity_and_public_at
             for e in registry.entities.values()
             if e.config_entry_id == other.entry_id
         }
-        assert len(foreign_ids) == 36 and not set(references(dashboard)) & foreign_ids
+        assert len(foreign_ids) == 37 and not set(references(dashboard)) & foreign_ids
         assert all(
             p.hass.states.get(entity_id) is not None
             for entity_id in references(dashboard)

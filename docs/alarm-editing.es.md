@@ -2,9 +2,15 @@
 
 ## Qué está confirmado
 
-El componente instalado es `badfe909c74f63a2b2d81c69b3b872df596e1b1c`:
-34 archivos y 36 identidades de entidad, conservando las 23 anteriores.
+La base instalada es `2b665d1`, con 36 identidades conservadas. Este código
+añade un interruptor de escucha (37 identidades en total) y borradores locales
+guardados; requiere su propia instalación y prueba física. La prueba histórica
+de alarma descrita abajo usó `badfe909`, no este incremento.
 Esta guía no instala nada ni autoriza otra prueba física.
+
+Para el panel simplificado y la escucha persistente, usa el
+[flujo de uso diario](streamlined-connection.es.md). El procedimiento manual
+siguiente sigue disponible como ruta alternativa.
 
 Se cambió **solo la hora de la alarma 5, desactivada**, de `00:00` a `00:01`
 y después a `00:00`. La lectura nativa verificó ambos resultados y conservó
@@ -16,7 +22,7 @@ Los aproximadamente 20 segundos son una estimación del operador, no una medida.
 
 Activar/desactivar alarmas o SIG y recuperar una escritura incierta siguen
 validados solo con IO sintética. No hay garantía de fiabilidad cotidiana.
-Mantén **ambos modos automáticos desactivados**.
+En el procedimiento manual siguiente mantén **los tres modos automáticos desactivados**.
 
 ## Flujo manual para un cambio acordado
 
@@ -64,12 +70,14 @@ aplicación. Si ya no hay enlace utilizable, primero cierra y coordina otra
 conexión; no fuerces Aplicar ni borres archivos internos. La lectura no convierte
 el resultado histórico `unknown` en `verified`. Esta recuperación no se ha
 probado físicamente. **Descartar borrador de alarmas** elimina cambios locales,
-no deshace una escritura ni borra la incertidumbre. Recargar/reiniciar descarta
-borradores, pero conserva la barrera de seguridad si existe.
+no deshace una escritura ni borra la incertidumbre. Recargar/reiniciar restaura
+el borrador local guardado sin enviarlo y conserva la barrera de seguridad si existe.
 
 ## Límites que siguen vigentes
 
-La sesión es acotada, no permanente. Aunque el borrador sea de un solo campo,
+La conexión manual de este procedimiento es acotada. La escucha retenida
+no impone ese límite de política de HA, pero no garantiza permanencia física.
+Aunque el borrador sea de un solo campo,
 la escritura usa SET15 y SET16 del grupo completo; no promete conservar bytes
 opacos arbitrarios. Las notificaciones carecen de ID de transacción, por lo
 que una respuesta antigua idéntica puede ser indistinguible de una nueva.

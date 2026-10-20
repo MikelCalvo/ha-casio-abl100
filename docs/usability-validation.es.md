@@ -11,7 +11,7 @@ Las funciones descritas aquí requieren una versión conjunta revisada e instala
 ## Antes de la primera prueba física
 
 - Confirmar la revisión exacta instalada y las opciones actuales. No reutilizar una señal CNCT ni un proceso de una prueba anterior.
-- Conservar las 36 entidades originales, personalizaciones, observaciones y barrera de reconciliación. Un valor restaurado es antiguo, no una lectura nueva.
+- Conservar las 36 entidades originales, personalizaciones, observaciones y barrera de reconciliación; el nuevo interruptor es la única identidad adicional (37 en total). Un valor restaurado es antiguo, no una lectura nueva.
 - Preparar una única ruta BLE: Home Assistant y su proxy ESPHome seleccionado. Cerrar la aplicación del móvil y otros clientes durante la prueba.
 - Mantener las escrituras de ajustes fuera de la primera prueba de conexión. Editar un borrador no escribe; Aplicar es otra acción explícita.
 - Acordar un tiempo de observación concreto. Quitar los límites de política de HA no demuestra una sesión física ilimitada ni modifica la configuración de desconexión del reloj.
@@ -22,7 +22,7 @@ Las funciones descritas aquí requieren una versión conjunta revisada e instala
 2. Comprobar que activar o recargar la integración no conecta por anuncios antiguos y no aplica borradores.
 3. Tras una indicación nueva de disponibilidad del sistema, abrir CNCT en el reloj.
 4. Verificar una conexión y una lectura inicial de los seis grupos. Comparar los datos observados y su frescura, no solo el resultado HTTP.
-5. Mantener el enlace durante el intervalo acordado y pedir una actualización sobre esa misma conexión. Registrar por separado enlace nativo, datos recibidos y pantalla del reloj.
+5. Mantener el enlace durante el intervalo acordado y verificar al menos dos refrescos periódicos, separados por 30 segundos desde el final de la operación anterior, sobre esa misma conexión. Registrar por separado enlace nativo, datos recibidos y pantalla del reloj.
 6. Cerrar desde el reloj con una pulsación corta de MODE cuando se indique. Confirmar pantalla principal y presencia o ausencia de ERR. HA puede clasificar el final como `link_lost`; eso no identifica por sí solo la causa radio ni un fallo visible.
 7. Comprobar limpieza del propietario original y ausencia de reconexión inmediata al mismo anuncio. Una oportunidad nueva posterior debe tratarse como otra sesión, no como un reintento oculto.
 8. Dejar las opciones en el estado acordado. Una sesión correcta no autoriza nuevas escrituras ni demuestra fiabilidad de uso diario o consumo de batería.
@@ -33,7 +33,9 @@ El botón de cierre de HA sigue siendo una salida de emergencia. Su resultado no
 
 El panel se genera desde un registro de entidades exportado y una entrada seleccionada. Debe conservar los IDs personalizados, no usar nombres traducidos supuestos ni incluir el otro reloj.
 
-- Las alarmas observadas están separadas de sus borradores.
+- La vista principal muestra conexión, actividad y el editor local; las observaciones detalladas y herramientas técnicas están en Información.
+- Los cambios del editor se guardan localmente, separados de las observaciones, y no se envían al recargar ni al conectar.
+- Sin conexión, Enviar debe mostrar «Conecta el reloj antes de enviar cambios» sin iniciar BLE ni SET.
 - Aplicar y Descartar son acciones explícitas. El resultado y la necesidad de reconciliación deben seguir visibles cuando el control no esté disponible.
 - Comprobar también la presentación móvil. Las pruebas de estructura y de acciones estándar no son una prueba visual de navegador.
 - El gráfico estándar muestra observaciones de Recorder. No representa una importación retroactiva del historial del reloj.
