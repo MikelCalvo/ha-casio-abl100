@@ -49,7 +49,7 @@ class CasioConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         entry = self._get_reconfigure_entry()
         if not entry.unique_id:
             return self.async_abort(reason='missing_identity')
-        if any(entry.options.get(key, False) is not False for key in ('auto_read_steps', 'auto_read_all')):
+        if any(entry.options.get(key, False) is not False for key in ('auto_read_steps', 'auto_read_all', 'auto_connect_retained')):
             return self.async_abort(reason='auto_read_enabled')
         if user_input is not None:
             address, errors = self._selected_address(user_input)
@@ -116,10 +116,11 @@ class CasioOptionsFlow(config_entries.OptionsFlow):
     async def async_step_init(self, user_input=None):
         errors = {}
         if user_input is not None:
-            for key in ('auto_read_steps', 'auto_read_all'):
+            for key in ('auto_read_steps', 'auto_read_all', 'auto_connect_retained'):
                 if type(user_input.get(key)) is not bool:
                     errors[key] = 'invalid_boolean'
-            if not errors and user_input['auto_read_steps'] and user_input['auto_read_all']:
+            if not errors and sum(user_input[key] for key in (
+                    'auto_read_steps', 'auto_read_all', 'auto_connect_retained')) > 1:
                 errors['base'] = 'automatic_modes_conflict'
             if not errors:
                 return self.async_create_entry(title='', data={
@@ -133,6 +134,9 @@ class CasioOptionsFlow(config_entries.OptionsFlow):
                 )): bool,
                 vol.Required('auto_read_all', default=self.config_entry.options.get(
                     'auto_read_all', False,
+                )): bool,
+                vol.Required('auto_connect_retained', default=self.config_entry.options.get(
+                    'auto_connect_retained', False,
                 )): bool,
             }),
             errors=errors,

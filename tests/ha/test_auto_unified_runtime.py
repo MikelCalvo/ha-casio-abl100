@@ -18,7 +18,8 @@ from aioesphomeapi.api_pb2 import (BluetoothLERawAdvertisementsResponse,
 
 
 async def select_mode(p, mode='all'):
-    options = {'auto_read_steps': mode == 'steps', 'auto_read_all': mode == 'all'}
+    options = {'auto_read_steps': mode == 'steps', 'auto_read_all': mode == 'all',
+               'auto_connect_retained': mode == 'retained'}
     with patch.object(p.hass.config_entries, 'async_reload', wraps=p.hass.config_entries.async_reload) as reload:
         form = await p.hass.config_entries.options.async_init(p.watch.entry_id)
         result = await p.hass.config_entries.options.async_configure(form['flow_id'], options)
@@ -453,7 +454,7 @@ async def test_metadata_maintenance_cannot_dispatch_and_no_ordinary_callback(pro
     assert not p.wire.calls
 
 
-@pytest.mark.parametrize('option', ['auto_read_steps', 'auto_read_all'])
+@pytest.mark.parametrize('option', ['auto_read_steps', 'auto_read_all', 'auto_connect_retained'])
 async def test_malformed_automatic_options_block_reconfigure(hass, enable_custom_integrations, option):
     entry = MockConfigEntry(domain=DOMAIN, data={'address': 'AA:BB:CC:DD:EE:FF'},
                             unique_id='AA:BB:CC:DD:EE:FF', options={option: 0})

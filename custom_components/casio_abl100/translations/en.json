@@ -11,7 +11,7 @@
       },
       "reconfigure": {
         "title": "Change watch Bluetooth address",
-        "description": "Only continue if this is the same physical watch with a new Bluetooth address. Select it explicitly or type its exact address; a typed address takes precedence. Existing device and entity identities are preserved. Automatic step reading must be off and remains off; enable it separately only when ready. This form does not connect to the watch or verify ownership. Discovered: {discovered}",
+        "description": "Only continue if this is the same physical watch with a new Bluetooth address. Select it explicitly or type its exact address; a typed address takes precedence. Existing device and entity identities are preserved. All automatic modes must be off and remain off; enable them separately only when ready. This form does not connect to the watch or verify ownership. Discovered: {discovered}",
         "data": {
           "address": "New Bluetooth address (manual)",
           "discovered_address": "Watch with the new address"
@@ -25,7 +25,7 @@
     "abort": {
       "already_configured": "This Bluetooth address belongs to another configured watch or its retained identity.",
       "reconfigure_successful": "Bluetooth address updated. Existing entities and device are unchanged.",
-      "auto_read_enabled": "Turn off both automatic read modes before changing the Bluetooth address.",
+      "auto_read_enabled": "Turn off all automatic modes before changing the Bluetooth address.",
       "missing_identity": "This entry has no stable identity. Its Bluetooth address cannot be changed safely without a separately reviewed repair."
     }
   },
@@ -144,16 +144,17 @@
     "step": {
       "init": {
         "title": "Casio ABL-100WE",
-        "description": "Experimental and opt-in: select at most one automatic mode. Bluetooth advertising indicates an availability window, not recognition of CNCT. Reading all data requires an available native ESPHome source and a live advertisement carrying a supported name. No permanent connection or time writes. Turn both modes off before changing the address.",
+        "description": "Experimental and opt-in: select at most one automatic mode. Bluetooth advertising indicates an availability window, not recognition of CNCT. Reading all data requires an available native ESPHome source and a live advertisement carrying a supported name. Connect and retain reads once and keeps the link until loss or explicit close, without idle or session-lifetime expiry. Physical permanence is not guaranteed and no settings are written automatically. Turn all modes off before changing the address.",
         "data": {
           "auto_read_steps": "Read steps when watch becomes available",
-          "auto_read_all": "Read all watch data when watch becomes available"
+          "auto_read_all": "Read all watch data when watch becomes available",
+          "auto_connect_retained": "Connect and retain when watch becomes available"
         }
       }
     },
     "error": {
       "invalid_boolean": "Select a boolean value",
-      "automatic_modes_conflict": "Select only one automatic read mode."
+      "automatic_modes_conflict": "Select only one automatic mode."
     }
   }
 }
