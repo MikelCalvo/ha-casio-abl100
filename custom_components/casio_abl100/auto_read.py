@@ -51,6 +51,17 @@ class AutoStepReader:
         self._proxy_entry = None
         self._source = None
         self._pending_admission = None
+        self._retained_admission = None
+
+    def retained_terminal(self, controller):
+        """Anchor rearm to joined native cleanup, never the initial read return."""
+        if self.mode != 'retained' or controller.admission is not self._retained_admission:
+            return
+        self._retained_admission = None
+        now = self._now()
+        if now is not None:
+            self._last_seen = max(now, self._last_seen or now)
+        self._claimed = True
 
     def _now(self):
         now = monotonic_time_coarse()
@@ -73,7 +84,7 @@ class AutoStepReader:
         if now is None or self._faulted:
             return
         try:
-            if self.mode == 'all':
+            if self.mode in ('all', 'retained'):
                 device = bluetooth.async_ble_device_from_address(self.hass, self.session.address, connectable=True)
                 name = (device.name or '').rstrip('\x00 \t\r\n') if device is not None else ''
                 if device is not None and (device.address.upper() != self.session.address or name not in _NAMES):
@@ -106,7 +117,7 @@ class AutoStepReader:
                     cancel()
                 except (Exception, asyncio.CancelledError):
                     _LOGGER.warning('Automatic step observer cleanup failed')
-            if self.mode == 'all':
+            if self.mode in ('all', 'retained'):
                 self._detach_raw()
                 if self._cancel_timer is not None:
                     cancel, self._cancel_timer = self._cancel_timer, None
@@ -226,7 +237,7 @@ class AutoStepReader:
         if now is None or not _finite_time(seen) or seen > now:
             self._faulted = True
             return
-        if self.mode == 'all' and self._last_seen is not None and seen <= self._last_seen:
+        if self.mode in ('all', 'retained') and self._last_seen is not None and seen <= self._last_seen:
             # Scanner and local RAW ingress stamp independently. Older public
             # metadata can suppress a window, never revoke newer RAW observation.
             return
@@ -276,11 +287,27 @@ class AutoStepReader:
                     or self._busy() or not 0 <= now - seen <= MAX_AGE):
                 return
             # No yield between the final check and entering the existing session.
-            if self.mode == 'all':
+            if self.mode in ('all', 'retained'):
                 if not self._raw_valid():
                     return
                 admission.guard(self.session)
-                await self.session.read_all(admission=admission)
+                if self.mode == 'retained':
+                    self._retained_admission = admission
+                    try:
+                        await self.session.connect_interactive(
+                            admission=admission, retain_until_disconnect=True)
+                        await self.session.read_interactive()
+                    except BaseException:
+                        # Connect's successful handoff detaches its caller. If
+                        # the initial read never enters, this observer still
+                        # owns revocation and must join that original root.
+                        controller = self.session.interactive_session
+                        if controller is not None and controller.admission is admission:
+                            controller.request_close('automatic_read_abandoned')
+                            await controller._join()
+                        raise
+                else:
+                    await self.session.read_all(admission=admission)
             else:
                 await self.session.read()
         except asyncio.CancelledError:
@@ -299,6 +326,9 @@ class AutoStepReader:
     @callback
     def suspend(self):
         self._suspended = True
+        if self._pending_admission is not None:
+            self._pending_admission.consumed = True
+            self._pending_admission = None
 
     @callback
     def resume(self):
@@ -315,7 +345,7 @@ class AutoStepReader:
         does not impose a timeout or forcibly abandon the owned reader.
         """
         self._stopped = True
-        if self.mode == 'all':
+        if self.mode in ('all', 'retained'):
             self._detach_raw()
         for attribute in ('_cancel_callback', '_cancel_timer', '_cancel_disconnect'):
             cancel = getattr(self, attribute)
@@ -325,6 +355,11 @@ class AutoStepReader:
                     cancel()
                 except (Exception, asyncio.CancelledError):
                     _LOGGER.warning('Automatic step observer cleanup failed')
+        controller = self.session.interactive_session if self.mode == 'retained' else None
+        if controller is not None and controller.admission is self._retained_admission:
+            controller.request_close('observer_stopped')
+        else:
+            controller = None
         task = self._task
         if task is not None:
             # Claim once before yielding: concurrent stops must not re-cancel
@@ -348,3 +383,5 @@ class AutoStepReader:
                 self._stop_cancelled_task = None
             if cancelled is not None:
                 raise cancelled
+        if controller is not None:
+            await controller._join()

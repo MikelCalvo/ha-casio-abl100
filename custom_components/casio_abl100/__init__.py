@@ -425,10 +425,11 @@ class WatchSession:
         from .native_sync import read_all
         await read_all(self, admission=admission)
 
-    async def connect_interactive(self):
-        """Explicitly retain one native link; no application reads on connect."""
+    async def connect_interactive(self, *, admission=None, retain_until_disconnect=False):
+        """Connect without reads; only a live RAW ticket permits unbounded retention."""
         from .native_interactive import connect_interactive
-        await connect_interactive(self)
+        await connect_interactive(self, admission=admission,
+                                  retain_until_disconnect=retain_until_disconnect)
 
     async def read_interactive(self):
         """Refresh fixed groups on the admitted retained link, never reconnect."""
@@ -546,8 +547,9 @@ async def async_setup_entry(hass, entry):
     cancel_update = None
     cancel_stop = None
     try:
-        modes = tuple(entry.options.get(key, False) for key in ('auto_read_steps', 'auto_read_all'))
-        if any(type(value) is not bool for value in modes) or all(modes):
+        modes = tuple(entry.options.get(key, False) for key in (
+            'auto_read_steps', 'auto_read_all', 'auto_connect_retained'))
+        if any(type(value) is not bool for value in modes) or sum(modes) > 1:
             from homeassistant.exceptions import ConfigEntryError
             raise ConfigEntryError('Invalid automatic read options')
         from .alarm_write_safety import AlarmWriteSafety
@@ -556,20 +558,21 @@ async def async_setup_entry(hass, entry):
         manager.observations = EntryObservations(hass, entry.entry_id, manager.address, entry)
         await manager.observations.async_load_into(manager)
 
-        async def stop_observations(_event):
-            await manager.observations.async_close()
+        async def stop_session(_event):
+            await manager.shutdown()
 
-        cancel_stop = hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, stop_observations)
+        cancel_stop = hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, stop_session)
         try:
             entry.async_on_unload(cancel_stop)
         except BaseException:
             cancel_stop()
             raise
         await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-        if entry.options.get('auto_read_steps') is True or entry.options.get('auto_read_all') is True:
+        if any(modes):
             from .auto_read import AutoStepReader
 
             manager.auto_reader = AutoStepReader(hass, entry, manager, mode=(
+                'retained' if entry.options.get('auto_connect_retained') is True else
                 'all' if entry.options.get('auto_read_all') is True else 'steps'))
             manager.auto_reader.start()
         cancel_update = entry.add_update_listener(_async_options_updated)

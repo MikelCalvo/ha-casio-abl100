@@ -2,7 +2,7 @@
 
 ## Current installed pilot — 2026-10-20
 
-Reviewed component revision `badfe909c74f63a2b2d81c69b3b872df596e1b1c` is installed. Its three native buttons and link-status binary sensor share the existing watch device with the read entities and [13 alarm/SIG draft controls](native-alarm-editing.md): **36 identities in total**, preserving all 23 pre-editing identities. This documentation-only revision is not a deployment.
+Reviewed component revision `badfe909c74f63a2b2d81c69b3b872df596e1b1c` is installed. Its three native buttons and link-status binary sensor share the existing watch device with the read entities and [13 alarm/SIG draft controls](native-alarm-editing.md): **36 identities in total**, preserving all 23 pre-editing identities. The new source increment is not a deployment.
 
 The retained native owner completed a coordinated disabled-alarm-5 time change `00:00` → `00:01` and restoration to `00:00`, with native readback and operator comparison (`12:01`, then `12:00` on the watch). Clean explicit Close and fresh post-use source, identity, ownership/proxy and node-health checks were authenticated. **Both terminal screens showed ERR**. Neither a verified alarm outcome nor native disconnect proves a normal watch screen or everyday link reliability; ERR's cause remains unknown. The operator's roughly 20 seconds is an estimate, not measured timing. Both automatic modes remain off.
 
@@ -29,7 +29,15 @@ For a coordinated manual session (not authorization for another physical trial):
 4. For an explicitly intended alarm edit, follow the separate [Apply/readback procedure](native-alarm-editing.md) or [Spanish guide](alarm-editing.es.md). Editing a draft alone never writes the watch; Apply uses this same native owner.
 5. Press **Close watch connection / Cerrar conexión del reloj** and await completion. Close remains available while connecting, acquiring notifications, reading, applying or cleaning up. It bypasses the lifetime mutex and joins the original owner's cleanup; submitting close is not proof that cleanup finished. Inspect `cleanup_result` and the terminal watch screen separately.
 
-The four existing one-shot read buttons retain their ordinary meanings outside an interactive reservation. During that reservation they are unavailable and reject direct presses rather than queueing work for after close. Both automatic modes retain their existing meanings and consume busy opportunities without a deferred retry. There is no new stored option.
+The four existing one-shot read buttons retain their ordinary meanings outside an interactive reservation. During that reservation they are unavailable and reject direct presses rather than queueing work for after close. Both automatic modes retain their existing meanings and consume busy opportunities without a deferred retry. New source adds the separate default-off `auto_connect_retained` option described below; the installed pilot does not yet contain it.
+
+## Automatic retained connection (source-tested, uninstalled)
+
+`auto_connect_retained: false` is a third strict, mutually exclusive automatic option. A fresh single-use RAW admission selects its original native source and live address type, is validated before state mutation and consumed through the existing native wait path; no second advertisement/client is used. The observer calls `connect_interactive(admission=ticket, retain_until_disconnect=True)`, then `read_interactive()` once. The root remains reserved after that short task returns. A ticket without retained mode, or retained mode without a ticket, is rejected. The zero-argument manual API remains bounded and does no application read.
+
+Only this automatic mode omits idle/absolute-session deadlines and their public expiry values (null). Periodic original-generation checks, native link-loss latches, finite acquisition/query bounds and the 60-second explicit Refresh/Apply deadline remain. Close, observer stop, unload and HA STOP join the original cleanup. Failed unload resumes passive observation but cannot retry the closing burst. Terminal cleanup establishes a new quiet-gap watermark; queued closing-burst RAW cannot immediately reconnect. No draft is automatically applied and journal/reconciliation semantics are unchanged.
+
+These are offline real-HA/native-API source tests with synthetic external IO, not installed or physical acceptance. One operator-confirmed manual sample included a MODE press; it is not a causal experiment, a keepalive requirement or an ERR fix. See [Spanish guide](automatic-retained-session.es.md).
 
 ## Truthful status
 
@@ -89,7 +97,7 @@ is not a BLE reliability repair.
 
 ## Bounds and safety limits
 
-The accepted core uses a 120-second idle limit, 300-second absolute link lifetime and 60-second refresh limit. Its existing fresh-RAW wait is bounded separately at 360 seconds. Limits revoke further work; already-held notification acquisition and cooperative disconnect still need their backend cleanup time. No forced release deadline is claimed.
+Manual connect retains a 120-second idle limit, 300-second absolute link lifetime and 60-second refresh limit. Its existing fresh-RAW wait is bounded separately at 360 seconds. Limits revoke further work; already-held notification acquisition and cooperative disconnect still need their backend cleanup time. No forced release deadline is claimed.
 
 Connect/Refresh/Close themselves add no setting SET, time synchronization, pairing, firmware operation, retry, reconnect or keepalive. Explicit alarm **Apply** is a separate writer borrowing this same owner, not another client or scanner. Service failures have fixed per-action translated messages, with no raw backend text; real caller cancellation remains cancellation and joins admitted cleanup. Failed cleanup remains explicitly uncertain.
 

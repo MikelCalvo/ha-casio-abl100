@@ -31,7 +31,7 @@ async def test_options_form_uses_current_boolean_or_manual_default(
         result = await hass.config_entries.options.async_init(entry.entry_id)
         assert result['type'] is FlowResultType.FORM
         assert result['step_id'] == 'init'
-        assert result['data_schema']({}) == {OPTION: expected, 'auto_read_all': False}
+        assert result['data_schema']({}) == {OPTION: expected, 'auto_read_all': False, 'auto_connect_retained': False}
         assert entry.options == options
         connect.assert_not_called()
 
@@ -48,14 +48,14 @@ async def test_options_save_preserves_unknown_options_and_watch_identity(
             result['flow_id'], {OPTION: enabled},
         )
         assert result['type'] is FlowResultType.CREATE_ENTRY
-        assert result['data'] == {**other, OPTION: enabled, 'auto_read_all': False}
-        assert entry.options == {**other, OPTION: enabled, 'auto_read_all': False}
+        assert result['data'] == {**other, OPTION: enabled, 'auto_read_all': False, 'auto_connect_retained': False}
+        assert entry.options == {**other, OPTION: enabled, 'auto_read_all': False, 'auto_connect_retained': False}
         assert entry.data == {'address': ADDRESS}
         assert entry.unique_id == ADDRESS
         connect.assert_not_called()
 
 
-@pytest.mark.parametrize('option', [OPTION, 'auto_read_all'])
+@pytest.mark.parametrize('option', [OPTION, 'auto_read_all', 'auto_connect_retained'])
 @pytest.mark.parametrize('invalid', ['true', 'false', 0, 1, None, [], {}])
 async def test_options_reject_non_booleans_without_mutating_entry(
     hass, enable_custom_integrations, invalid, option,
@@ -89,6 +89,9 @@ async def test_options_translations_available_through_real_ha(
     assert strings[f'{prefix}.step.init.data.auto_read_all'] == (
         'Read all watch data when watch becomes available' if language == 'en' else
         'Leer todos los datos al detectar el reloj')
+    assert strings[f'{prefix}.step.init.data.auto_connect_retained'] == (
+        'Connect and retain when watch becomes available' if language == 'en' else
+        'Conectar y mantener al detectar el reloj')
     assert f'{prefix}.error.automatic_modes_conflict' in strings
     description = strings[f'{prefix}.step.init.description'].lower()
     assert 'experimental' in description

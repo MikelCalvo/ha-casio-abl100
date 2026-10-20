@@ -11,7 +11,7 @@
       },
       "reconfigure": {
         "title": "Cambiar la dirección Bluetooth del reloj",
-        "description": "Continúa solo si es el mismo reloj físico con una dirección Bluetooth nueva. Selecciónalo expresamente o introduce su dirección exacta; la dirección escrita tiene prioridad. Se conservan las identidades del dispositivo y de las entidades. La lectura automática de pasos debe estar desactivada y seguirá desactivada; actívala por separado solo cuando estés listo. Este formulario no se conecta al reloj ni verifica que sea tuyo. Detectados: {discovered}",
+        "description": "Continúa solo si es el mismo reloj físico con una dirección Bluetooth nueva. Selecciónalo expresamente o introduce su dirección exacta; la dirección escrita tiene prioridad. Se conservan las identidades del dispositivo y de las entidades. Todos los modos automáticos deben estar desactivados y seguirán desactivados; actívalos por separado solo cuando estés listo. Este formulario no se conecta al reloj ni verifica que sea tuyo. Detectados: {discovered}",
         "data": {
           "address": "Nueva dirección Bluetooth (manual)",
           "discovered_address": "Reloj con la dirección nueva"
@@ -25,7 +25,7 @@
     "abort": {
       "already_configured": "Esta dirección Bluetooth corresponde a otro reloj configurado o a su identidad conservada.",
       "reconfigure_successful": "Dirección Bluetooth actualizada. Se conservan las entidades y el dispositivo existentes.",
-      "auto_read_enabled": "Desactiva ambos modos de lectura automática antes de cambiar la dirección Bluetooth.",
+      "auto_read_enabled": "Desactiva todos los modos automáticos antes de cambiar la dirección Bluetooth.",
       "missing_identity": "Esta entrada no tiene una identidad estable. No se puede cambiar su dirección Bluetooth de forma segura sin una reparación revisada por separado."
     }
   },
@@ -144,16 +144,17 @@
     "step": {
       "init": {
         "title": "Casio ABL-100WE",
-        "description": "Experimental y opcional: selecciona como máximo un modo automático. Los anuncios Bluetooth solo indican una ventana de disponibilidad, no reconocen CNCT. Leer todos los datos requiere una fuente ESPHome nativa disponible y un anuncio en vivo que incluya un nombre compatible. No mantiene una conexión ni escribe la hora. Desactiva ambos modos antes de cambiar la dirección.",
+        "description": "Experimental y opcional: selecciona como máximo un modo automático. Los anuncios Bluetooth solo indican una ventana de disponibilidad, no reconocen CNCT. Leer todos los datos requiere una fuente ESPHome nativa disponible y un anuncio en vivo que incluya un nombre compatible. Conectar y mantener lee una vez y conserva el enlace hasta su pérdida o cierre explícito, sin caducidad por inactividad o duración de sesión. No garantiza permanencia física ni escribe ajustes automáticamente. Desactiva todos los modos antes de cambiar la dirección.",
         "data": {
           "auto_read_steps": "Leer pasos al detectar el reloj",
-          "auto_read_all": "Leer todos los datos al detectar el reloj"
+          "auto_read_all": "Leer todos los datos al detectar el reloj",
+          "auto_connect_retained": "Conectar y mantener al detectar el reloj"
         }
       }
     },
     "error": {
       "invalid_boolean": "Selecciona un valor booleano",
-      "automatic_modes_conflict": "Selecciona un solo modo de lectura automática."
+      "automatic_modes_conflict": "Selecciona un solo modo automático."
     }
   }
 }

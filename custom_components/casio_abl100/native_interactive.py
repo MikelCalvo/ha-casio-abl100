@@ -63,8 +63,10 @@ def _resolve(complete, outcome):
 class NativeInteractiveSession:
     """One root, mutex reservation and terminal outcome per explicit connect."""
 
-    def __init__(self, session):
+    def __init__(self, session, *, admission=None, retain_until_disconnect=False):
         self.session = session
+        self.admission = admission
+        self.retain_until_disconnect = retain_until_disconnect
         self.phase = 'starting'
         self.link_state = 'unknown'
         self.wait_expires_at = None
@@ -181,8 +183,9 @@ class NativeInteractiveSession:
         self._native_stage = 'unknown'
         self.phase = 'connected'
         self._refresh_deadline = None
-        self._idle_deadline = asyncio.get_running_loop().time() + IDLE_SECONDS
-        self.idle_expires_at = dt_util.utcnow() + timedelta(seconds=IDLE_SECONDS)
+        if not self.retain_until_disconnect:
+            self._idle_deadline = asyncio.get_running_loop().time() + IDLE_SECONDS
+            self.idle_expires_at = dt_util.utcnow() + timedelta(seconds=IDLE_SECONDS)
         self.publish()
 
     async def _run(self):
@@ -201,9 +204,15 @@ class NativeInteractiveSession:
                         'ABL-100', 'ABL-100WE', 'CASIO ABL-100', 'CASIO ABL-100WE')):
                     raise _failed()
                 entry = select_proxy(self.session.hass, device) if self.session.entry is not None else None
+                if self.admission is not None:
+                    self.admission.guard(self.session)
+                    if entry is not self.admission.entry:
+                        raise _failed()
+                    entry = self.admission.entry
                 if entry is None:
                     raise _failed()
                 self.reader = _InteractiveRead(self.session, entry, self)
+                self.reader._admission = self.admission
                 self.maintenance_handle = asyncio.get_running_loop().call_later(CHECK_SECONDS, self._tick)
                 await self.reader.read()
         except BaseException as error:
@@ -226,7 +235,12 @@ class NativeInteractiveSession:
             self._finish()
 
     def _finish(self):
+        if self._finished:
+            return
         self._finished = True
+        observer = self.session.auto_reader
+        if self.retain_until_disconnect and observer is not None:
+            observer.retained_terminal(self)
         self.phase = 'closed'
         self.connect_caller = None
         self.operation_caller = None
@@ -461,7 +475,7 @@ class _InteractiveRead(NativeSyncRead):
                 self.adapter.receiver = self.adapter.step_receivers = None
             c.request_close('link_lost')
         if confirmed and not self.link_lost and c.close_reason is None:
-            if not self.link_established:
+            if not self.link_established and not c.retain_until_disconnect:
                 c._session_deadline = asyncio.get_running_loop().time() + SESSION_SECONDS
                 c.session_expires_at = dt_util.utcnow() + timedelta(seconds=SESSION_SECONDS)
             self.link_established = True
@@ -580,7 +594,7 @@ class _InteractiveRead(NativeSyncRead):
             _resolve(complete, _Outcome('success'))
 
 
-async def connect_interactive(session):
+async def connect_interactive(session, *, admission=None, retain_until_disconnect=False):
     caller = asyncio.current_task()
     if caller.cancelling():
         raise asyncio.CancelledError
@@ -588,7 +602,26 @@ async def connect_interactive(session):
     if (session.closed or session.entry is None or session.lock.locked() or session.tasks
             or (previous is not None and (previous.active or not previous.root.done()))):
         raise _failed()
-    controller = NativeInteractiveSession(session)
+    try:
+        if type(retain_until_disconnect) is not bool or (admission is None) != (not retain_until_disconnect):
+            raise _failed()
+        if admission is not None:
+            from .native_sync import _RawSyncAdmission
+            if type(admission) is not _RawSyncAdmission:
+                raise _failed()
+            admission.guard(session)
+            device = bluetooth.async_ble_device_from_address(
+                session.hass, session.address, connectable=True)
+            name = (device.name or '').rstrip('\x00 \t\r\n') if device is not None else ''
+            if (device is not None and (device.address.upper() != session.address or name not in (
+                    'ABL-100', 'ABL-100WE', 'CASIO ABL-100', 'CASIO ABL-100WE'))):
+                raise _failed()
+            if select_proxy(session.hass, device) is not admission.entry:
+                raise _failed()
+    except Exception:
+        raise _failed() from None
+    controller = NativeInteractiveSession(session, admission=admission,
+                                          retain_until_disconnect=retain_until_disconnect)
     session.interactive_session = controller
     controller.start()
     await controller.connected()

@@ -6,8 +6,14 @@ the watch. Enable the watch's Bluetooth connection window only when coordinating
 a manual read. `auto_read_steps` retains its step-only meaning. Reviewed component
 revision `badfe909c74f63a2b2d81c69b3b872df596e1b1c` is installed and includes the
 separate default-off `auto_read_all` consumer described below. Both automatic
-modes remain off; automatic dispatch is not physically accepted. This
-documentation-only update is not a deployment.
+modes remain off; automatic dispatch is not physically accepted. The new
+source increment is not a deployment.
+
+## New automatic retained source (uninstalled, physically unverified)
+
+The separate default-off `auto_connect_retained` option is mutually exclusive with `auto_read_steps` and `auto_read_all`; all three must be off before address reconfiguration. The two older options keep their one-shot meanings. Retained mode reuses the all-mode live RAW admission and exact original native generation, but connects the interactive owner, reads the six groups once, then keeps that same root alive without HA idle/absolute-session expiry. It does not repeatedly read, auto-apply drafts, send keepalive traffic or create another client. Explicit Refresh/Apply remain finite; native loss, Close, unload, observer stop and HA STOP join original cleanup.
+
+One claim is consumed even on busy/failure. After actual terminal cleanup a new 30-second quiet boundary is required, extended by subsequent observed packets, so the closing burst cannot immediately reconnect. Source runtime tests fake only external wire/durations/filesystem; they are not physical reliability or ERR evidence. Details: [interactive owner](native-interactive-session.md#automatic-retained-connection-source-tested-uninstalled), [Spanish guide](automatic-retained-session.es.md). The installed revision above is unchanged by this source work.
 
 ## One owner, fixed order
 
