@@ -51,7 +51,8 @@ The connection sensor always includes exactly three additional scalar attributes
 
 - `failure_kind`: null until captured, then the fixed `native_link_loss`.
 - `failure_stage`: null until captured, then `primary_notify`, `primary_cccd`,
-  `get15_submit`, `get15_wait`, `get16_submit`, `get16_wait`, `other` or `unknown`.
+  `get15_submit`, `get15_wait`, `get16_submit`, `get16_wait`,
+  `set15_submit`, `set15_wait`, `set16_submit`, `set16_wait`, `other` or `unknown`.
 - `native_status`: the actual callback's non-boolean signed 32-bit integer,
   including reported zero; otherwise null. No protocol meaning is assigned to
   these numeric values.
@@ -69,7 +70,11 @@ subscription/descriptor coroutine; a normal return resets to `other`.
 `get15_submit`/`get16_submit` describe entering the existing write-without-response
 coroutine, not an ATT submission or acknowledgement. Only after its normal local
 return does the stage become `get15_wait`/`get16_wait`, while awaiting the
-application response; this is **not an ACK from the watch**. Each read-group
+application response; this is **not an ACK from the watch**. During explicit
+Apply, `set15_submit`/`set16_submit` mark entry into the local write-with-response
+API. A normal local return changes the stage to `set15_wait`/`set16_wait`; these
+labels alone do not prove an ATT acknowledgement, the requested watch state or
+successful readback, and grant no retry or recovery authority. Each read-group
 boundary resets to `other`; idle/setup/new operations are `unknown`, so later
 settings or idle losses never inherit a stale alarm-query stage. Repeated alarm
 cycles observe the same existing call boundaries without reacquiring an already
