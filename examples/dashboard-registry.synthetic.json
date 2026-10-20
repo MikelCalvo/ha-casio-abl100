@@ -1,0 +1,512 @@
+{
+  "version": 1,
+  "key": "core.entity_registry",
+  "data": {
+    "entities": [
+      {
+        "config_entry_id": "selected-entry",
+        "platform": "casio_abl100",
+        "unique_id": "AA:BB:CC:DD:EE:FF_steps_today",
+        "entity_id": "sensor.renamed_0",
+        "disabled_by": null
+      },
+      {
+        "config_entry_id": "selected-entry",
+        "platform": "casio_abl100",
+        "unique_id": "AA:BB:CC:DD:EE:FF_last_sync",
+        "entity_id": "sensor.renamed_1",
+        "disabled_by": null
+      },
+      {
+        "config_entry_id": "selected-entry",
+        "platform": "casio_abl100",
+        "unique_id": "AA:BB:CC:DD:EE:FF_last_alarm_read",
+        "entity_id": "sensor.renamed_2",
+        "disabled_by": null
+      },
+      {
+        "config_entry_id": "selected-entry",
+        "platform": "casio_abl100",
+        "unique_id": "AA:BB:CC:DD:EE:FF_home_standard_utc_offset",
+        "entity_id": "sensor.renamed_3",
+        "disabled_by": null
+      },
+      {
+        "config_entry_id": "selected-entry",
+        "platform": "casio_abl100",
+        "unique_id": "AA:BB:CC:DD:EE:FF_secondary_standard_utc_offset",
+        "entity_id": "sensor.renamed_4",
+        "disabled_by": null
+      },
+      {
+        "config_entry_id": "selected-entry",
+        "platform": "casio_abl100",
+        "unique_id": "AA:BB:CC:DD:EE:FF_last_time_zone_read",
+        "entity_id": "sensor.renamed_5",
+        "disabled_by": null
+      },
+      {
+        "config_entry_id": "selected-entry",
+        "platform": "casio_abl100",
+        "unique_id": "AA:BB:CC:DD:EE:FF_time_format",
+        "entity_id": "sensor.renamed_6",
+        "disabled_by": null
+      },
+      {
+        "config_entry_id": "selected-entry",
+        "platform": "casio_abl100",
+        "unique_id": "AA:BB:CC:DD:EE:FF_automatic_time_adjustment",
+        "entity_id": "sensor.renamed_7",
+        "disabled_by": null
+      },
+      {
+        "config_entry_id": "selected-entry",
+        "platform": "casio_abl100",
+        "unique_id": "AA:BB:CC:DD:EE:FF_timer_encoded_duration",
+        "entity_id": "sensor.renamed_8",
+        "disabled_by": null
+      },
+      {
+        "config_entry_id": "selected-entry",
+        "platform": "casio_abl100",
+        "unique_id": "AA:BB:CC:DD:EE:FF_alarm_1",
+        "entity_id": "sensor.renamed_9",
+        "disabled_by": null
+      },
+      {
+        "config_entry_id": "selected-entry",
+        "platform": "casio_abl100",
+        "unique_id": "AA:BB:CC:DD:EE:FF_alarm_2",
+        "entity_id": "sensor.renamed_10",
+        "disabled_by": null
+      },
+      {
+        "config_entry_id": "selected-entry",
+        "platform": "casio_abl100",
+        "unique_id": "AA:BB:CC:DD:EE:FF_alarm_3",
+        "entity_id": "sensor.renamed_11",
+        "disabled_by": null
+      },
+      {
+        "config_entry_id": "selected-entry",
+        "platform": "casio_abl100",
+        "unique_id": "AA:BB:CC:DD:EE:FF_alarm_4",
+        "entity_id": "sensor.renamed_12",
+        "disabled_by": null
+      },
+      {
+        "config_entry_id": "selected-entry",
+        "platform": "casio_abl100",
+        "unique_id": "AA:BB:CC:DD:EE:FF_alarm_5",
+        "entity_id": "sensor.renamed_13",
+        "disabled_by": null
+      },
+      {
+        "config_entry_id": "selected-entry",
+        "platform": "casio_abl100",
+        "unique_id": "AA:BB:CC:DD:EE:FF_hourly_signal",
+        "entity_id": "binary_sensor.renamed_14",
+        "disabled_by": null
+      },
+      {
+        "config_entry_id": "selected-entry",
+        "platform": "casio_abl100",
+        "unique_id": "AA:BB:CC:DD:EE:FF_interactive_connected",
+        "entity_id": "binary_sensor.renamed_15",
+        "disabled_by": null
+      },
+      {
+        "config_entry_id": "selected-entry",
+        "platform": "casio_abl100",
+        "unique_id": "AA:BB:CC:DD:EE:FF_read_steps",
+        "entity_id": "button.renamed_16",
+        "disabled_by": null
+      },
+      {
+        "config_entry_id": "selected-entry",
+        "platform": "casio_abl100",
+        "unique_id": "AA:BB:CC:DD:EE:FF_read_alarms",
+        "entity_id": "button.renamed_17",
+        "disabled_by": null
+      },
+      {
+        "config_entry_id": "selected-entry",
+        "platform": "casio_abl100",
+        "unique_id": "AA:BB:CC:DD:EE:FF_read_time_zones",
+        "entity_id": "button.renamed_18",
+        "disabled_by": null
+      },
+      {
+        "config_entry_id": "selected-entry",
+        "platform": "casio_abl100",
+        "unique_id": "AA:BB:CC:DD:EE:FF_read_all",
+        "entity_id": "button.renamed_19",
+        "disabled_by": null
+      },
+      {
+        "config_entry_id": "selected-entry",
+        "platform": "casio_abl100",
+        "unique_id": "AA:BB:CC:DD:EE:FF_connect_interactive",
+        "entity_id": "button.renamed_20",
+        "disabled_by": null
+      },
+      {
+        "config_entry_id": "selected-entry",
+        "platform": "casio_abl100",
+        "unique_id": "AA:BB:CC:DD:EE:FF_read_interactive",
+        "entity_id": "button.renamed_21",
+        "disabled_by": null
+      },
+      {
+        "config_entry_id": "selected-entry",
+        "platform": "casio_abl100",
+        "unique_id": "AA:BB:CC:DD:EE:FF_close_interactive",
+        "entity_id": "button.renamed_22",
+        "disabled_by": null
+      },
+      {
+        "config_entry_id": "selected-entry",
+        "platform": "casio_abl100",
+        "unique_id": "AA:BB:CC:DD:EE:FF_apply_alarm_draft",
+        "entity_id": "button.renamed_23",
+        "disabled_by": null
+      },
+      {
+        "config_entry_id": "selected-entry",
+        "platform": "casio_abl100",
+        "unique_id": "AA:BB:CC:DD:EE:FF_discard_alarm_draft",
+        "entity_id": "button.renamed_24",
+        "disabled_by": null
+      },
+      {
+        "config_entry_id": "selected-entry",
+        "platform": "casio_abl100",
+        "unique_id": "AA:BB:CC:DD:EE:FF_alarm_1_time_draft",
+        "entity_id": "time.renamed_25",
+        "disabled_by": null
+      },
+      {
+        "config_entry_id": "selected-entry",
+        "platform": "casio_abl100",
+        "unique_id": "AA:BB:CC:DD:EE:FF_alarm_2_time_draft",
+        "entity_id": "time.renamed_26",
+        "disabled_by": null
+      },
+      {
+        "config_entry_id": "selected-entry",
+        "platform": "casio_abl100",
+        "unique_id": "AA:BB:CC:DD:EE:FF_alarm_3_time_draft",
+        "entity_id": "time.renamed_27",
+        "disabled_by": null
+      },
+      {
+        "config_entry_id": "selected-entry",
+        "platform": "casio_abl100",
+        "unique_id": "AA:BB:CC:DD:EE:FF_alarm_4_time_draft",
+        "entity_id": "time.renamed_28",
+        "disabled_by": null
+      },
+      {
+        "config_entry_id": "selected-entry",
+        "platform": "casio_abl100",
+        "unique_id": "AA:BB:CC:DD:EE:FF_alarm_5_time_draft",
+        "entity_id": "time.renamed_29",
+        "disabled_by": null
+      },
+      {
+        "config_entry_id": "selected-entry",
+        "platform": "casio_abl100",
+        "unique_id": "AA:BB:CC:DD:EE:FF_hourly_signal_draft",
+        "entity_id": "switch.renamed_30",
+        "disabled_by": null
+      },
+      {
+        "config_entry_id": "selected-entry",
+        "platform": "casio_abl100",
+        "unique_id": "AA:BB:CC:DD:EE:FF_alarm_1_enabled_draft",
+        "entity_id": "switch.renamed_31",
+        "disabled_by": null
+      },
+      {
+        "config_entry_id": "selected-entry",
+        "platform": "casio_abl100",
+        "unique_id": "AA:BB:CC:DD:EE:FF_alarm_2_enabled_draft",
+        "entity_id": "switch.renamed_32",
+        "disabled_by": null
+      },
+      {
+        "config_entry_id": "selected-entry",
+        "platform": "casio_abl100",
+        "unique_id": "AA:BB:CC:DD:EE:FF_alarm_3_enabled_draft",
+        "entity_id": "switch.renamed_33",
+        "disabled_by": null
+      },
+      {
+        "config_entry_id": "selected-entry",
+        "platform": "casio_abl100",
+        "unique_id": "AA:BB:CC:DD:EE:FF_alarm_4_enabled_draft",
+        "entity_id": "switch.renamed_34",
+        "disabled_by": null
+      },
+      {
+        "config_entry_id": "selected-entry",
+        "platform": "casio_abl100",
+        "unique_id": "AA:BB:CC:DD:EE:FF_alarm_5_enabled_draft",
+        "entity_id": "switch.renamed_35",
+        "disabled_by": null
+      },
+      {
+        "config_entry_id": "other-entry",
+        "platform": "casio_abl100",
+        "unique_id": "11:22:33:44:55:66_steps_today",
+        "entity_id": "sensor.foreign_0",
+        "disabled_by": null
+      },
+      {
+        "config_entry_id": "other-entry",
+        "platform": "casio_abl100",
+        "unique_id": "11:22:33:44:55:66_last_sync",
+        "entity_id": "sensor.foreign_1",
+        "disabled_by": null
+      },
+      {
+        "config_entry_id": "other-entry",
+        "platform": "casio_abl100",
+        "unique_id": "11:22:33:44:55:66_last_alarm_read",
+        "entity_id": "sensor.foreign_2",
+        "disabled_by": null
+      },
+      {
+        "config_entry_id": "other-entry",
+        "platform": "casio_abl100",
+        "unique_id": "11:22:33:44:55:66_home_standard_utc_offset",
+        "entity_id": "sensor.foreign_3",
+        "disabled_by": null
+      },
+      {
+        "config_entry_id": "other-entry",
+        "platform": "casio_abl100",
+        "unique_id": "11:22:33:44:55:66_secondary_standard_utc_offset",
+        "entity_id": "sensor.foreign_4",
+        "disabled_by": null
+      },
+      {
+        "config_entry_id": "other-entry",
+        "platform": "casio_abl100",
+        "unique_id": "11:22:33:44:55:66_last_time_zone_read",
+        "entity_id": "sensor.foreign_5",
+        "disabled_by": null
+      },
+      {
+        "config_entry_id": "other-entry",
+        "platform": "casio_abl100",
+        "unique_id": "11:22:33:44:55:66_time_format",
+        "entity_id": "sensor.foreign_6",
+        "disabled_by": null
+      },
+      {
+        "config_entry_id": "other-entry",
+        "platform": "casio_abl100",
+        "unique_id": "11:22:33:44:55:66_automatic_time_adjustment",
+        "entity_id": "sensor.foreign_7",
+        "disabled_by": null
+      },
+      {
+        "config_entry_id": "other-entry",
+        "platform": "casio_abl100",
+        "unique_id": "11:22:33:44:55:66_timer_encoded_duration",
+        "entity_id": "sensor.foreign_8",
+        "disabled_by": null
+      },
+      {
+        "config_entry_id": "other-entry",
+        "platform": "casio_abl100",
+        "unique_id": "11:22:33:44:55:66_alarm_1",
+        "entity_id": "sensor.foreign_9",
+        "disabled_by": null
+      },
+      {
+        "config_entry_id": "other-entry",
+        "platform": "casio_abl100",
+        "unique_id": "11:22:33:44:55:66_alarm_2",
+        "entity_id": "sensor.foreign_10",
+        "disabled_by": null
+      },
+      {
+        "config_entry_id": "other-entry",
+        "platform": "casio_abl100",
+        "unique_id": "11:22:33:44:55:66_alarm_3",
+        "entity_id": "sensor.foreign_11",
+        "disabled_by": null
+      },
+      {
+        "config_entry_id": "other-entry",
+        "platform": "casio_abl100",
+        "unique_id": "11:22:33:44:55:66_alarm_4",
+        "entity_id": "sensor.foreign_12",
+        "disabled_by": null
+      },
+      {
+        "config_entry_id": "other-entry",
+        "platform": "casio_abl100",
+        "unique_id": "11:22:33:44:55:66_alarm_5",
+        "entity_id": "sensor.foreign_13",
+        "disabled_by": null
+      },
+      {
+        "config_entry_id": "other-entry",
+        "platform": "casio_abl100",
+        "unique_id": "11:22:33:44:55:66_hourly_signal",
+        "entity_id": "binary_sensor.foreign_14",
+        "disabled_by": null
+      },
+      {
+        "config_entry_id": "other-entry",
+        "platform": "casio_abl100",
+        "unique_id": "11:22:33:44:55:66_interactive_connected",
+        "entity_id": "binary_sensor.foreign_15",
+        "disabled_by": null
+      },
+      {
+        "config_entry_id": "other-entry",
+        "platform": "casio_abl100",
+        "unique_id": "11:22:33:44:55:66_read_steps",
+        "entity_id": "button.foreign_16",
+        "disabled_by": null
+      },
+      {
+        "config_entry_id": "other-entry",
+        "platform": "casio_abl100",
+        "unique_id": "11:22:33:44:55:66_read_alarms",
+        "entity_id": "button.foreign_17",
+        "disabled_by": null
+      },
+      {
+        "config_entry_id": "other-entry",
+        "platform": "casio_abl100",
+        "unique_id": "11:22:33:44:55:66_read_time_zones",
+        "entity_id": "button.foreign_18",
+        "disabled_by": null
+      },
+      {
+        "config_entry_id": "other-entry",
+        "platform": "casio_abl100",
+        "unique_id": "11:22:33:44:55:66_read_all",
+        "entity_id": "button.foreign_19",
+        "disabled_by": null
+      },
+      {
+        "config_entry_id": "other-entry",
+        "platform": "casio_abl100",
+        "unique_id": "11:22:33:44:55:66_connect_interactive",
+        "entity_id": "button.foreign_20",
+        "disabled_by": null
+      },
+      {
+        "config_entry_id": "other-entry",
+        "platform": "casio_abl100",
+        "unique_id": "11:22:33:44:55:66_read_interactive",
+        "entity_id": "button.foreign_21",
+        "disabled_by": null
+      },
+      {
+        "config_entry_id": "other-entry",
+        "platform": "casio_abl100",
+        "unique_id": "11:22:33:44:55:66_close_interactive",
+        "entity_id": "button.foreign_22",
+        "disabled_by": null
+      },
+      {
+        "config_entry_id": "other-entry",
+        "platform": "casio_abl100",
+        "unique_id": "11:22:33:44:55:66_apply_alarm_draft",
+        "entity_id": "button.foreign_23",
+        "disabled_by": null
+      },
+      {
+        "config_entry_id": "other-entry",
+        "platform": "casio_abl100",
+        "unique_id": "11:22:33:44:55:66_discard_alarm_draft",
+        "entity_id": "button.foreign_24",
+        "disabled_by": null
+      },
+      {
+        "config_entry_id": "other-entry",
+        "platform": "casio_abl100",
+        "unique_id": "11:22:33:44:55:66_alarm_1_time_draft",
+        "entity_id": "time.foreign_25",
+        "disabled_by": null
+      },
+      {
+        "config_entry_id": "other-entry",
+        "platform": "casio_abl100",
+        "unique_id": "11:22:33:44:55:66_alarm_2_time_draft",
+        "entity_id": "time.foreign_26",
+        "disabled_by": null
+      },
+      {
+        "config_entry_id": "other-entry",
+        "platform": "casio_abl100",
+        "unique_id": "11:22:33:44:55:66_alarm_3_time_draft",
+        "entity_id": "time.foreign_27",
+        "disabled_by": null
+      },
+      {
+        "config_entry_id": "other-entry",
+        "platform": "casio_abl100",
+        "unique_id": "11:22:33:44:55:66_alarm_4_time_draft",
+        "entity_id": "time.foreign_28",
+        "disabled_by": null
+      },
+      {
+        "config_entry_id": "other-entry",
+        "platform": "casio_abl100",
+        "unique_id": "11:22:33:44:55:66_alarm_5_time_draft",
+        "entity_id": "time.foreign_29",
+        "disabled_by": null
+      },
+      {
+        "config_entry_id": "other-entry",
+        "platform": "casio_abl100",
+        "unique_id": "11:22:33:44:55:66_hourly_signal_draft",
+        "entity_id": "switch.foreign_30",
+        "disabled_by": null
+      },
+      {
+        "config_entry_id": "other-entry",
+        "platform": "casio_abl100",
+        "unique_id": "11:22:33:44:55:66_alarm_1_enabled_draft",
+        "entity_id": "switch.foreign_31",
+        "disabled_by": null
+      },
+      {
+        "config_entry_id": "other-entry",
+        "platform": "casio_abl100",
+        "unique_id": "11:22:33:44:55:66_alarm_2_enabled_draft",
+        "entity_id": "switch.foreign_32",
+        "disabled_by": null
+      },
+      {
+        "config_entry_id": "other-entry",
+        "platform": "casio_abl100",
+        "unique_id": "11:22:33:44:55:66_alarm_3_enabled_draft",
+        "entity_id": "switch.foreign_33",
+        "disabled_by": null
+      },
+      {
+        "config_entry_id": "other-entry",
+        "platform": "casio_abl100",
+        "unique_id": "11:22:33:44:55:66_alarm_4_enabled_draft",
+        "entity_id": "switch.foreign_34",
+        "disabled_by": null
+      },
+      {
+        "config_entry_id": "other-entry",
+        "platform": "casio_abl100",
+        "unique_id": "11:22:33:44:55:66_alarm_5_enabled_draft",
+        "entity_id": "switch.foreign_35",
+        "disabled_by": null
+      }
+    ]
+  }
+}
