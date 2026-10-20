@@ -648,10 +648,14 @@ def digest(data):
 
 
 def test_exact_component_inventory_and_unowned_bytes():
-    expected = set(IMMUTABLE) | set(INVERSE) | set(JSON_BASE) | {'native_interactive.py', 'observations.py'} | set(NEW_ALARM_MODULES) | set(R1_NEW)
+    baseline = set(IMMUTABLE) | set(INVERSE) | set(JSON_BASE) | {'native_interactive.py', 'observations.py'} | set(NEW_ALARM_MODULES) | set(R1_NEW)
+    assert len(baseline) == 34
+    additions = {'settings_write.py': 'e9190e52e220423165039a7f645e7c9bdd0020a8cec5b8709a5848b3fa992644'}
     actual = {str(p.relative_to(ROOT)) for p in ROOT.rglob('*')
               if p.is_file() and '__pycache__' not in p.parts}
-    assert actual == expected and len(actual) == 34
+    assert actual == baseline | set(additions) and len(actual) == 35
+    for name, expected_hash in additions.items():
+        assert digest((ROOT / name).read_bytes()) == expected_hash
     assert digest((ROOT / 'observations.py').read_bytes()) == OBSERVATIONS_SHA256
     installed_source('native_interactive.py')
     for name, expected_hash in IMMUTABLE.items():
