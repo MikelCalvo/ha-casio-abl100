@@ -317,7 +317,10 @@ class EntryObservations:
             setattr(session, destination, value)
             setattr(session, timestamp, stamp)
             setattr(session, freshness, False)
-        if restored:
+        if (type(payload) is dict and set(payload) == {'schema', 'binding', 'groups'}
+                and type(payload['schema']) is int and payload['schema'] == 1
+                and type(payload['binding']) is str and payload['binding'] == self._binding
+                and type(payload['groups']) is dict):
             raw_archive = payload['groups'].get('step_archive')
             try:
                 if raw_archive is not None:

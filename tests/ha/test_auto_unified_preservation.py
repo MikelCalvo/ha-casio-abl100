@@ -573,11 +573,11 @@ HISTORY_INVERSE = {'sensor.py': {'baseline_sha256': '526de558230d0f7ece094859476
                                 '0ebef2c6af644a42ce291cb70b2a2079d1884fdee54896018578797b14d3d355',
                                 ''],
                                [319,
-                                333,
-                                'abbef1629971771e28eb190f71162243f559f7da03f0f489ab4d63c4273e08f4',
+                                336,
+                                'e674ccfd9aa10b24b0eb390efbe7dd4d0b41d85811dad940f99bf6a19b373366',
                                 ''],
-                               [339,
-                                346,
+                               [342,
+                                349,
                                 '82b83afefc5a063d63b12cd18d279895733dd8f6f305bd7ab2541d494283c0c0',
                                 '            self._groups = {**self._groups, group: encoded}\n']]}}
 

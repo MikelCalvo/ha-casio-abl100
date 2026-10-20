@@ -77,6 +77,25 @@ async def test_legacy_bootstrap_and_corrupt_optional_archive_preserve_six_groups
     assert p.wire.calls == calls and p.session.fresh is False
 
 
+async def test_valid_archive_restores_independently_of_six_missing_groups(unified):
+    from copy import deepcopy
+    from custom_components.casio_abl100.observations import ObservationStore
+    p = unified
+    await read(p)
+    owner = p.session.observations
+    archived = deepcopy(owner._groups['step_archive'])
+    payload = {'schema': 1, 'binding': owner._binding,
+               'groups': {'step_archive': archived}}
+    calls = list(p.wire.calls)
+    with patch.object(ObservationStore, 'async_load', return_value=payload):
+        await reload(p)
+    state = p.hass.states.get(ENTITY).as_dict()
+    assert state['state'] == 'unavailable'
+    assert state['attributes']['archived_day_count'] == 8
+    assert state['attributes']['archive_restored'] is True
+    assert p.session.record is None and p.wire.calls == calls
+
+
 async def test_later_group_failure_keeps_accepted_archive_and_reload(unified):
     p = unified
     p.wire.frames[b'\x13'] = b'\x13'
