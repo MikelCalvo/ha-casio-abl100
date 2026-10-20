@@ -54,7 +54,7 @@ async def test_archive_accumulates_overlap_restores_and_is_visible_after_midnigh
     assert p.wire.calls == calls
 
 
-@pytest.mark.parametrize('stored_archive', ['legacy_absent', 'corrupt'])
+@pytest.mark.parametrize('stored_archive', ['legacy_absent', 'corrupt', 'present_null'])
 async def test_legacy_bootstrap_and_corrupt_optional_archive_preserve_six_groups(unified, stored_archive):
     from copy import deepcopy
     from custom_components.casio_abl100.observations import ObservationStore
@@ -65,6 +65,8 @@ async def test_legacy_bootstrap_and_corrupt_optional_archive_preserve_six_groups
     payload = {'schema': 1, 'binding': owner._binding, 'groups': deepcopy(owner._groups)}
     if stored_archive == 'legacy_absent':
         payload['groups'].pop('step_archive')
+    elif stored_archive == 'present_null':
+        payload['groups']['step_archive'] = None
     else:
         payload['groups']['step_archive'][0]['steps'] = True
     calls = list(p.wire.calls)

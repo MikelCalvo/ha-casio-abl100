@@ -574,7 +574,7 @@ HISTORY_INVERSE = {'sensor.py': {'baseline_sha256': '526de558230d0f7ece094859476
                                 ''],
                                [319,
                                 336,
-                                'e674ccfd9aa10b24b0eb390efbe7dd4d0b41d85811dad940f99bf6a19b373366',
+                                '161aa5e05a7b4a3c0da9d125775d30905a1fb539ac983f7be587f669c8e30d6b',
                                 ''],
                                [342,
                                 349,

@@ -323,7 +323,7 @@ class EntryObservations:
                 and type(payload['groups']) is dict):
             raw_archive = payload['groups'].get('step_archive')
             try:
-                if raw_archive is not None:
+                if 'step_archive' in payload['groups']:
                     self.step_archive = decode_step_history(raw_archive)
                 elif 'steps' in restored:
                     value, stamp = restored['steps']
