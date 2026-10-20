@@ -15,6 +15,7 @@ class AlarmTimeDraft(DraftEntity,TimeEntity):
 
     async def async_set_value(self,value):
         self.session.stage_alarm_time(self.slot,value)
+        await self.session.save_alarm_draft()
         self.async_write_ha_state()
 
 

@@ -226,24 +226,25 @@ async def async_setup_entry(hass, entry, async_add_entities):
 
         @property
         def available(self):
-            if not super().available:
-                return False
-            if self.action == 'discard':
-                return True
-            draft = self.session.alarm_draft
-            controller = self.session.interactive_session
-            return bool(draft.pending and not draft.needs_reconciliation and not draft.conflicted
-                        and controller is not None and controller.usable)
+            # Admission errors must reach real button.press, not HA's skipped
+            # unavailable-entity path (which can report HTTP 200).
+            return operable(self.session) if self.action == 'apply' else super().available
 
         async def async_press(self):
             _cancelled()
             if self.action == 'discard':
-                self.session.discard_alarm_draft()
+                await self.session.async_discard_alarm_draft()
                 return
             try:
                 await self.session.apply_alarm_draft()
             except asyncio.CancelledError:
                 _cancelled()
+                raise _error('alarm_apply_failed') from None
+            except HomeAssistantError as error:
+                if error.translation_domain == DOMAIN and error.translation_key in {
+                        'alarm_apply_disconnected', 'alarm_apply_busy', 'alarm_apply_empty',
+                        'alarm_apply_reconciliation', 'alarm_apply_conflict', 'alarm_draft_save_failed'}:
+                    raise
                 raise _error('alarm_apply_failed') from None
             except Exception:
                 raise _error('alarm_apply_failed') from None

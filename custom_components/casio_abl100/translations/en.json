@@ -31,7 +31,7 @@
   },
   "entity": {
     "time": {"alarm_1_time_draft": {"name": "Alarm 1 time draft"}, "alarm_2_time_draft": {"name": "Alarm 2 time draft"}, "alarm_3_time_draft": {"name": "Alarm 3 time draft"}, "alarm_4_time_draft": {"name": "Alarm 4 time draft"}, "alarm_5_time_draft": {"name": "Alarm 5 time draft"}},
-    "switch": {"alarm_1_enabled_draft": {"name": "Alarm 1 enabled draft"}, "alarm_2_enabled_draft": {"name": "Alarm 2 enabled draft"}, "alarm_3_enabled_draft": {"name": "Alarm 3 enabled draft"}, "alarm_4_enabled_draft": {"name": "Alarm 4 enabled draft"}, "alarm_5_enabled_draft": {"name": "Alarm 5 enabled draft"}, "hourly_signal_draft": {"name": "Hourly signal draft"}},
+    "switch": {"watch_connection": {"name": "Listen for watch"}, "alarm_1_enabled_draft": {"name": "Alarm 1 enabled draft"}, "alarm_2_enabled_draft": {"name": "Alarm 2 enabled draft"}, "alarm_3_enabled_draft": {"name": "Alarm 3 enabled draft"}, "alarm_4_enabled_draft": {"name": "Alarm 4 enabled draft"}, "alarm_5_enabled_draft": {"name": "Alarm 5 enabled draft"}, "hourly_signal_draft": {"name": "Hourly signal draft"}},
     "sensor": {
       "time_format": {
         "name": "Time format"
@@ -112,6 +112,12 @@
     }
   },
   "exceptions": {
+    "alarm_apply_disconnected": {"message": "Connect the watch before sending changes."},
+    "alarm_apply_busy": {"message": "The watch is busy; wait before sending."},
+    "alarm_apply_empty": {"message": "There are no pending changes to send."},
+    "alarm_apply_reconciliation": {"message": "Read the watch to reconcile the previous send."},
+    "alarm_apply_conflict": {"message": "The watch changed; discard the draft and edit again."},
+    "alarm_draft_save_failed": {"message": "Unable to save the local draft; no changes were sent."},
     "alarm_apply_failed": {"message": "Unable to verify alarm draft; inspect result and reconcile by reading if required"},
     "interactive_connect_failed": {"message": "Unable to connect the watch"},
     "interactive_read_failed": {"message": "Unable to refresh the connected watch; completed groups are retained"},

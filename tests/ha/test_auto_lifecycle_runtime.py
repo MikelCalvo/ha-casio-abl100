@@ -143,7 +143,7 @@ async def test_failed_setup_finalizes_session_and_partial_platform_resources(
         assert not entry.update_listeners
         from homeassistant.helpers import entity_registry as er
         registry = er.async_get(hass)
-        expected_count = 0 if failure == 'on_unload_early' else 11 + 4 + 4 + 4 + 13
+        expected_count = 0 if failure == 'on_unload_early' else 11 + 4 + 4 + 4 + 13 + 1
         assert len([entity for entity in registry.entities.values()
                     if entity.config_entry_id == entry.entry_id]) == expected_count
         states = [state for state in hass.states.async_all()

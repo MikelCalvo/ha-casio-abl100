@@ -1,4 +1,4 @@
-"""Nonpersistent sparse alarm draft, distinct from validated observations."""
+"""Sparse local alarm values, distinct from observations and execution authority."""
 from dataclasses import dataclass
 from datetime import time
 
@@ -29,6 +29,8 @@ class AlarmDraft:
         self.needs_reconciliation = False
         self.verified_at = None
         self.conflicted = False
+        self.saved_revision = None
+        self.restored = False
 
     @property
     def needs_reconciliation(self):
@@ -126,6 +128,8 @@ class AlarmDraft:
     def attributes(self,session):
         c = session.interactive_session
         return dict(draft_pending=self.pending,draft_revision=self.revision,
+                    draft_conflicted=self.conflicted, draft_saved=self.saved_revision == self.revision,
+                    draft_restored=self.restored,
                     apply_revision=self.apply_revision,apply_phase=self.phase,
                     apply_result=self.outcome.result if self.outcome else 'never',
                     write_submitted=self.write_submitted,

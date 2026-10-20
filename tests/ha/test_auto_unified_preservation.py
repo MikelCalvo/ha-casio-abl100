@@ -586,8 +586,30 @@ HISTORY_INVERSE = {'sensor.py': {'baseline_sha256': '526de558230d0f7ece094859476
                                 '            self._groups = {**self._groups, group: encoded}\n']]}}
 
 
-def history_source(name):
+def streamlined_source(name):
     source = (ROOT / name).read_text()
+    oracle = json.loads((Path(__file__).with_name('streamlined_inverse.json')).read_text()).get(name)
+    if oracle is not None:
+        lines = source.splitlines(keepends=True)
+        for start, end, expected_hash, original in reversed(oracle['hunks']):
+            assert digest(''.join(lines[start:end]).encode()) == expected_hash, (name, start)
+            lines[start:end] = original.splitlines(keepends=True)
+        source = ''.join(lines)
+        assert digest(source.encode()) == oracle['baseline_sha256'], name
+    return source
+
+
+def test_streamlined_exact_inverse_restores_2b665d1():
+    oracles = json.loads(Path(__file__).with_name('streamlined_inverse.json').read_text())
+    assert set(oracles) == {'__init__.py', 'button.py', 'native_interactive.py', 'time.py',
+                            'switch.py', 'alarm_editing.py', 'strings.json',
+                            'translations/en.json', 'translations/es.json'}
+    for name in oracles:
+        streamlined_source(name)
+
+
+def history_source(name):
+    source = streamlined_source(name)
     if name in HISTORY_INVERSE:
         oracle = HISTORY_INVERSE[name]
         lines = source.splitlines(keepends=True)
@@ -717,7 +739,7 @@ def test_exact_component_inventory_and_unowned_bytes():
     }
     actual = {str(p.relative_to(ROOT)) for p in ROOT.rglob('*')
               if p.is_file() and '__pycache__' not in p.parts}
-    assert actual == baseline | set(additions) and len(actual) == 36
+    assert actual == baseline | set(additions) | {'alarm_draft_storage.py'} and len(actual) == 37
     for name, expected_hash in additions.items():
         assert digest((ROOT / name).read_bytes()) == expected_hash
     assert digest(history_source('observations.py').encode()) == OBSERVATIONS_SHA256

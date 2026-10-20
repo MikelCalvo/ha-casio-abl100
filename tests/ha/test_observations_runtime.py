@@ -56,7 +56,7 @@ async def test_real_button_reload_restores_six_groups_stale_without_io(unified):
     reg = er.async_get(p.hass)
     reg.async_update_entity('sensor.casio_abl_100we_alarm_1', new_entity_id='sensor.my_alarm', name='My alarm')
     ids = registry(p)
-    assert len(ids) == 36
+    assert len(ids) == 37
     from tests.ha.test_zone_entities import OLD_KEYS, ZONE_KEYS
     assert {ADDRESS + '_' + k for k in OLD_KEYS | ZONE_KEYS} <= set(ids)
     stamps = [datetime(2026, 10, 18, 12, i, 1, 123456, timezone.utc) for i in range(6)]
@@ -97,7 +97,7 @@ async def test_real_button_reload_restores_six_groups_stale_without_io(unified):
         assert datetime.fromisoformat(p.hass.states.get('sensor.casio_abl_100we_' + entity).state) == stamp.replace(microsecond=0)
     for entity, stamp in zip(('time_format', 'automatic_time_adjustment', 'timer_encoded_duration'), stamps[3:], strict=True):
         assert p.hass.states.get('sensor.casio_abl_100we_' + entity).as_dict()['attributes']['last_read'] == stamp.isoformat()
-    assert len(p.session.listeners) == 36 and p.session.auto_reader is None
+    assert len(p.session.listeners) == 37 and p.session.auto_reader is None
     assert p.session.interactive_session is None and p.session.sync_result == 'never'
     assert p.session.sync_group_results == dict.fromkeys(GROUPS, 'not_attempted')
     assert p.session.sync_cleanup_result == 'not_attempted' and dict(p.watch.options) == {}
@@ -321,7 +321,7 @@ async def test_setup_load_failures_are_nonfatal_and_never_start_ble(unified, rea
     else:
         assert await p.hass.config_entries.async_setup(p.watch.entry_id)
     await p.hass.async_block_till_done(); p.session = p.watch.runtime_data
-    assert len(registry(p)) == 36 and p.session.auto_reader is None
+    assert len(registry(p)) == 37 and p.session.auto_reader is None
     assert p.wire.calls == calls
     if kind == 'group':
         assert p.session.auto_time_snapshot.enabled is None and p.session.timer_snapshot is None

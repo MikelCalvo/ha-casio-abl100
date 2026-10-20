@@ -346,8 +346,8 @@ async def test_real_ha_names_and_measured_ids(language, hass, enable_custom_inte
     }[language]
     from tests.ha.test_zone_entities import SYNC_KEYS, INTERACTIVE_KEYS
     from tests.ha.test_zone_entities import ALARM_EDIT_KEYS
-    assert {key: e.entity_id for key, e in entities.items() if key not in SYNC_KEYS | INTERACTIVE_KEYS | ALARM_EDIT_KEYS} == expected
-    assert entities.keys() == expected.keys() | SYNC_KEYS | INTERACTIVE_KEYS | ALARM_EDIT_KEYS
+    assert {key: e.entity_id for key, e in entities.items() if key not in SYNC_KEYS | INTERACTIVE_KEYS | ALARM_EDIT_KEYS | {'watch_connection'}} == expected
+    assert entities.keys() == expected.keys() | SYNC_KEYS | INTERACTIVE_KEYS | ALARM_EDIT_KEYS | {'watch_connection'}
     for key, name in names.items():
         assert hass.states.get(entities[key].entity_id).attributes['friendly_name'] == 'Casio ABL-100WE ' + name
         assert entities[key].disabled_by is None

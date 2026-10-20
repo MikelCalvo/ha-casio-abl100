@@ -1,0 +1,227 @@
+{
+  "__init__.py": {
+    "baseline_sha256": "ba6e4158b04dc59f9ab12e8605b13a2dc075337b90be8fab3c3fad9b79a0c4b9",
+    "hunks": [
+      [
+        95,
+        96,
+        "07f4023ee1c1bd12ee9c0e0c8858162ea8990e064c4a03793cca7db0704a9e1a",
+        ""
+      ],
+      [
+        476,
+        490,
+        "12be33d5ffda215da4869bac0652ead1d0301d8071c101ed97d89cd83144aa8d",
+        ""
+      ],
+      [
+        494,
+        509,
+        "0f32e4f922695d16d12a06661fbca820f4ebe04ab6baabf8c618d44f8fa9ce40",
+        "        if (not operable(self) or draft.applying or not draft.pending\n                or draft.needs_reconciliation or draft.conflicted\n                or controller is None or not controller.usable):\n            raise HomeAssistantError('Alarm apply unavailable')\n"
+      ],
+      [
+        519,
+        521,
+        "d21dd18b00fd3ae9b48cd8dda4e1f2b65a96cd3f09c33402b2cd84eca41356ef",
+        "                raise HomeAssistantError(translation_domain=DOMAIN, translation_key='alarm_apply_failed')\n"
+      ],
+      [
+        566,
+        572,
+        "0caffed1a361fde7bd654e2e4ccb185003a2165b61e7516fed4f9150b0d26d40",
+        "                if self.observations is not None:\n                    await self.observations.async_close()\n"
+      ],
+      [
+        588,
+        591,
+        "cdbba2cdc2ef4efb93fe8655dda38f2aad308dd0da9f69795cf2c32ea608fc07",
+        ""
+      ],
+      [
+        629,
+        631,
+        "6145db83ed899a645934d471452964dec8edfbc6844964bd605a229d4653a196",
+        ""
+      ]
+    ]
+  },
+  "button.py": {
+    "baseline_sha256": "492e9e14c2db2e959c8c6252777ab787158ab29385eee3be1b407838e6f8ac47",
+    "hunks": [
+      [
+        228,
+        231,
+        "f275da78204140c4ca77d86f31100d6950fb663d2b7613287b8af2e050ccd61c",
+        "            if not super().available:\n                return False\n            if self.action == 'discard':\n                return True\n            draft = self.session.alarm_draft\n            controller = self.session.interactive_session\n            return bool(draft.pending and not draft.needs_reconciliation and not draft.conflicted\n                        and controller is not None and controller.usable)\n"
+      ],
+      [
+        235,
+        236,
+        "0c310b49a3eae4fd001530f02771ce3923566825e3c0d4c6625c3f7323776237",
+        "                self.session.discard_alarm_draft()\n"
+      ],
+      [
+        241,
+        247,
+        "e948ed5134ba04277d4d296cbb377d3b419082bb9869a128c92a4bdd94a97cae",
+        ""
+      ]
+    ]
+  },
+  "native_interactive.py": {
+    "baseline_sha256": "9660dbc9a44235a98e75cadf63c343c198220e790f7db60bcac1458eaeb18f59",
+    "hunks": [
+      [
+        24,
+        25,
+        "b778fb67a9201b5019dee6077f242639011025a3fb8d33987804e05946a8988a",
+        ""
+      ],
+      [
+        100,
+        101,
+        "47a6f7e16a1b240ace860c76611d184512d03229abb08992eef4a92dfb8eddfb",
+        ""
+      ],
+      [
+        187,
+        189,
+        "970c86ed27e3c0372ba24e03649eb41577d62edd8afe8d5571b2b97c3fc82346",
+        ""
+      ],
+      [
+        318,
+        325,
+        "fe50a66babe9056a4a7b88ab6f625de1d011e235fbd98bb8bd0695bd6f23724a",
+        ""
+      ],
+      [
+        341,
+        342,
+        "20cf51dd9384c4b5bbf4eb5937bc1857aabcf949ed27207691be81408a649510",
+        "        outcome = await self._wait_caller(complete)\n        if outcome.result != 'success':\n            raise _failed() from None\n"
+      ],
+      [
+        542,
+        553,
+        "1f4abd8ffd8999b6cd1b8cf03fbf4103edd674f49fa81135861b730b203d68fd",
+        "            await c.wake.wait()\n"
+      ],
+      [
+        570,
+        574,
+        "5cfac8d8c53a0cfd9ee6716629887bc72dc7bdefc31d50a3e8d63df0819251dc",
+        ""
+      ]
+    ]
+  },
+  "time.py": {
+    "baseline_sha256": "a14b92c7c86c38bd8a2875bec781a4fb759de2b3885d5054a5c0ead288868fe4",
+    "hunks": [
+      [
+        17,
+        18,
+        "2bac9f587d317c8ccba5d00ca8464a6f05407a560992e58f1e57ec9d37211a59",
+        ""
+      ]
+    ]
+  },
+  "switch.py": {
+    "baseline_sha256": "6133f26f512e7ec9c08515c95efd9821a130c37a0aeb85bcfe10404d4b36e292",
+    "hunks": [
+      [
+        20,
+        21,
+        "2bac9f587d317c8ccba5d00ca8464a6f05407a560992e58f1e57ec9d37211a59",
+        ""
+      ],
+      [
+        30,
+        64,
+        "6e46c922c963e2fddb5fffe65a3684ee5a5aacf92fd8ae0d316604c1af379371",
+        ""
+      ],
+      [
+        66,
+        67,
+        "55395fd2b7a99f13a2166fe42c689535cc88ae827a2e51b8128ebbc17a2238a0",
+        "                        AlarmEnabledDraft(entry.runtime_data)])\n"
+      ]
+    ]
+  },
+  "alarm_editing.py": {
+    "baseline_sha256": "0f6af52fe44d5956eaec98dc9b7671749d20b8f31934a1412d32d5f406d8d905",
+    "hunks": [
+      [
+        0,
+        1,
+        "bcf2e575ce3aa746fa87051a741b30c4bff27bd8a7707733f4fa47a798f9ddb2",
+        "\"\"\"Nonpersistent sparse alarm draft, distinct from validated observations.\"\"\"\n"
+      ],
+      [
+        31,
+        33,
+        "60a22cfcfea8a321e018dcdcd503cd5cd712a82f0d11108001aee6ff498ee577",
+        ""
+      ],
+      [
+        130,
+        132,
+        "ba2479d473406b21821168dac1cbb6704870b4edc150d83e4d29b9c554c3c62b",
+        ""
+      ]
+    ]
+  },
+  "strings.json": {
+    "baseline_sha256": "a93f9d96728d7e490cfe0a5847976fd1eaed4da13f2e90022cb0f31e7809b7eb",
+    "hunks": [
+      [
+        33,
+        34,
+        "cd3e72a58b5b1463383ec92d4a4e7e2ffd521d046dbf4550dd392f2d360d65e9",
+        "    \"switch\": {\"alarm_1_enabled_draft\": {\"name\": \"Alarm 1 enabled draft\"}, \"alarm_2_enabled_draft\": {\"name\": \"Alarm 2 enabled draft\"}, \"alarm_3_enabled_draft\": {\"name\": \"Alarm 3 enabled draft\"}, \"alarm_4_enabled_draft\": {\"name\": \"Alarm 4 enabled draft\"}, \"alarm_5_enabled_draft\": {\"name\": \"Alarm 5 enabled draft\"}, \"hourly_signal_draft\": {\"name\": \"Hourly signal draft\"}},\n"
+      ],
+      [
+        114,
+        120,
+        "37954c49ebdea3b6fa2821cec94b7a9e9c49fb85740150fbf9ea52e77a7670c2",
+        ""
+      ]
+    ]
+  },
+  "translations/en.json": {
+    "baseline_sha256": "a93f9d96728d7e490cfe0a5847976fd1eaed4da13f2e90022cb0f31e7809b7eb",
+    "hunks": [
+      [
+        33,
+        34,
+        "cd3e72a58b5b1463383ec92d4a4e7e2ffd521d046dbf4550dd392f2d360d65e9",
+        "    \"switch\": {\"alarm_1_enabled_draft\": {\"name\": \"Alarm 1 enabled draft\"}, \"alarm_2_enabled_draft\": {\"name\": \"Alarm 2 enabled draft\"}, \"alarm_3_enabled_draft\": {\"name\": \"Alarm 3 enabled draft\"}, \"alarm_4_enabled_draft\": {\"name\": \"Alarm 4 enabled draft\"}, \"alarm_5_enabled_draft\": {\"name\": \"Alarm 5 enabled draft\"}, \"hourly_signal_draft\": {\"name\": \"Hourly signal draft\"}},\n"
+      ],
+      [
+        114,
+        120,
+        "37954c49ebdea3b6fa2821cec94b7a9e9c49fb85740150fbf9ea52e77a7670c2",
+        ""
+      ]
+    ]
+  },
+  "translations/es.json": {
+    "baseline_sha256": "2963f26ec2de50ce89b81933a50c02a67436a9a9e5cc44b4d3d0abcf043a1bb0",
+    "hunks": [
+      [
+        33,
+        34,
+        "0e794dab46bd03377c60ad4d91737207beaf19fbc81db531ea2040ee61695fc1",
+        "    \"switch\": {\"alarm_1_enabled_draft\": {\"name\": \"Borrador de activaci\u00f3n de alarma 1\"}, \"alarm_2_enabled_draft\": {\"name\": \"Borrador de activaci\u00f3n de alarma 2\"}, \"alarm_3_enabled_draft\": {\"name\": \"Borrador de activaci\u00f3n de alarma 3\"}, \"alarm_4_enabled_draft\": {\"name\": \"Borrador de activaci\u00f3n de alarma 4\"}, \"alarm_5_enabled_draft\": {\"name\": \"Borrador de activaci\u00f3n de alarma 5\"}, \"hourly_signal_draft\": {\"name\": \"Borrador de se\u00f1al horaria\"}},\n"
+      ],
+      [
+        114,
+        120,
+        "98f5bdb25863b3502be4ebbe9ec8093ef57164c3e3ca6754950f2349ae0a011e",
+        ""
+      ]
+    ]
+  }
+}

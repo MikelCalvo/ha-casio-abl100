@@ -93,6 +93,7 @@ class WatchSession:
         self.timer_fresh = False
         self.observations = None
         self.alarm_safety = None
+        self.draft_storage = None
 
     def _queue_observation_save(self, group):
         """Observation failures cannot revoke a validated synchronous commit."""
@@ -473,14 +474,39 @@ class WatchSession:
         self.alarm_draft.clear()
         self._schedule_alarm_delivery()
 
+    async def save_alarm_draft(self):
+        if self.draft_storage is None:
+            return
+        try:
+            await self.draft_storage.async_save(self.alarm_draft)
+            self._schedule_alarm_delivery()
+        except Exception:
+            raise HomeAssistantError(translation_domain=DOMAIN,
+                                     translation_key='alarm_draft_save_failed') from None
+
+    async def async_discard_alarm_draft(self):
+        self.discard_alarm_draft()
+        await self.save_alarm_draft()
+
     async def apply_alarm_draft(self):
         from .alarm_editing import operable
         draft = self.alarm_draft
         controller = self.interactive_session
-        if (not operable(self) or draft.applying or not draft.pending
-                or draft.needs_reconciliation or draft.conflicted
-                or controller is None or not controller.usable):
-            raise HomeAssistantError('Alarm apply unavailable')
+        key = None
+        if not operable(self) or controller is None or not controller.active or controller.close_reason is not None:
+            key = 'disconnected'
+        elif draft.applying or controller.phase in ('reading', 'applying') or controller.operation_caller is not None:
+            key = 'busy'
+        elif not controller.usable:
+            key = 'disconnected'
+        elif draft.needs_reconciliation:
+            key = 'reconciliation'
+        elif draft.conflicted:
+            key = 'conflict'
+        elif not draft.pending:
+            key = 'empty'
+        if key is not None:
+            raise HomeAssistantError(translation_domain=DOMAIN, translation_key='alarm_apply_' + key)
         revision, intent, anchor = draft.freeze()
         # Reservation and immutable revision precede the first await.
         draft.applying = True
@@ -491,7 +517,8 @@ class WatchSession:
         try:
             outcome = await controller.apply_alarms(intent, revision, anchor)
             if outcome.result not in ('verified', 'unchanged'):
-                raise HomeAssistantError(translation_domain=DOMAIN, translation_key='alarm_apply_failed')
+                raise HomeAssistantError(translation_domain=DOMAIN, translation_key=(
+                    'alarm_apply_conflict' if outcome.result == 'conflict' else 'alarm_apply_failed'))
         finally:
             draft.applying = False
             self._schedule_alarm_delivery()
@@ -537,8 +564,12 @@ class WatchSession:
                 if self.alarm_safety is not None:
                     await self.alarm_safety.async_close()
             finally:
-                if self.observations is not None:
-                    await self.observations.async_close()
+                try:
+                    if self.draft_storage is not None:
+                        await self.draft_storage.async_close()
+                finally:
+                    if self.observations is not None:
+                        await self.observations.async_close()
 
 
 async def async_setup_entry(hass, entry):
@@ -555,6 +586,9 @@ async def async_setup_entry(hass, entry):
         from .alarm_write_safety import AlarmWriteSafety
         manager.alarm_safety = AlarmWriteSafety(hass, entry)
         await manager.alarm_safety.async_load()
+        from .alarm_draft_storage import AlarmDraftStorage
+        manager.draft_storage = AlarmDraftStorage(hass, entry)
+        await manager.draft_storage.async_load_into(manager.alarm_draft)
         manager.observations = EntryObservations(hass, entry.entry_id, manager.address, entry)
         await manager.observations.async_load_into(manager)
 
@@ -593,6 +627,8 @@ async def async_setup_entry(hass, entry):
 async def async_remove_entry(hass, entry):
     """Invalidate the original Store even after successful native unload."""
     await async_remove_entry_observations(hass, entry)
+    from .alarm_draft_storage import AlarmDraftStorage
+    await AlarmDraftStorage(hass, entry).async_remove()
     from .alarm_write_safety import AlarmWriteSafety
     manager = getattr(entry, 'runtime_data', None)
     if isinstance(manager, WatchSession) and manager.alarm_safety is not None:

@@ -92,9 +92,9 @@ async def test_exact_identity_translated_names_ids_and_initial_formatter(hass, e
         assert await hass.config_entries.async_setup(watch.entry_id)
         await hass.async_block_till_done()
         mapping = entities(p)
-        assert mapping.keys() == OLD_KEYS | ZONE_KEYS | SYNC_KEYS | INTERACTIVE_KEYS | ALARM_EDIT_KEYS, 'Exact old 23 plus 13 drafts'
-        assert len(mapping) == 36 and len({e.device_id for e in mapping.values()}) == 1
-        assert len({e.unique_id for e in mapping.values()}) == 36
+        assert mapping.keys() == OLD_KEYS | ZONE_KEYS | SYNC_KEYS | INTERACTIVE_KEYS | ALARM_EDIT_KEYS | {'watch_connection'}, 'Exact old 36 plus listening switch'
+        assert len(mapping) == 37 and len({e.device_id for e in mapping.values()}) == 1
+        assert len({e.unique_id for e in mapping.values()}) == 37
         for key, (suffix, name) in NAMES[language].items():
             domain = 'binary_sensor' if key == 'interactive_connected' else 'button'
             assert mapping[key].entity_id == f'{domain}.casio_abl_100we_{suffix}'

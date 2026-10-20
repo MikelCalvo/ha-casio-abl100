@@ -95,7 +95,7 @@ async def test_unknown_cold_setup_and_explicit_getonly_preserves_history(editing
     p.session = None
     assert await p.hass.config_entries.async_setup(p.watch.entry_id)
     p.session = p.watch.runtime_data
-    assert not p.session.alarm_draft.pending
+    assert p.session.alarm_draft.pending  # Unknown Apply retains local values, never execution authority.
     assert p.session.alarm_draft.outcome.result == 'unknown'
     assert p.session.alarm_safety.path.read_bytes() == saved
     assert p.session.alarm_draft.needs_reconciliation

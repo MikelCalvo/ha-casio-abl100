@@ -133,8 +133,8 @@ async def service(p, key, service, value=None, entry=None):
 
 async def test_native_services_stage_connect_apply_readback_and_discard(editing):
     p = editing
-    assert entities(p).keys() == BASE23 | ALARM_EDIT_KEYS
-    assert len(BASE23) == 23 and len(entities(p)) == 36
+    assert entities(p).keys() == BASE23 | ALARM_EDIT_KEYS | {'watch_connection'}
+    assert len(BASE23) == 23 and len(entities(p)) == 37
     assert state(p,'alarm_2_time_draft')['state'] == 'unknown'
     assert state(p,'alarm_4_enabled_draft')['state'] == 'unknown'
     await service(p,'alarm_2_time_draft','set_value','09:27')
@@ -324,7 +324,7 @@ async def test_translated_additions_minute_rejection_and_reload(editing,language
     p.session = p.watch.runtime_data
     await p.hass.async_block_till_done()
     mapping = entities(p)
-    assert mapping.keys() == BASE23 | ALARM_EDIT_KEYS
+    assert mapping.keys() == BASE23 | ALARM_EDIT_KEYS | {'watch_connection'}
     for n in range(1,6):
         key = f'alarm_{n}_time_draft'
         name = f'Borrador de hora de alarma {n}' if language == 'es' else f'Alarm {n} time draft'
@@ -346,8 +346,8 @@ async def test_translated_additions_minute_rejection_and_reload(editing,language
     assert state(p,'alarm_1_time_draft')['state'] == '03:04:00'
     assert await p.hass.config_entries.async_reload(p.watch.entry_id)
     p.session = p.watch.runtime_data
-    assert not p.session.alarm_draft.pending and not p.wire.calls
-    assert state(p,'alarm_1_time_draft')['state'] == 'unknown'
+    assert p.session.alarm_draft.pending and not p.wire.calls
+    assert state(p,'alarm_1_time_draft')['state'] == '03:04:00'
 
 
 async def test_restored_dto_requires_raw_baseline_and_preserves_other_groups(editing):

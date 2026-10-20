@@ -114,7 +114,7 @@ async def test_option_enabled_entry_owns_reader_and_unload_removes_observation(
         assert connect.call_count == 1 and entry.runtime_data.record.steps == 1485
         ids = [state.entity_id for state in hass.states.async_all()
                if 'casio_abl_100we' in state.entity_id]
-        assert len(ids) == 11 + 4 + 4 + 4 + 13
+        assert len(ids) == 11 + 4 + 4 + 4 + 13 + 1
         from tests.ha.test_zone_entities import assert_zone_addition
         assert_zone_addition(hass, entry)
         assert await hass.config_entries.async_unload(entry.entry_id)
@@ -204,7 +204,7 @@ async def test_options_update_reloads_selected_entry_and_preserves_ids(
             return {entity.unique_id: entity.entity_id for entity in registry.entities.values()
                     if entity.config_entry_id == owner.entry_id}
         ids, other_ids = entity_ids(entry), entity_ids(other)
-        assert len(ids) == len(other_ids) == 11 + 4 + 4 + 4 + 13
+        assert len(ids) == len(other_ids) == 11 + 4 + 4 + 4 + 13 + 1
         from tests.ha.test_zone_entities import assert_zone_addition
         assert_zone_addition(hass, entry)
         assert_zone_addition(hass, other)
@@ -231,7 +231,7 @@ async def test_options_update_reloads_selected_entry_and_preserves_ids(
             assert active_session.closed and entry.runtime_data is not active_session
             assert active._stopped and entry.runtime_data.auto_reader is None
             assert entity_ids(entry) == ids and entity_ids(other) == other_ids
-            assert len(entity_ids(entry)) == len(entity_ids(other)) == 11 + 4 + 4 + 4 + 13
+            assert len(entity_ids(entry)) == len(entity_ids(other)) == 11 + 4 + 4 + 4 + 13 + 1
             assert other.runtime_data is other_session and other_session.auto_reader is other_reader
             assert not other_session.closed and not other_reader._stopped
         connect.assert_not_called()

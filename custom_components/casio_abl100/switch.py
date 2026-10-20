@@ -18,6 +18,7 @@ class AlarmEnabledDraft(DraftEntity,SwitchEntity):
             self.session.stage_alarm_enabled(self.slot,value)
         else:
             self.session.stage_hourly_signal(value)
+        await self.session.save_alarm_draft()
         self.async_write_ha_state()
 
     async def async_turn_on(self,**kwargs):
@@ -27,6 +28,40 @@ class AlarmEnabledDraft(DraftEntity,SwitchEntity):
         await self._stage(False)
 
 
+class WatchConnectionSwitch(DraftEntity, SwitchEntity):
+    """Saved observer preference; the existing entry listener owns reload."""
+    def __init__(self, session):
+        super().__init__(session, 'watch_connection')
+        self.entity_description = SwitchEntityDescription(
+            key='watch_connection', translation_key='watch_connection', icon='mdi:bluetooth')
+
+    @property
+    def available(self):
+        from .alarm_editing import operable
+        return operable(self.session)
+
+    @property
+    def is_on(self):
+        return self.session.entry.options.get('auto_connect_retained') is True
+
+    @property
+    def extra_state_attributes(self):
+        return None
+
+    async def _set(self, enabled):
+        entry = self.session.entry
+        options = {**entry.options, 'auto_connect_retained': enabled}
+        if enabled:
+            options.update(auto_read_steps=False, auto_read_all=False)
+        self.hass.config_entries.async_update_entry(entry, options=options)
+
+    async def async_turn_on(self, **kwargs):
+        await self._set(True)
+
+    async def async_turn_off(self, **kwargs):
+        await self._set(False)
+
+
 async def async_setup_entry(hass,entry,async_add_entities):
     async_add_entities([*(AlarmEnabledDraft(entry.runtime_data,slot) for slot in range(1,6)),
-                        AlarmEnabledDraft(entry.runtime_data)])
+                        AlarmEnabledDraft(entry.runtime_data), WatchConnectionSwitch(entry.runtime_data)])

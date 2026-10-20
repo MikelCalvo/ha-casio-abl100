@@ -22,6 +22,7 @@ IDLE_SECONDS = 120
 SESSION_SECONDS = 300
 REFRESH_SECONDS = 60
 CHECK_SECONDS = 1
+PERIODIC_SECONDS = 30
 READERS = (read_alarm_group, read_step_group, read_zone_group,
            read_basic_group, read_auto_time_group, read_timer_group)
 
@@ -97,6 +98,7 @@ class NativeInteractiveSession:
         self._session_deadline = None
         self._refresh_deadline = None
         self._cycles = 0
+        self._periodic_deadline = None
 
     @property
     def active(self):
@@ -183,6 +185,8 @@ class NativeInteractiveSession:
         self._native_stage = 'unknown'
         self.phase = 'connected'
         self._refresh_deadline = None
+        if self.retain_until_disconnect and self._cycles:
+            self._periodic_deadline = asyncio.get_running_loop().time() + PERIODIC_SECONDS
         if not self.retain_until_disconnect:
             self._idle_deadline = asyncio.get_running_loop().time() + IDLE_SECONDS
             self.idle_expires_at = dt_util.utcnow() + timedelta(seconds=IDLE_SECONDS)
@@ -312,6 +316,13 @@ class NativeInteractiveSession:
         caller = asyncio.current_task()
         if caller.cancelling():
             raise asyncio.CancelledError
+        complete = self._admit_refresh(caller)
+        outcome = await self._wait_caller(complete)
+        if outcome.result != 'success':
+            raise _failed() from None
+
+    def _admit_refresh(self, caller):
+        """Single synchronous admission shared by manual and periodic reads."""
         if not self.usable or self.operation_caller is not None:
             raise _failed()
         complete = asyncio.get_running_loop().create_future()
@@ -328,9 +339,7 @@ class NativeInteractiveSession:
             setattr(self.session, freshness, False)
         self.publish()
         self.wake.set()
-        outcome = await self._wait_caller(complete)
-        if outcome.result != 'success':
-            raise _failed() from None
+        return complete
 
     async def apply_alarms(self, intent, revision, anchor):
         from .alarm_editing import operable
@@ -531,7 +540,17 @@ class _InteractiveRead(NativeSyncRead):
         c._idle()
         _resolve(c.ready, _Outcome('success'))
         while True:
-            await c.wake.wait()
+            if c.retain_until_disconnect and c._periodic_deadline is not None and c.operation_caller is None:
+                delay = max(0, c._periodic_deadline - asyncio.get_running_loop().time())
+                try:
+                    async with asyncio.timeout(delay):
+                        await c.wake.wait()
+                except TimeoutError:
+                    self.guard()
+                    if c.usable and c.operation_caller is None:
+                        c._admit_refresh(asyncio.current_task())
+            else:
+                await c.wake.wait()
             c.wake.clear()
             self.guard()
             if c.operation_caller is None:
@@ -549,6 +568,10 @@ class _InteractiveRead(NativeSyncRead):
                     self.guard()
                     adapter.guard()
                 finish_apply(self.session, request, outcome)
+                if outcome.result in ('verified', 'unchanged'):
+                    await self.session.save_alarm_draft()
+                    self.guard()
+                    adapter.guard()
                 c.operation_result = outcome.result
                 c.apply_request = None
                 c.operation_caller = None

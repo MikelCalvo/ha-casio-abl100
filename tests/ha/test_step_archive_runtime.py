@@ -40,7 +40,7 @@ async def test_archive_accumulates_overlap_restores_and_is_visible_after_midnigh
     assert state['attributes']['archived_day_count'] == 11
     assert p.wire.calls == calls
     assert {e.unique_id: e.entity_id for e in er.async_get(p.hass).entities.values()
-            if e.config_entry_id == p.watch.entry_id} == ids and len(ids) == 36
+            if e.config_entry_id == p.watch.entry_id} == ids and len(ids) == 37
     # Real formatter hides extra attributes on unavailable sensors. Capability
     # attributes must keep history visible without pretending today's count exists.
     with patch('custom_components.casio_abl100.sensor.dt_util.now',

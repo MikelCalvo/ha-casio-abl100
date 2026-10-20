@@ -16,6 +16,7 @@ INTERACTIVE_KEYS = {'connect_interactive', 'read_interactive', 'close_interactiv
 ALARM_EDIT_KEYS = {*(f'alarm_{n}_time_draft' for n in range(1, 6)),
                    *(f'alarm_{n}_enabled_draft' for n in range(1, 6)),
                    'hourly_signal_draft', 'apply_alarm_draft', 'discard_alarm_draft'}
+LISTEN_KEYS = {'watch_connection'}
 OLD_KEYS = {'steps_today', 'last_sync', 'read_steps', 'last_alarm_read', 'read_alarms', 'hourly_signal', *(f'alarm_{n}' for n in range(1, 6))}
 
 
@@ -23,17 +24,17 @@ def assert_zone_addition(hass, entry):
     from homeassistant.helpers import entity_registry as er
     entities = [e for e in er.async_get(hass).entities.values() if e.config_entry_id == entry.entry_id]
     keys = {e.unique_id.removeprefix((entry.unique_id or entry.data['address']) + '_') for e in entities}
-    assert keys - ZONE_KEYS - SYNC_KEYS - INTERACTIVE_KEYS - ALARM_EDIT_KEYS == OLD_KEYS
+    assert keys - ZONE_KEYS - SYNC_KEYS - INTERACTIVE_KEYS - ALARM_EDIT_KEYS - LISTEN_KEYS == OLD_KEYS
     assert keys & INTERACTIVE_KEYS == INTERACTIVE_KEYS
     assert keys & SYNC_KEYS == SYNC_KEYS
     assert keys & ZONE_KEYS == ZONE_KEYS
-    assert len(entities) == len(OLD_KEYS) + len(ZONE_KEYS) + len(SYNC_KEYS) + len(INTERACTIVE_KEYS) + len(ALARM_EDIT_KEYS)
+    assert len(entities) == len(OLD_KEYS) + len(ZONE_KEYS) + len(SYNC_KEYS) + len(INTERACTIVE_KEYS) + len(ALARM_EDIT_KEYS) + len(LISTEN_KEYS)
 
 
 def old_listeners(session, exclude_steps=False):
     return {listener for listener in session.listeners
             if getattr(getattr(listener, '__self__', None), 'entity_description', SimpleNamespace(key=None)).key
-            not in (ZONE_KEYS | SYNC_KEYS | INTERACTIVE_KEYS | ALARM_EDIT_KEYS | ({'read_steps'} if exclude_steps else set()))}
+            not in (ZONE_KEYS | SYNC_KEYS | INTERACTIVE_KEYS | ALARM_EDIT_KEYS | LISTEN_KEYS | ({'read_steps'} if exclude_steps else set()))}
 
 
 @pytest.mark.asyncio
