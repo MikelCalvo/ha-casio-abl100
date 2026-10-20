@@ -28,7 +28,10 @@ Existing destinations, including the input, are refused. `--force` explicitly
 permits replacement, **even of the input file**; do not use it on your only copy.
 Without force, creation is exclusive and also refuses aliases/symlinks. Exit 0
 means success; exit 2 is a fixed-message refusal that does not echo private IDs,
-paths or registry contents.
+paths or registry contents. Input and file output must be ordinary regular files:
+FIFOs, directories and symbolic links (including dangling links) are refused,
+also with `--force`. The opened descriptor is checked before reading or truncating;
+force does not authorize following a symlink. This file-path policy targets Linux.
 
 Runnable example with **two fictional watches and customized entity IDs**:
 
@@ -136,7 +139,7 @@ Keep stub-based and real HA suites in separate processes:
 
 ```sh
 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -B -m pytest -p no:cacheprovider -q \
-  tests/dashboard/test_generator.py
+  tests/dashboard/test_generator.py tests/dashboard/test_generator_safety.py
 # Development interpreter with HA 2026.9.4 and its pytest plugin:
 env -u PYTHONOPTIMIZE -u PYTEST_DISABLE_PLUGIN_AUTOLOAD \
   PYTHONDONTWRITEBYTECODE=1 PYTHONPATH='' python -B -m pytest \

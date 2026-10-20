@@ -8,8 +8,10 @@ Invalid input raises ValueError with a fixed, private-safe message.
 
 import argparse
 import json
+import os
 from pathlib import Path
 import re
+import stat
 import sys
 
 
@@ -50,7 +52,7 @@ _REQUIRED = {
         "switch",
     ),
 }
-_ENTITY_ID = re.compile(r"[a-z0-9_]+\.[a-z0-9_]+", re.ASCII)
+_ENTITY_ID = re.compile(r"[a-z0-9_]+\.[a-z0-9](?:[a-z0-9_]*[a-z0-9])?", re.ASCII)
 ERROR_MESSAGES = (
     "Invalid registry export; use a row list, data.entities storage export or successful WebSocket result.",
     "Select a nonempty config entry ID explicitly.",
@@ -469,6 +471,28 @@ def _json_object(pairs):
     return result
 
 
+def _open_regular_file(path, *, writing=False, force=False):
+    """Admit the opened descriptor before reading or truncating it.
+
+    Nonblocking open avoids waiting for a FIFO partner. Symlinks are refused,
+    including with force; force permits only an ordinary file destination.
+    """
+    flags = os.O_NONBLOCK | os.O_NOFOLLOW
+    flags |= os.O_WRONLY | os.O_CREAT if writing else os.O_RDONLY
+    if writing and not force:
+        flags |= os.O_EXCL
+    descriptor = os.open(path, flags, 0o666)
+    try:
+        if not stat.S_ISREG(os.fstat(descriptor).st_mode):
+            raise ValueError("Not a regular file.")
+        if writing:
+            os.ftruncate(descriptor, 0)
+        return os.fdopen(descriptor, "w" if writing else "r", encoding="utf-8")
+    except BaseException:
+        os.close(descriptor)
+        raise
+
+
 def main(argv=None):
     """CLI exit: 0 success, 2 safe refusal; output is JSON and valid YAML 1.2."""
     parser = _Parser(description=__doc__)
@@ -487,7 +511,8 @@ def main(argv=None):
     )
     args = parser.parse_args(argv)
     try:
-        source = args.input.read_text(encoding="utf-8")
+        with _open_regular_file(args.input) as input_file:
+            source = input_file.read()
         registry = json.loads(source, object_pairs_hook=_json_object)
     except (OSError, UnicodeError, ValueError, RecursionError):
         print("Cannot read a valid registry JSON export.", file=sys.stderr)
@@ -502,10 +527,10 @@ def main(argv=None):
         if args.output is None:
             sys.stdout.write(result)
         else:
-            # Exclusive create refuses aliases/symlinks/existing input too. Input
-            # was fully read and validated before an explicit --force overwrite.
-            with args.output.open(
-                "w" if args.force else "x", encoding="utf-8"
+            # Exclusive create refuses existing aliases too. Input is fully read
+            # and validated before force; descriptor type is checked before truncate.
+            with _open_regular_file(
+                args.output, writing=True, force=args.force
             ) as output:
                 output.write(result)
     except (OSError, UnicodeError, ValueError):

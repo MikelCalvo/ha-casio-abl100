@@ -29,6 +29,10 @@ explícitamente reemplazar el destino, **incluso el archivo de entrada**; evíte
 con la única copia de un registro. El éxito devuelve 0; un rechazo devuelve 2 con
 un mensaje fijo que no imprime rutas, identificadores privados ni contenido del
 registro. La creación sin `--force` es exclusiva, también ante alias/symlinks.
+La entrada y el destino deben ser archivos regulares: se rechazan FIFO, directorios
+y enlaces simbólicos, incluidos los rotos, incluso con `--force`. Se comprueba el
+descriptor abierto antes de leer o truncar; forzar no autoriza seguir enlaces.
+Esta política de rutas está dirigida a Linux.
 
 Ejemplo ejecutable con **dos relojes ficticios y nombres ya personalizados**:
 
@@ -140,7 +144,7 @@ Ejecute las suites en procesos separados para no mezclar stubs con HA real:
 
 ```sh
 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -B -m pytest -p no:cacheprovider -q \
-  tests/dashboard/test_generator.py
+  tests/dashboard/test_generator.py tests/dashboard/test_generator_safety.py
 # Entorno de desarrollo con HA 2026.9.4 y su plugin de pruebas:
 env -u PYTHONOPTIMIZE -u PYTEST_DISABLE_PLUGIN_AUTOLOAD \
   PYTHONDONTWRITEBYTECODE=1 PYTHONPATH='' python -B -m pytest \
