@@ -106,7 +106,8 @@ def references(value):
 def attribute_rows(dashboard):
     return [
         row
-        for card in dashboard["views"][0]["cards"]
+        for view in dashboard["views"]
+        for card in view["cards"]
         if card["type"] == "entities"
         for row in card["entities"]
         if isinstance(row, dict) and row.get("type") == "attribute"
@@ -140,8 +141,10 @@ def test_public_api_produces_deterministic_selected_only_stock_cards():
     )
     assert rows == before
     assert dashboard["title"] == "Casio ABL-100WE"
-    assert len(dashboard["views"]) == 1
-    cards = dashboard["views"][0]["cards"]
+    assert len(dashboard["views"]) == 2
+    assert dashboard["views"][1]["subview"] is True
+    # Original detailed consumer contract remains on the Information subview.
+    cards = dashboard["views"][1]["cards"]
     assert {c["type"] for c in cards} == {
         "markdown",
         "entities",

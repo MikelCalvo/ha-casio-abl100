@@ -83,9 +83,22 @@ const Attribute = evaluate(`(class {${methods('src/panels/lovelace/special-rows/
 const dashboard = JSON.parse(fs.readFileSync(dashboardPath, 'utf8'));
 let cardsChecked = 0, attrsChecked = 0, tapsChecked = 0;
 const {toggleEntity} = load(common + 'entity/toggle-entity.ts');
-for (const view of dashboard.views) {
-  assert.equal(view.type, 'masonry');
-  for (const card of view.cards) {
+function checkCard(card) {
+    if (['vertical-stack', 'horizontal-stack'].includes(card.type)) {
+      assert(Array.isArray(card.cards) && card.cards.length > 0);
+      card.cards.forEach(checkCard);
+      return;
+    }
+    if (card.type === 'conditional') {
+      assert(Array.isArray(card.conditions) && card.conditions.length > 0);
+      for (const condition of card.conditions) {
+        assert.equal(condition.condition, 'state');
+        assert.match(condition.entity, /^(switch|binary_sensor)\.[a-z0-9_]+$/);
+        assert(condition.state !== undefined || condition.state_not !== undefined);
+      }
+      checkCard(card.card);
+      return;
+    }
     assert(constructors[card.type], 'Unexpected card type');
     const instance = new constructors[card.type]();
     instance.setConfig(card);
@@ -101,12 +114,21 @@ for (const view of dashboard.views) {
       const calls = [];
       const hass = {states: {[card.entity]: {state: 'unknown'}},
                     callService: (...args) => calls.push(args)};
-      // Actual upstream toggle -> turnOnOffEntity -> getToggleAction.
-      toggleEntity(hass, card.entity);
-      assert.deepEqual(calls, [['button', 'press', {entity_id: card.entity}]]);
-      tapsChecked++;
+      const domain = card.entity.split('.')[0];
+      for (const state of domain === 'switch' ? ['off', 'on'] : ['unknown']) {
+        calls.length = 0;
+        hass.states[card.entity].state = state;
+        // Actual upstream toggle -> turnOnOffEntity -> getToggleAction.
+        toggleEntity(hass, card.entity);
+        const service = domain === 'button' ? 'press' : state === 'on' ? 'turn_off' : 'turn_on';
+        assert.deepEqual(calls, [[domain, service, {entity_id: card.entity}]]);
+        tapsChecked++;
+      }
     }
-  }
+}
+for (const view of dashboard.views) {
+  assert.equal(view.type, 'masonry');
+  view.cards.forEach(checkCard);
 }
 // Causal negative controls prove real upstream setters reject invalid shapes.
 assert.throws(() => new constructors.entities().setConfig({type: 'entities'}), /Entities must/);

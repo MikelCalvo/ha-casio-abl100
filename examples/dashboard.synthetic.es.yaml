@@ -7,8 +7,205 @@
       "type": "masonry",
       "cards": [
         {
+          "type": "vertical-stack",
+          "cards": [
+            {
+              "type": "markdown",
+              "content": "# Casio ABL-100\n{% if is_state('binary_sensor.renamed_15', 'on') and state_attr('binary_sensor.renamed_15', 'phase') in ['reading', 'applying'] %}\n**Leyendo el reloj o enviando cambios…**\n{% elif is_state('binary_sensor.renamed_15', 'on') %}\n**Conectado** · El reloj está disponible.\n{% else %}\n**Sin conexión** · Conecta el reloj desde CNCT.\n{% endif %}\n{% if state_attr('button.renamed_23', 'needs_reconciliation') %}\n\n⚠️ Hay un envío sin confirmar. Lee el reloj antes de volver a enviar.\n{% elif state_attr('button.renamed_23', 'draft_conflicted') %}\n\n⚠️ El reloj cambió desde que editaste. Revisa el borrador antes de enviar.\n{% elif state_attr('button.renamed_23', 'draft_pending') and state_attr('button.renamed_23', 'draft_saved') %}\n\n**Cambios pendientes** · Guardado en Home Assistant, sin enviar.\n{% elif state_attr('button.renamed_23', 'draft_pending') %}\n\n**Cambios pendientes** · Todavía no se han enviado al reloj.\n{% elif state_attr('button.renamed_23', 'apply_result') == 'verified' %}\n\n✓ Último envío comprobado en el reloj.\n{% endif %}"
+            },
+            {
+              "type": "vertical-stack",
+              "cards": [
+                {
+                  "type": "conditional",
+                  "conditions": [
+                    {
+                      "condition": "state",
+                      "entity": "binary_sensor.renamed_15",
+                      "state_not": "on"
+                    }
+                  ],
+                  "card": {
+                    "type": "button",
+                    "entity": "button.renamed_20",
+                    "name": "Conectar reloj",
+                    "show_icon": false,
+                    "show_name": true,
+                    "tap_action": {
+                      "action": "toggle"
+                    },
+                    "hold_action": {
+                      "action": "none"
+                    },
+                    "double_tap_action": {
+                      "action": "none"
+                    }
+                  }
+                },
+                {
+                  "type": "conditional",
+                  "conditions": [
+                    {
+                      "condition": "state",
+                      "entity": "binary_sensor.renamed_15",
+                      "state": "on"
+                    }
+                  ],
+                  "card": {
+                    "type": "button",
+                    "entity": "button.renamed_22",
+                    "name": "Cerrar conexión",
+                    "show_icon": false,
+                    "show_name": true,
+                    "tap_action": {
+                      "action": "toggle"
+                    },
+                    "hold_action": {
+                      "action": "none"
+                    },
+                    "double_tap_action": {
+                      "action": "none"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "type": "entities",
+              "title": "Tu actividad",
+              "show_header_toggle": false,
+              "entities": [
+                {
+                  "entity": "sensor.renamed_0",
+                  "name": "Pasos de hoy",
+                  "icon": "mdi:walk"
+                },
+                {
+                  "entity": "sensor.renamed_1",
+                  "name": "Última actualización"
+                }
+              ]
+            },
+            {
+              "type": "entities",
+              "title": "Tus alarmas",
+              "show_header_toggle": false,
+              "entities": [
+                {
+                  "entity": "time.renamed_25",
+                  "name": "Alarma 1",
+                  "icon": "mdi:alarm"
+                },
+                {
+                  "entity": "switch.renamed_31",
+                  "name": "Activar alarma 1",
+                  "icon": "mdi:alarm-check"
+                },
+                {
+                  "entity": "time.renamed_26",
+                  "name": "Alarma 2",
+                  "icon": "mdi:alarm"
+                },
+                {
+                  "entity": "switch.renamed_32",
+                  "name": "Activar alarma 2",
+                  "icon": "mdi:alarm-check"
+                },
+                {
+                  "entity": "time.renamed_27",
+                  "name": "Alarma 3",
+                  "icon": "mdi:alarm"
+                },
+                {
+                  "entity": "switch.renamed_33",
+                  "name": "Activar alarma 3",
+                  "icon": "mdi:alarm-check"
+                },
+                {
+                  "entity": "time.renamed_28",
+                  "name": "Alarma 4",
+                  "icon": "mdi:alarm"
+                },
+                {
+                  "entity": "switch.renamed_34",
+                  "name": "Activar alarma 4",
+                  "icon": "mdi:alarm-check"
+                },
+                {
+                  "entity": "time.renamed_29",
+                  "name": "Alarma 5",
+                  "icon": "mdi:alarm"
+                },
+                {
+                  "entity": "switch.renamed_35",
+                  "name": "Activar alarma 5",
+                  "icon": "mdi:alarm-check"
+                },
+                {
+                  "entity": "switch.renamed_30",
+                  "name": "Señal horaria",
+                  "icon": "mdi:clock-outline"
+                }
+              ]
+            },
+            {
+              "type": "horizontal-stack",
+              "cards": [
+                {
+                  "type": "button",
+                  "entity": "button.renamed_23",
+                  "name": "Enviar cambios",
+                  "show_icon": false,
+                  "show_name": true,
+                  "tap_action": {
+                    "action": "toggle",
+                    "confirmation": {
+                      "text": "¿Enviar estos cambios de alarmas al reloj conectado?"
+                    }
+                  },
+                  "hold_action": {
+                    "action": "none"
+                  },
+                  "double_tap_action": {
+                    "action": "none"
+                  },
+                  "icon": "mdi:send-check"
+                },
+                {
+                  "type": "button",
+                  "entity": "button.renamed_24",
+                  "name": "Descartar",
+                  "show_icon": false,
+                  "show_name": true,
+                  "tap_action": {
+                    "action": "toggle"
+                  },
+                  "hold_action": {
+                    "action": "none"
+                  },
+                  "double_tap_action": {
+                    "action": "none"
+                  },
+                  "icon": "mdi:undo"
+                }
+              ]
+            },
+            {
+              "type": "markdown",
+              "content": "Edita tus alarmas aunque estés sin conexión. **Enviar cambios** es el único paso que modifica el reloj.\n\n[Información del reloj](./information)"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Información",
+      "path": "information",
+      "type": "masonry",
+      "cards": [
+        {
           "type": "markdown",
-          "content": "## Reloj: observaciones y acciones explícitas\nEste panel no conecta ni escribe al abrirse. Conectar puede estar limitado por los temporizadores del modo instalado; Actualizar usa la conexión y Cerrar solicita su cierre. El modo de retención larga es un candidato de producto separado: no se supone instalado ni aceptado. Elija el modo automático en las opciones de la integración solo si lo desea y después de instalar una versión probada; este panel no lo activa."
+          "content": "## Información del reloj\nAquí están las observaciones recibidas y las herramientas de diagnóstico. Abrir esta vista no ejecuta ninguna acción. Los valores restaurados conservan su fecha original y no equivalen a una lectura nueva. La vista Reloj reúne los controles de uso diario."
         },
         {
           "type": "entities",
@@ -1005,7 +1202,8 @@
             }
           ]
         }
-      ]
+      ],
+      "subview": true
     }
   ]
 }

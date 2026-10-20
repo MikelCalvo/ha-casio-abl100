@@ -92,6 +92,18 @@ only selected entity IDs, not MAC/unique-ID/registry internals. **It does not
 anonymize entity IDs themselves**: private information you put in an ID remains
 in its reference. Review both input and output before sharing.
 
+## Streamlined daily view
+
+The main view contains connection, activity and alarm editing, without raw phase/attribute tables. **Watch information** opens a separate subview for observations, tools and diagnostics.
+
+With the optional listening `switch` installed, one contextual control says **Start listening** when stopped or **Stop connection and listening** when enabled. Listening cannot wake the watch: open CNCT on it. Retained mode refreshes data every 30 seconds while the original link remains available. Stop disables the saved preference and requests cleanup of that session.
+
+Alarm edits are local. **Send changes** asks for confirmation and requires an existing connection; it never connects or applies automatically. Backend errors distinguish disconnected, busy, empty, conflict and pending reconciliation. **Discard** removes local changes, not changes already sent or uncertainty. Draft persistence belongs to the installed integration version, not this generator.
+
+Older 36-entity exports keep manual Connect/Close compatibility. If the optional `watch_connection` row exists it must be an enabled `switch` with the same identity prefix; the generator never invents or enables it. All original 36 identities remain required. The modern integration adds one entity rather than replacing them.
+
+The primary view uses stock cards, vertical/horizontal stacks, conditional cards and read-only text templates. No template invokes a service. The detailed descriptions below belong to the information subview. The graph remains Recorder observations, not an imported daily archive.
+
 ## What the cards mean
 
 - **Connection:** `interactive_connected`, `phase`, `link_state`, `usable`,
@@ -99,7 +111,7 @@ in its reference. Review both input and output before sharing.
   `group_results`, `cleanup_result`, `close_reason` and public failure diagnostics.
   Connect / Refresh / Close are distinct explicit actions. Connect may be bounded
   by the installed mode's timers. This source also offers opt-in retained mode;
-  it is not installed or physically accepted. See the
+  source validation, installation and physical acceptance are separate. See the
   [retained-session guide](automatic-retained-session.es.md).
 - **Read All — one shot:** distinct from Refresh. Starts one read operation,
   not a subscription or automatic polling; unavailable while an interactive
@@ -130,9 +142,7 @@ Without data, HA may display unknown, unavailable or `—` for attributes not ye
 published by the producer. This is not zero or a successful read. HA updates the
 states/attributes; the dashboard does not synthesize clocks.
 
-**Automatic mode:** choose it in integration options only if wanted and after
-installing a tested release. This generator/dashboard never enables it or
-silently changes options.
+**Automatic mode:** the modern listening switch is an explicit user action. Generating or opening this dashboard never enables it or silently changes options.
 
 ## Verification and limits
 

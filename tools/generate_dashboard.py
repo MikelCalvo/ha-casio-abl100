@@ -52,6 +52,7 @@ _REQUIRED = {
         "switch",
     ),
 }
+_OPTIONAL = {"watch_connection": "switch"}
 _ENTITY_ID = re.compile(
     r"(?!.*__)[a-z0-9_]+\.[a-z0-9](?:[a-z0-9_]*[a-z0-9])?", re.ASCII
 )
@@ -98,7 +99,7 @@ def _resolve(registry, entry_id):
         unique_id = row.get("unique_id")
         if type(unique_id) is not str or not unique_id:
             raise ValueError(ERROR_MESSAGES[3])
-        for key, domain in _REQUIRED.items():
+        for key, domain in (_REQUIRED | _OPTIONAL).items():
             suffix = "_" + key
             if not unique_id.endswith(suffix):
                 continue
@@ -125,14 +126,14 @@ def _resolve(registry, entry_id):
             identities.add(prefix)
             mapping[key] = entity_id
             break
-    if set(mapping) != set(_REQUIRED):
+    if not set(_REQUIRED) <= set(mapping):
         raise ValueError(ERROR_MESSAGES[4])
     if len(identities) != 1:
         raise ValueError(ERROR_MESSAGES[6])
     return mapping
 
 
-def build_dashboard(registry, entry_id, language="es"):
+def _build_information(registry, entry_id, language="es"):
     """Return a deterministic stock dashboard mapping; never mutate the input.
 
     All 36 current integration entities must be present and enabled. Identity is
@@ -189,17 +190,14 @@ def build_dashboard(registry, entry_id, language="es"):
     cards = [
         markdown(
             text(
-                "## Reloj: observaciones y acciones explícitas\n"
-                "Este panel no conecta ni escribe al abrirse. Conectar puede estar limitado por los temporizadores "
-                "del modo instalado; Actualizar usa la conexión y Cerrar solicita su cierre. "
-                "El modo de retención larga es un candidato de producto separado: no se supone instalado ni aceptado. "
-                "Elija el modo automático en las opciones de la integración solo si lo desea y después de instalar "
-                "una versión probada; este panel no lo activa.",
-                "## Watch: observations and explicit actions\n"
-                "Opening this dashboard neither connects nor writes. Connect may be bounded by the installed mode's "
-                "timers; Refresh uses the connection and Close requests cleanup. Long retained mode is a separate "
-                "product candidate, not assumed installed or accepted. Choose automatic mode in the integration "
-                "options only if wanted and after installing a tested release; this dashboard never enables it.",
+                "## Información del reloj\n"
+                "Aquí están las observaciones recibidas y las herramientas de diagnóstico. "
+                "Abrir esta vista no ejecuta ninguna acción. Los valores restaurados conservan su fecha original "
+                "y no equivalen a una lectura nueva. La vista Reloj reúne los controles de uso diario.",
+                "## Watch information\n"
+                "Received observations and diagnostic tools live here. Opening this view does not execute "
+                "an action. Restored values retain their original timestamps and are not new readings. "
+                "The Watch view contains the everyday controls.",
             )
         ),
         card(
@@ -456,6 +454,270 @@ def build_dashboard(registry, entry_id, language="es"):
             }
         ],
     }
+
+
+def build_dashboard(registry, entry_id, language="es"):
+    """Build a daily-use view plus an explicitly separate information subview.
+
+    Legacy exports with the original 36 entities remain supported. The optional
+    listening switch is used only when it exists in the selected registry.
+    Rendering templates observe state only; every action requires a user tap.
+    """
+    detailed = _build_information(registry, entry_id, language)
+    entities = _resolve(registry, entry_id)
+    modern = "watch_connection" in entities
+
+    def text(es, en):
+        return es if language == "es" else en
+
+    def button(key, name, *, confirm=False, icon=None):
+        action: dict = {"action": "toggle"}
+        if confirm:
+            action["confirmation"] = {
+                "text": text(
+                    "¿Enviar estos cambios de alarmas al reloj conectado?",
+                    "Send these alarm changes to the connected watch?",
+                )
+            }
+        result = {
+            "type": "button",
+            "entity": entities[key],
+            "name": name,
+            "show_icon": False,
+            "show_name": True,
+            "tap_action": action,
+            "hold_action": {"action": "none"},
+            "double_tap_action": {"action": "none"},
+        }
+        if icon:
+            result["icon"] = icon
+        return result
+
+    def conditional(entity, expected, card):
+        return {
+            "type": "conditional",
+            "conditions": [{"condition": "state", "entity": entity, "state": expected}],
+            "card": card,
+        }
+
+    link, apply = entities["interactive_connected"], entities["apply_alarm_draft"]
+    heading = "\n".join(
+        [
+            "# Casio ABL-100",
+            "{% if is_state('"
+            + link
+            + "', 'on') and state_attr('"
+            + link
+            + "', 'phase') in ['reading', 'applying'] %}",
+            text(
+                "**Leyendo el reloj o enviando cambios…**",
+                "**Reading your watch or sending changes…**",
+            ),
+            "{% elif is_state('" + link + "', 'on') %}",
+            text(
+                "**Conectado** · El reloj está disponible.",
+                "**Connected** · Your watch is available.",
+            ),
+            *(
+                [
+                    "{% elif is_state('"
+                    + entities["watch_connection"]
+                    + "', 'off') %}",
+                    text(
+                        "**Escucha parada** · Actívala para recibir la próxima conexión.",
+                        "**Listening stopped** · Enable it to receive the next connection.",
+                    ),
+                    "{% elif is_state('" + entities["watch_connection"] + "', 'on') %}",
+                    text(
+                        "**Esperando al reloj** · Abre CNCT en el reloj para conectar.",
+                        "**Waiting for your watch** · Open CNCT on the watch to connect.",
+                    ),
+                ]
+                if modern
+                else []
+            ),
+            "{% else %}",
+            text(
+                "**Sin conexión** · Conecta el reloj desde CNCT.",
+                "**Disconnected** · Connect your watch using CNCT.",
+            ),
+            "{% endif %}",
+            "{% if state_attr('" + apply + "', 'needs_reconciliation') %}",
+            text(
+                "\n⚠️ Hay un envío sin confirmar. Lee el reloj antes de volver a enviar.",
+                "\n⚠️ A previous send is unconfirmed. Read the watch before sending again.",
+            ),
+            "{% elif state_attr('" + apply + "', 'draft_conflicted') %}",
+            text(
+                "\n⚠️ El reloj cambió desde que editaste. Revisa el borrador antes de enviar.",
+                "\n⚠️ The watch changed since your edit. Review your draft before sending.",
+            ),
+            "{% elif state_attr('"
+            + apply
+            + "', 'draft_pending') and state_attr('"
+            + apply
+            + "', 'draft_saved') %}",
+            text(
+                "\n**Cambios pendientes** · Guardado en Home Assistant, sin enviar.",
+                "\n**Pending changes** · Saved in Home Assistant, not sent.",
+            ),
+            "{% elif state_attr('" + apply + "', 'draft_pending') %}",
+            text(
+                "\n**Cambios pendientes** · Todavía no se han enviado al reloj.",
+                "\n**Pending changes** · Not sent to the watch yet.",
+            ),
+            "{% elif state_attr('" + apply + "', 'apply_result') == 'verified' %}",
+            text(
+                "\n✓ Último envío comprobado en el reloj.",
+                "\n✓ Last send checked against the watch.",
+            ),
+            "{% endif %}",
+        ]
+    )
+    if modern:
+        control = entities["watch_connection"]
+        connection_actions = {
+            "type": "vertical-stack",
+            "cards": [
+                conditional(
+                    control,
+                    "off",
+                    button(
+                        "watch_connection",
+                        text("Activar escucha", "Start listening"),
+                        icon="mdi:bluetooth-connect",
+                    ),
+                ),
+                conditional(
+                    control,
+                    "on",
+                    button(
+                        "watch_connection",
+                        text(
+                            "Parar conexión y escucha", "Stop connection and listening"
+                        ),
+                        icon="mdi:stop-circle-outline",
+                    ),
+                ),
+            ],
+        }
+    else:
+        connection_actions = {
+            "type": "vertical-stack",
+            "cards": [
+                {
+                    "type": "conditional",
+                    "conditions": [
+                        {"condition": "state", "entity": link, "state_not": "on"}
+                    ],
+                    "card": button(
+                        "connect_interactive", text("Conectar reloj", "Connect watch")
+                    ),
+                },
+                conditional(
+                    link,
+                    "on",
+                    button(
+                        "close_interactive", text("Cerrar conexión", "Close connection")
+                    ),
+                ),
+            ],
+        }
+    steps = {
+        "type": "entities",
+        "title": text("Tu actividad", "Your activity"),
+        "show_header_toggle": False,
+        "entities": [
+            {
+                "entity": entities["steps_today"],
+                "name": text("Pasos de hoy", "Steps today"),
+                "icon": "mdi:walk",
+            },
+            {
+                "entity": entities["last_sync"],
+                "name": text("Última actualización", "Last update"),
+            },
+        ],
+    }
+    alarm_rows = []
+    for slot in range(1, 6):
+        alarm_rows.extend(
+            [
+                {
+                    "entity": entities[f"alarm_{slot}_time_draft"],
+                    "name": text(f"Alarma {slot}", f"Alarm {slot}"),
+                    "icon": "mdi:alarm",
+                },
+                {
+                    "entity": entities[f"alarm_{slot}_enabled_draft"],
+                    "name": text(f"Activar alarma {slot}", f"Enable alarm {slot}"),
+                    "icon": "mdi:alarm-check",
+                },
+            ]
+        )
+    alarm_rows.append(
+        {
+            "entity": entities["hourly_signal_draft"],
+            "name": text("Señal horaria", "Hourly signal"),
+            "icon": "mdi:clock-outline",
+        }
+    )
+    alarms = {
+        "type": "entities",
+        "title": text("Tus alarmas", "Your alarms"),
+        "show_header_toggle": False,
+        "entities": alarm_rows,
+    }
+    actions = {
+        "type": "horizontal-stack",
+        "cards": [
+            button(
+                "apply_alarm_draft",
+                text("Enviar cambios", "Send changes"),
+                confirm=True,
+                icon="mdi:send-check",
+            ),
+            button(
+                "discard_alarm_draft", text("Descartar", "Discard"), icon="mdi:undo"
+            ),
+        ],
+    }
+    note = text(
+        "Edita tus alarmas aunque estés sin conexión. **Enviar cambios** es el único paso que modifica el reloj.",
+        "Edit your alarms even while disconnected. **Send changes** is the only step that modifies the watch.",
+    )
+    if modern:
+        note += text(
+            " Los datos se actualizan cada 30 segundos mientras haya conexión.",
+            " Data refreshes every 30 seconds while connected.",
+        )
+    note += "\n\n" + text(
+        "[Información del reloj](./information)", "[Watch information](./information)"
+    )
+    main = {
+        "title": text("Reloj", "Watch"),
+        "path": "watch",
+        "type": "masonry",
+        "cards": [
+            {
+                "type": "vertical-stack",
+                "cards": [
+                    {"type": "markdown", "content": heading},
+                    connection_actions,
+                    steps,
+                    alarms,
+                    actions,
+                    {"type": "markdown", "content": note},
+                ],
+            }
+        ],
+    }
+    information = detailed["views"][0]
+    information.update(
+        title=text("Información", "Information"), path="information", subview=True
+    )
+    # Keep the original detailed consumers available without flooding daily use.
+    return {"title": detailed["title"], "views": [main, information]}
 
 
 class _Parser(argparse.ArgumentParser):

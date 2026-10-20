@@ -96,6 +96,18 @@ La salida copia solo los IDs seleccionados, no MAC/unique-ID/metadatos internos.
 ellos, seguirá en las referencias. Ni la salida ni la exportación se deben
 publicar sin revisión.
 
+## Vista diaria simplificada
+
+La primera vista reúne conexión, actividad y alarmas, sin tablas de fases ni atributos técnicos. **Información del reloj** abre una subvista separada con observaciones, herramientas y diagnóstico.
+
+Con la entidad opcional `switch` de escucha instalada, aparece un único control contextual: **Activar escucha** cuando está parada o **Parar conexión y escucha** cuando está activada. Escuchar no despierta el reloj: abre CNCT en él. El modo retenido actualiza los datos cada 30 segundos mientras el enlace sigue disponible. Parar desactiva la preferencia guardada y solicita el cierre de la sesión original.
+
+Las alarmas se editan localmente. **Enviar cambios** pide confirmación y requiere conexión previa; nunca conecta ni aplica automáticamente. El backend distingue falta de conexión, ocupado, borrador vacío, conflicto y reconciliación pendiente. **Descartar** elimina cambios locales, no revierte el reloj ni borra una incertidumbre. El guardado del borrador depende de la versión del componente instalada, no del panel.
+
+Los registros antiguos de 36 entidades siguen generando una vista compatible con Conectar/Cerrar manuales. Una fila opcional `watch_connection`, si existe, debe estar habilitada, ser `switch` y conservar el mismo prefijo de identidad; no se inventa ni activa desde el generador. Las 36 identidades originales siguen requeridas. La instalación moderna añade una entidad, no sustituye las anteriores.
+
+La vista principal usa tarjetas estándar, pilas verticales/horizontales, condiciones y plantillas de texto de solo lectura. Ninguna plantilla llama servicios. Los detalles de abajo corresponden a la subvista de información. La gráfica sigue siendo Recorder, no una importación del archivo diario.
+
 ## Qué significa el panel
 
 - **Conexión:** `interactive_connected`, `phase`, `link_state`, `usable`,
@@ -103,7 +115,7 @@ publicar sin revisión.
   `group_results`, `cleanup_result`, `close_reason` y diagnóstico público de fallo.
   Conectar / Actualizar / Cerrar son acciones explícitas separadas. Conectar puede
   estar acotado por los temporizadores del modo instalado. Esta versión también
-  incluye retención opcional, todavía no instalada ni aceptada físicamente.
+  incluye retención opcional; la aceptación física de cada versión se verifica por separado.
   Véase la [guía de sesión retenida](automatic-retained-session.es.md).
 - **Leer todo — una vez:** distinto de Actualizar. Inicia una única operación de
   lectura, no una suscripción ni un sondeo automático; puede estar no disponible
@@ -135,9 +147,7 @@ Sin datos, HA puede mostrar desconocido, no disponible o `—` en atributos que
 el productor todavía no publica. Eso no significa cero ni lectura correcta.
 Los estados y atributos se actualizan desde HA, no con relojes inventados.
 
-**Automático:** elija el modo automático en las opciones de la integración solo
-si lo desea y después de instalar una versión probada. Este generador/panel no
-lo activa ni cambia opciones silenciosamente.
+**Automático:** el interruptor de escucha de la versión moderna es una acción explícita del usuario. Generar o abrir el panel no lo activa ni cambia opciones silenciosamente.
 
 ## Verificación y límites
 
