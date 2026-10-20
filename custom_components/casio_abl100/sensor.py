@@ -41,6 +41,20 @@ class StepsSensor(WatchSensor):
         return self.session.record is not None and self.session.record.record_date == dt_util.now().date()
 
     @property
+    def capability_attributes(self):
+        # Metadata remains visible after midnight while today's value is absent.
+        # Never make the sensor available just to expose historical observations.
+        from .step_history import RETENTION_DAYS, history_projection
+        observations = self.session.observations
+        archive = observations.step_archive if observations is not None else ()
+        return {
+            'archived_daily_steps': history_projection(archive),
+            'archived_day_count': len(archive),
+            'archive_retention_days': RETENTION_DAYS,
+            'archive_restored': observations.archive_restored if observations is not None else False,
+        }
+
+    @property
     def extra_state_attributes(self):
         if self.session.record is None:
             return None

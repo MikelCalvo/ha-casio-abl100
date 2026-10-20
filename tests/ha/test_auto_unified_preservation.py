@@ -558,8 +558,45 @@ R1_INVERSE = {'__init__.py': {'baseline_sha256': '90ab59501f49da8ae4464f709b87a5
 R1_NEW = {'alarm_write_safety.py': '9067a8460b87db8b3cc969a6e6f638aeb786b2ef1b79d671ed674f063690106f'}
 
 
-def r1_source(name):
+HISTORY_INVERSE = {'sensor.py': {'baseline_sha256': '526de558230d0f7ece094859476be6e6354d2ded54108136d315447dff54c026',
+               'hunks': [[41,
+                          55,
+                          'bce024d074151b23d7ae52b6f1d2f66fd1383f9cda31e5a795fb33d09df240ee',
+                          '']]},
+ 'observations.py': {'baseline_sha256': '3281ac06f65f6e7e0c9b5672de2f5cf4c0619c71b6d29701fc6fa0650aa59126',
+                     'hunks': [[12,
+                                13,
+                                '161be1e44a585dc84f3e0ca6ed36d8044f7c19a6981bbf167dfb1b4354bcbfee',
+                                ''],
+                               [261,
+                                263,
+                                '0ebef2c6af644a42ce291cb70b2a2079d1884fdee54896018578797b14d3d355',
+                                ''],
+                               [319,
+                                333,
+                                'abbef1629971771e28eb190f71162243f559f7da03f0f489ab4d63c4273e08f4',
+                                ''],
+                               [339,
+                                346,
+                                '82b83afefc5a063d63b12cd18d279895733dd8f6f305bd7ab2541d494283c0c0',
+                                '            self._groups = {**self._groups, group: encoded}\n']]}}
+
+
+def history_source(name):
     source = (ROOT / name).read_text()
+    if name in HISTORY_INVERSE:
+        oracle = HISTORY_INVERSE[name]
+        lines = source.splitlines(keepends=True)
+        for start, end, expected_hash, original in reversed(oracle['hunks']):
+            assert digest(''.join(lines[start:end]).encode()) == expected_hash, (name, start)
+            lines[start:end] = original.splitlines(keepends=True)
+        source = ''.join(lines)
+        assert digest(source.encode()) == oracle['baseline_sha256'], name
+    return source
+
+
+def r1_source(name):
+    source = history_source(name)
     if name in R1_INVERSE:
         oracle = R1_INVERSE[name]
         lines = source.splitlines(keepends=True)
@@ -648,11 +685,15 @@ def digest(data):
 
 
 def test_exact_component_inventory_and_unowned_bytes():
-    expected = set(IMMUTABLE) | set(INVERSE) | set(JSON_BASE) | {'native_interactive.py', 'observations.py'} | set(NEW_ALARM_MODULES) | set(R1_NEW)
+    baseline = set(IMMUTABLE) | set(INVERSE) | set(JSON_BASE) | {'native_interactive.py', 'observations.py'} | set(NEW_ALARM_MODULES) | set(R1_NEW)
+    assert len(baseline) == 34
+    additions = {'step_history.py': 'e864c9ef3e6cb18030a516f4c4dfe39443ac39cf51461f08cc28ca37c93146f4'}
     actual = {str(p.relative_to(ROOT)) for p in ROOT.rglob('*')
               if p.is_file() and '__pycache__' not in p.parts}
-    assert actual == expected and len(actual) == 34
-    assert digest((ROOT / 'observations.py').read_bytes()) == OBSERVATIONS_SHA256
+    assert actual == baseline | set(additions) and len(actual) == 35
+    for name, expected_hash in additions.items():
+        assert digest((ROOT / name).read_bytes()) == expected_hash
+    assert digest(history_source('observations.py').encode()) == OBSERVATIONS_SHA256
     installed_source('native_interactive.py')
     for name, expected_hash in IMMUTABLE.items():
         assert digest(installed_source(name).encode()) == expected_hash, name
