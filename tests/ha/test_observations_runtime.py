@@ -414,7 +414,8 @@ async def test_fresh_ha_after_stop_loads_private_disk_observations(real_observat
     assert path.stat().st_mode & 0o777 == 0o600
     text = path.read_text(); envelope = json.loads(text)
     assert ADDRESS not in text and 'Synthetic' not in text and 'primary_dst_flags' not in text and 'power_saving' not in text
-    assert set(envelope['data']['groups']) == set(GROUPS)
+    assert set(envelope['data']['groups']) == set(GROUPS) | {'step_archive'}
+    assert len(envelope['data']['groups']['step_archive']) == 8
     assert [datetime.fromisoformat(envelope['data']['groups'][g]['observed_at']) for g in GROUPS] == [t for _v, t, _f in before]
     async with boot() as second:
         after = observations(second.session)

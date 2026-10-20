@@ -252,7 +252,8 @@ async def test_loaded_cache_sanitizes_future_and_invalid_groups_without_save():
         assert not writes and s.auto_time_last_sync == STAMP + timedelta(microseconds=4)
         c.capture('timer', samples()['timer'], STAMP)
         await c.async_close()
-        assert set(writes[-1]['groups']) == set(GROUPS)
+        assert set(writes[-1]['groups']) == set(GROUPS) | {'step_archive'}
+        assert len(writes[-1]['groups']['step_archive']) == 8
         assert 'PRIVATE' not in str(writes)
     writes.clear(); p['schema'] = 2
     with patch.object(m.ObservationStore, 'async_load', return_value=p), patch.object(m.ObservationStore, 'async_save', save):

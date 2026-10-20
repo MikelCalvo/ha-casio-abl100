@@ -10,6 +10,7 @@ from homeassistant.core import CoreState
 from homeassistant.helpers.storage import Store
 from .protocol import DailySteps, StepRecord
 from .settings import AutoTimeSettings, TimerConfiguration, ZoneConfiguration
+from .step_history import decode_step_history, encode_step_history, merge_step_history
 
 _LOGGER = logging.getLogger(__name__)
 _OWNERS = 'casio_abl100.observation_owners'
@@ -258,6 +259,8 @@ class EntryObservations:
             hass, 1, storage_key(entry_id), private=True,
             minor_version=1, max_readable_version=1)
         self._groups = {}
+        self.step_archive = ()
+        self.archive_restored = False
         self._pending = None
         self._writer = None
         self._closed = False
@@ -314,13 +317,36 @@ class EntryObservations:
             setattr(session, destination, value)
             setattr(session, timestamp, stamp)
             setattr(session, freshness, False)
+        if (type(payload) is dict and set(payload) == {'schema', 'binding', 'groups'}
+                and type(payload['schema']) is int and payload['schema'] == 1
+                and type(payload['binding']) is str and payload['binding'] == self._binding
+                and type(payload['groups']) is dict):
+            raw_archive = payload['groups'].get('step_archive')
+            try:
+                if 'step_archive' in payload['groups']:
+                    self.step_archive = decode_step_history(raw_archive)
+                elif 'steps' in restored:
+                    value, stamp = restored['steps']
+                    self.step_archive = merge_step_history((), value, stamp)
+            except (ValueError, TypeError, KeyError, OverflowError):
+                # A malformed optional archive never invalidates six last-good groups.
+                self.step_archive = ()
+            if self.step_archive:
+                self._groups['step_archive'] = encode_step_history(self.step_archive)
+                self.archive_restored = True
 
     def capture(self, group, value, observed_at):
         if self._closed or self._removed or not self._writable:
             return
         try:
             encoded = encode_group(group, value, observed_at)
-            self._groups = {**self._groups, group: encoded}
+            groups = {**self._groups, group: encoded}
+            if group == 'steps':
+                archive = merge_step_history(self.step_archive, value, observed_at)
+                groups['step_archive'] = encode_step_history(archive)
+                self.step_archive = archive
+                self.archive_restored = False
+            self._groups = groups
             # A writer owns this immutable-by-convention snapshot. Subsequent
             # captures replace dictionaries; they never mutate offered payloads.
             self._pending = {'schema': 1, 'binding': self._binding, 'groups': self._groups}
