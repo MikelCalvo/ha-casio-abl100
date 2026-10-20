@@ -102,8 +102,9 @@ publicar sin revisión.
   `wait_expires_at`, `idle_expires_at`, `session_expires_at`, `operation_result`,
   `group_results`, `cleanup_result`, `close_reason` y diagnóstico público de fallo.
   Conectar / Actualizar / Cerrar son acciones explícitas separadas. Conectar puede
-  estar acotado por los temporizadores del modo instalado. La retención larga es
-  un candidato de producto aparte, no se declara instalada ni aceptada aquí.
+  estar acotado por los temporizadores del modo instalado. Esta versión también
+  incluye retención opcional, todavía no instalada ni aceptada físicamente.
+  Véase la [guía de sesión retenida](automatic-retained-session.es.md).
 - **Leer todo — una vez:** distinto de Actualizar. Inicia una única operación de
   lectura, no una suscripción ni un sondeo automático; puede estar no disponible
   cuando una sesión reserva la conexión. También hay lecturas de grupo separadas.

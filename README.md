@@ -1,6 +1,6 @@
 # [WIP] Casio ABL-100WE for Home Assistant
 
-**Experimental pilot, updated 2026-10-20.** Reviewed component revision `badfe909c74f63a2b2d81c69b3b872df596e1b1c` is installed: **34 component files, 36 entity identities**, preserving the original 23 identities on the same watch device. The installed boundary remains that component; newer source is not a newer deployment. This source increment adds default-off automatic retained connection, tested with synthetic external IO but **uninstalled and physically unverified**.
+**Experimental pilot, updated 2026-10-20.** Reviewed component revision `badfe909c74f63a2b2d81c69b3b872df596e1b1c` is installed: **34 component files, 36 entity identities**, preserving the original 23 identities on the same watch device. New source contains **36 component files with those same 36 identities**: optional retained automatic sessions, dated step archives and pure settings-frame preparation. These additions have offline software verification but are **uninstalled and physically unverified**; publication is not deployment.
 
 A coordinated native write changed **disabled alarm 5 from `00:00` to `00:01`, then restored `00:00`**. Native readback verified both results; the operator confirmed **`12:01`, then `12:00`** on the watch's 12-hour display. Alarm 5 stayed disabled, and native comparison preserved the other alarms and SIG. This is a confirmed time roundtrip, **not physical validation of enable/SIG toggling or general write reliability**.
 
@@ -15,6 +15,8 @@ No Casio account or cloud service is required. This is not an official Casio or 
 - Thirteen additive alarm/SIG controls stage local drafts: five times, five enable flags, SIG, Apply and Discard. Only explicit **Apply alarm draft** can dispatch settings writes, after a fresh complete baseline and before new readback. An acknowledged local safety journal retains uncertain-outcome reconciliation across reload/restart without restoring drafts. See [alarm draft controls and limits](docs/native-alarm-editing.md) and the [practical Spanish guide](docs/alarm-editing.es.md).
 - The physical alarm-5 change and restoration completed with clean explicit Close. Fresh post-use checks authenticated installed source, retained identities, released ownership/proxy and continuing node health. These are point-in-time observations, not everyday reliability or an ERR fix.
 - Enable/SIG writes and uncertain-write recovery have synthetic coverage only; neither was physically exercised. Other settings writers remain withheld. Current clock reads, time synchronization and watch-button events remain unimplemented.
+- The existing steps entity now exposes a dated archive of up to 366 observed dates, with the newest 30 available as attributes even when today's value is unavailable. Unknown remains `null`, current-day samples are provisional, and reload preserves original timestamps without making data fresh. It reuses the same observation Store and adds no entity or reader. See [dated step archive](docs/step-history.md).
+- Pure auto-time/zone/DST frame preparation is available only for offline callers. It is not imported by the native runtime and supplies no working HA settings controls or authority to send bytes. BASIC, timer and current-time writing remain withheld. See [write boundaries](docs/settings-write-boundaries.md) and [Spanish boundaries](docs/settings-write-boundaries.es.md).
 - Optional step-only and combined automatic readers exist in the installed source, but both are off in the pilot. Manual success does not validate unattended dispatch. Source tests with synthetic external IO, independent source review, installation, native readback and visual comparison are separate verification layers; this source increment does not approve new device actions.
 
 See [current and historical validation](docs/validation.md), [unified transaction details](docs/native-unified-sync.md), [zone semantics](docs/native-zones.md) and [read-only settings contracts](docs/settings-read-contract.md). A successful data operation, native cleanup and the watch's terminal screen are separate observations.
@@ -77,6 +79,8 @@ The source-described 400-byte ABL-100WE block contains **seven previous-day summ
 
 `daily_history` maps ISO dates to totals or `null`. A legitimate zero remains zero; missing sentinel `0xFFFFFFFE` or an out-of-range count becomes unknown for that slot without shifting later dates. Failed reads retain last-good data with `fresh: false`. The last valid semantic snapshot is cached across reload/restart without changing its dates; this is not automatic backfill or historical Recorder/statistics import. The joint trial received the snapshot but did not compare all seven historical totals on the device.
 
+New source also merges successive observed windows into a bounded archive on the same entity: at most 366 dated entries, newest 30 in `archived_daily_steps`. Previous-day watch history can supersede a provisional current-day sample; missing dates are never invented. See [merge, storage and downgrade limits](docs/step-history.md). A stock Recorder graph still plots HA observation times, not an imported calendar-day series.
+
 ## Experimental installation
 
 Back up the integration and configuration and use only a recoverable installation. Local reviews and one useful joint physical sample do not certify other installations or everyday reliability. Leave automatic reads off until separately tested.
@@ -87,7 +91,7 @@ Back up the integration and configuration and use only a recoverable installatio
 4. Select a discovered watch or enter its exact Bluetooth address. No watch is preconfigured.
 5. Use a **connectable** ESPHome Bluetooth proxy. Advertisement forwarding alone is insufficient.
 
-Existing identities are retained; new read groups add entities. Reloading restores validated last-good observations stale, without initiating a read. Do not delete/re-add the watch just to update code.
+Existing identities are retained; this usability increment adds no entities. Reloading restores validated last-good observations stale, without initiating a read. Do not delete/re-add the watch just to update code. Before trying retained mode, follow the [Spanish validation checklist](docs/usability-validation.es.md): confirm the installed version, explicitly select the intended option and coordinate one new watch opportunity. The first retained trial should read only; do not combine it with settings writes.
 
 ## Optional automatic window readers
 
@@ -104,6 +108,10 @@ This is a **timestamp heuristic, not a physical CNCT identifier**. Phone, FIND o
 Retained mode runs one initial full read through the interactive owner, then leaves it alive for explicit Refresh or Apply. It never auto-applies drafts, retries, sends keepalives or uses another client. Native loss, explicit Close, unload and HA STOP revoke authority and join original cleanup. Finite Refresh/Apply deadlines and uncertain-write safety remain. After terminal cleanup, the next automatic opportunity needs at least 30 seconds of quiet from the terminal/latest observed RAW watermark; busy or post-terminal packets can extend it. See the [Spanish retained-session guide](docs/automatic-retained-session.es.md).
 
 With all three options off, use an explicit manual button as above. With exactly one enabled, a fresh qualifying opportunity may request that mode without the HA button. Automatic readers have local synthetic-IO validation, but physical automatic acceptance is still open. Do not attribute the historical manual combined read or alarm-5 writes to automatic dispatch, or enable any automatic mode merely because those manual operations worked.
+
+## Stock dashboard
+
+Generate a Spanish or English Lovelace dashboard from an offline entity-registry export and an explicitly selected config entry. It preserves customized entity IDs, excludes other watches and uses only standard cards. Generation neither connects to HA nor installs or activates anything. See [Spanish instructions](docs/dashboard.es.md) or [English instructions](docs/dashboard.md). Treat the export and generated IDs as private. The Recorder graph is not the dated watch archive; browser/mobile layout still needs visual validation.
 
 ## Native Bluetooth-address reconfiguration
 
@@ -135,9 +143,19 @@ PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH="$PWD" \
   -q tests/protocol tests/ha --ignore-glob='tests/ha/*runtime.py'
 
 # Real HA registries, services, translations and lifecycle; synthetic native IO.
-PYTHONDONTWRITEBYTECODE=1 PYTHONPATH="$PWD" \
+env -u PYTEST_DISABLE_PLUGIN_AUTOLOAD -u PYTHONOPTIMIZE \
+  PYTHONDONTWRITEBYTECODE=1 PYTHONPATH="$PWD" \
   "$PYTHON" -B -m pytest -p no:cacheprovider -o asyncio_mode=auto \
   -q tests/ha/*runtime.py
+
+# Pure dashboard and separate real-HA registry-to-dashboard composition.
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH="$PWD" \
+  "$PYTHON" -B -m pytest -p no:cacheprovider -q \
+  tests/dashboard/test_generator.py tests/dashboard/test_generator_safety.py
+env -u PYTEST_DISABLE_PLUGIN_AUTOLOAD -u PYTHONOPTIMIZE \
+  PYTHONDONTWRITEBYTECODE=1 PYTHONPATH="$PWD" \
+  "$PYTHON" -B -m pytest -p no:cacheprovider -o asyncio_mode=auto \
+  -q tests/dashboard/test_dashboard_runtime.py
 ```
 
 Public fixtures are constructed synthetic data, not captured watch records. Fixture counts are not physical results. Local tests/reviews, installed source, physical receipt, visual comparison and reliability are separate verification layers.

@@ -98,8 +98,9 @@ in its reference. Review both input and output before sharing.
   `wait_expires_at`, `idle_expires_at`, `session_expires_at`, `operation_result`,
   `group_results`, `cleanup_result`, `close_reason` and public failure diagnostics.
   Connect / Refresh / Close are distinct explicit actions. Connect may be bounded
-  by the installed mode's timers. Long retained mode is a separate product
-  candidate; it is not claimed installed or accepted here.
+  by the installed mode's timers. This source also offers opt-in retained mode;
+  it is not installed or physically accepted. See the
+  [retained-session guide](automatic-retained-session.es.md).
 - **Read All — one shot:** distinct from Refresh. Starts one read operation,
   not a subscription or automatic polling; unavailable while an interactive
   session reserves the connection. Separate group read buttons are also included.
