@@ -1,0 +1,1011 @@
+{
+  "title": "Casio ABL-100WE",
+  "views": [
+    {
+      "title": "Reloj",
+      "path": "watch",
+      "type": "masonry",
+      "cards": [
+        {
+          "type": "markdown",
+          "content": "## Reloj: observaciones y acciones explícitas\nEste panel no conecta ni escribe al abrirse. Conectar puede estar limitado por los temporizadores del modo instalado; Actualizar usa la conexión y Cerrar solicita su cierre. El modo de retención larga es un candidato de producto separado: no se supone instalado ni aceptado. Elija el modo automático en las opciones de la integración solo si lo desea y después de instalar una versión probada; este panel no lo activa."
+        },
+        {
+          "type": "entities",
+          "title": "Conexión y sesión acotada",
+          "show_header_toggle": false,
+          "entities": [
+            {
+              "entity": "binary_sensor.renamed_15",
+              "name": "Conexión interactiva"
+            },
+            {
+              "type": "attribute",
+              "entity": "binary_sensor.renamed_15",
+              "attribute": "phase",
+              "name": "phase"
+            },
+            {
+              "type": "attribute",
+              "entity": "binary_sensor.renamed_15",
+              "attribute": "link_state",
+              "name": "link_state"
+            },
+            {
+              "type": "attribute",
+              "entity": "binary_sensor.renamed_15",
+              "attribute": "usable",
+              "name": "usable"
+            },
+            {
+              "type": "attribute",
+              "entity": "binary_sensor.renamed_15",
+              "attribute": "wait_expires_at",
+              "name": "wait_expires_at"
+            },
+            {
+              "type": "attribute",
+              "entity": "binary_sensor.renamed_15",
+              "attribute": "idle_expires_at",
+              "name": "idle_expires_at"
+            },
+            {
+              "type": "attribute",
+              "entity": "binary_sensor.renamed_15",
+              "attribute": "session_expires_at",
+              "name": "session_expires_at"
+            },
+            {
+              "type": "attribute",
+              "entity": "binary_sensor.renamed_15",
+              "attribute": "operation_result",
+              "name": "operation_result"
+            },
+            {
+              "type": "attribute",
+              "entity": "binary_sensor.renamed_15",
+              "attribute": "group_results",
+              "name": "group_results"
+            },
+            {
+              "type": "attribute",
+              "entity": "binary_sensor.renamed_15",
+              "attribute": "cleanup_result",
+              "name": "cleanup_result"
+            },
+            {
+              "type": "attribute",
+              "entity": "binary_sensor.renamed_15",
+              "attribute": "close_reason",
+              "name": "close_reason"
+            },
+            {
+              "type": "attribute",
+              "entity": "binary_sensor.renamed_15",
+              "attribute": "failure_kind",
+              "name": "failure_kind"
+            },
+            {
+              "type": "attribute",
+              "entity": "binary_sensor.renamed_15",
+              "attribute": "failure_stage",
+              "name": "failure_stage"
+            },
+            {
+              "type": "attribute",
+              "entity": "binary_sensor.renamed_15",
+              "attribute": "native_status",
+              "name": "native_status"
+            }
+          ]
+        },
+        {
+          "type": "button",
+          "entity": "button.renamed_20",
+          "name": "Conectar reloj",
+          "tap_action": {
+            "action": "toggle"
+          },
+          "hold_action": {
+            "action": "none"
+          },
+          "double_tap_action": {
+            "action": "none"
+          }
+        },
+        {
+          "type": "button",
+          "entity": "button.renamed_21",
+          "name": "Actualizar conexión",
+          "tap_action": {
+            "action": "toggle"
+          },
+          "hold_action": {
+            "action": "none"
+          },
+          "double_tap_action": {
+            "action": "none"
+          }
+        },
+        {
+          "type": "button",
+          "entity": "button.renamed_22",
+          "name": "Cerrar conexión",
+          "tap_action": {
+            "action": "toggle"
+          },
+          "hold_action": {
+            "action": "none"
+          },
+          "double_tap_action": {
+            "action": "none"
+          }
+        },
+        {
+          "type": "markdown",
+          "content": "### Lectura única, separada de la sesión\nLeer todo abre una operación de lectura única; no es Actualizar ni una suscripción. No está disponible mientras una sesión reserva la conexión."
+        },
+        {
+          "type": "button",
+          "entity": "button.renamed_19",
+          "name": "Leer todo — una vez",
+          "tap_action": {
+            "action": "toggle"
+          },
+          "hold_action": {
+            "action": "none"
+          },
+          "double_tap_action": {
+            "action": "none"
+          }
+        },
+        {
+          "type": "entities",
+          "title": "Resultado de lectura única",
+          "show_header_toggle": false,
+          "entities": [
+            {
+              "type": "attribute",
+              "entity": "button.renamed_19",
+              "attribute": "phase",
+              "name": "phase"
+            },
+            {
+              "type": "attribute",
+              "entity": "button.renamed_19",
+              "attribute": "wait_expires_at",
+              "name": "wait_expires_at"
+            },
+            {
+              "type": "attribute",
+              "entity": "button.renamed_19",
+              "attribute": "result",
+              "name": "result"
+            },
+            {
+              "type": "attribute",
+              "entity": "button.renamed_19",
+              "attribute": "group_results",
+              "name": "group_results"
+            },
+            {
+              "type": "attribute",
+              "entity": "button.renamed_19",
+              "attribute": "cleanup_result",
+              "name": "cleanup_result"
+            }
+          ]
+        },
+        {
+          "type": "entities",
+          "title": "Alarmas observadas — solo lectura",
+          "show_header_toggle": false,
+          "entities": [
+            {
+              "entity": "sensor.renamed_2",
+              "name": "Última lectura correcta: alarmas"
+            },
+            {
+              "entity": "sensor.renamed_9",
+              "name": "Alarma 1 observada"
+            },
+            {
+              "type": "attribute",
+              "entity": "sensor.renamed_9",
+              "attribute": "enabled",
+              "name": "enabled"
+            },
+            {
+              "type": "attribute",
+              "entity": "sensor.renamed_9",
+              "attribute": "fresh",
+              "name": "fresh"
+            },
+            {
+              "entity": "sensor.renamed_10",
+              "name": "Alarma 2 observada"
+            },
+            {
+              "type": "attribute",
+              "entity": "sensor.renamed_10",
+              "attribute": "enabled",
+              "name": "enabled"
+            },
+            {
+              "type": "attribute",
+              "entity": "sensor.renamed_10",
+              "attribute": "fresh",
+              "name": "fresh"
+            },
+            {
+              "entity": "sensor.renamed_11",
+              "name": "Alarma 3 observada"
+            },
+            {
+              "type": "attribute",
+              "entity": "sensor.renamed_11",
+              "attribute": "enabled",
+              "name": "enabled"
+            },
+            {
+              "type": "attribute",
+              "entity": "sensor.renamed_11",
+              "attribute": "fresh",
+              "name": "fresh"
+            },
+            {
+              "entity": "sensor.renamed_12",
+              "name": "Alarma 4 observada"
+            },
+            {
+              "type": "attribute",
+              "entity": "sensor.renamed_12",
+              "attribute": "enabled",
+              "name": "enabled"
+            },
+            {
+              "type": "attribute",
+              "entity": "sensor.renamed_12",
+              "attribute": "fresh",
+              "name": "fresh"
+            },
+            {
+              "entity": "sensor.renamed_13",
+              "name": "Alarma 5 observada"
+            },
+            {
+              "type": "attribute",
+              "entity": "sensor.renamed_13",
+              "attribute": "enabled",
+              "name": "enabled"
+            },
+            {
+              "type": "attribute",
+              "entity": "sensor.renamed_13",
+              "attribute": "fresh",
+              "name": "fresh"
+            },
+            {
+              "entity": "binary_sensor.renamed_14",
+              "name": "Señal horaria observada"
+            },
+            {
+              "type": "attribute",
+              "entity": "binary_sensor.renamed_14",
+              "attribute": "fresh",
+              "name": "fresh"
+            }
+          ]
+        },
+        {
+          "type": "markdown",
+          "content": "### Editor por etapas\nCambiar un borrador NO toca el reloj. Aplicar envía cambios explícitos y verifica por lectura. Descartar solo borra el borrador, no deshace escrituras. La barrera duradera ante escritura incierta puede exigir una lectura de reconciliación: revise needs_reconciliation, write_submitted y apply_result antes de reintentar. La activación de alarmas y SIG sigue sin verificación física."
+        },
+        {
+          "type": "entities",
+          "title": "Borradores locales — no son observaciones",
+          "show_header_toggle": false,
+          "entities": [
+            {
+              "entity": "time.renamed_25",
+              "name": "1: Hora (borrador)"
+            },
+            {
+              "type": "attribute",
+              "entity": "time.renamed_25",
+              "attribute": "pending",
+              "name": "pending"
+            },
+            {
+              "type": "attribute",
+              "entity": "time.renamed_25",
+              "attribute": "observed_value",
+              "name": "observed_value"
+            },
+            {
+              "type": "attribute",
+              "entity": "time.renamed_25",
+              "attribute": "observed_at",
+              "name": "observed_at"
+            },
+            {
+              "type": "attribute",
+              "entity": "time.renamed_25",
+              "attribute": "observed_fresh",
+              "name": "observed_fresh"
+            },
+            {
+              "entity": "switch.renamed_31",
+              "name": "1: Activación (borrador)"
+            },
+            {
+              "type": "attribute",
+              "entity": "switch.renamed_31",
+              "attribute": "pending",
+              "name": "pending"
+            },
+            {
+              "type": "attribute",
+              "entity": "switch.renamed_31",
+              "attribute": "observed_value",
+              "name": "observed_value"
+            },
+            {
+              "type": "attribute",
+              "entity": "switch.renamed_31",
+              "attribute": "observed_at",
+              "name": "observed_at"
+            },
+            {
+              "type": "attribute",
+              "entity": "switch.renamed_31",
+              "attribute": "observed_fresh",
+              "name": "observed_fresh"
+            },
+            {
+              "entity": "time.renamed_26",
+              "name": "2: Hora (borrador)"
+            },
+            {
+              "type": "attribute",
+              "entity": "time.renamed_26",
+              "attribute": "pending",
+              "name": "pending"
+            },
+            {
+              "type": "attribute",
+              "entity": "time.renamed_26",
+              "attribute": "observed_value",
+              "name": "observed_value"
+            },
+            {
+              "type": "attribute",
+              "entity": "time.renamed_26",
+              "attribute": "observed_at",
+              "name": "observed_at"
+            },
+            {
+              "type": "attribute",
+              "entity": "time.renamed_26",
+              "attribute": "observed_fresh",
+              "name": "observed_fresh"
+            },
+            {
+              "entity": "switch.renamed_32",
+              "name": "2: Activación (borrador)"
+            },
+            {
+              "type": "attribute",
+              "entity": "switch.renamed_32",
+              "attribute": "pending",
+              "name": "pending"
+            },
+            {
+              "type": "attribute",
+              "entity": "switch.renamed_32",
+              "attribute": "observed_value",
+              "name": "observed_value"
+            },
+            {
+              "type": "attribute",
+              "entity": "switch.renamed_32",
+              "attribute": "observed_at",
+              "name": "observed_at"
+            },
+            {
+              "type": "attribute",
+              "entity": "switch.renamed_32",
+              "attribute": "observed_fresh",
+              "name": "observed_fresh"
+            },
+            {
+              "entity": "time.renamed_27",
+              "name": "3: Hora (borrador)"
+            },
+            {
+              "type": "attribute",
+              "entity": "time.renamed_27",
+              "attribute": "pending",
+              "name": "pending"
+            },
+            {
+              "type": "attribute",
+              "entity": "time.renamed_27",
+              "attribute": "observed_value",
+              "name": "observed_value"
+            },
+            {
+              "type": "attribute",
+              "entity": "time.renamed_27",
+              "attribute": "observed_at",
+              "name": "observed_at"
+            },
+            {
+              "type": "attribute",
+              "entity": "time.renamed_27",
+              "attribute": "observed_fresh",
+              "name": "observed_fresh"
+            },
+            {
+              "entity": "switch.renamed_33",
+              "name": "3: Activación (borrador)"
+            },
+            {
+              "type": "attribute",
+              "entity": "switch.renamed_33",
+              "attribute": "pending",
+              "name": "pending"
+            },
+            {
+              "type": "attribute",
+              "entity": "switch.renamed_33",
+              "attribute": "observed_value",
+              "name": "observed_value"
+            },
+            {
+              "type": "attribute",
+              "entity": "switch.renamed_33",
+              "attribute": "observed_at",
+              "name": "observed_at"
+            },
+            {
+              "type": "attribute",
+              "entity": "switch.renamed_33",
+              "attribute": "observed_fresh",
+              "name": "observed_fresh"
+            },
+            {
+              "entity": "time.renamed_28",
+              "name": "4: Hora (borrador)"
+            },
+            {
+              "type": "attribute",
+              "entity": "time.renamed_28",
+              "attribute": "pending",
+              "name": "pending"
+            },
+            {
+              "type": "attribute",
+              "entity": "time.renamed_28",
+              "attribute": "observed_value",
+              "name": "observed_value"
+            },
+            {
+              "type": "attribute",
+              "entity": "time.renamed_28",
+              "attribute": "observed_at",
+              "name": "observed_at"
+            },
+            {
+              "type": "attribute",
+              "entity": "time.renamed_28",
+              "attribute": "observed_fresh",
+              "name": "observed_fresh"
+            },
+            {
+              "entity": "switch.renamed_34",
+              "name": "4: Activación (borrador)"
+            },
+            {
+              "type": "attribute",
+              "entity": "switch.renamed_34",
+              "attribute": "pending",
+              "name": "pending"
+            },
+            {
+              "type": "attribute",
+              "entity": "switch.renamed_34",
+              "attribute": "observed_value",
+              "name": "observed_value"
+            },
+            {
+              "type": "attribute",
+              "entity": "switch.renamed_34",
+              "attribute": "observed_at",
+              "name": "observed_at"
+            },
+            {
+              "type": "attribute",
+              "entity": "switch.renamed_34",
+              "attribute": "observed_fresh",
+              "name": "observed_fresh"
+            },
+            {
+              "entity": "time.renamed_29",
+              "name": "5: Hora (borrador)"
+            },
+            {
+              "type": "attribute",
+              "entity": "time.renamed_29",
+              "attribute": "pending",
+              "name": "pending"
+            },
+            {
+              "type": "attribute",
+              "entity": "time.renamed_29",
+              "attribute": "observed_value",
+              "name": "observed_value"
+            },
+            {
+              "type": "attribute",
+              "entity": "time.renamed_29",
+              "attribute": "observed_at",
+              "name": "observed_at"
+            },
+            {
+              "type": "attribute",
+              "entity": "time.renamed_29",
+              "attribute": "observed_fresh",
+              "name": "observed_fresh"
+            },
+            {
+              "entity": "switch.renamed_35",
+              "name": "5: Activación (borrador)"
+            },
+            {
+              "type": "attribute",
+              "entity": "switch.renamed_35",
+              "attribute": "pending",
+              "name": "pending"
+            },
+            {
+              "type": "attribute",
+              "entity": "switch.renamed_35",
+              "attribute": "observed_value",
+              "name": "observed_value"
+            },
+            {
+              "type": "attribute",
+              "entity": "switch.renamed_35",
+              "attribute": "observed_at",
+              "name": "observed_at"
+            },
+            {
+              "type": "attribute",
+              "entity": "switch.renamed_35",
+              "attribute": "observed_fresh",
+              "name": "observed_fresh"
+            },
+            {
+              "entity": "switch.renamed_30",
+              "name": "Señal horaria (borrador)"
+            },
+            {
+              "type": "attribute",
+              "entity": "switch.renamed_30",
+              "attribute": "pending",
+              "name": "pending"
+            },
+            {
+              "type": "attribute",
+              "entity": "switch.renamed_30",
+              "attribute": "observed_value",
+              "name": "observed_value"
+            },
+            {
+              "type": "attribute",
+              "entity": "switch.renamed_30",
+              "attribute": "observed_at",
+              "name": "observed_at"
+            },
+            {
+              "type": "attribute",
+              "entity": "switch.renamed_30",
+              "attribute": "observed_fresh",
+              "name": "observed_fresh"
+            }
+          ]
+        },
+        {
+          "type": "button",
+          "entity": "button.renamed_23",
+          "name": "Aplicar borrador",
+          "tap_action": {
+            "action": "toggle"
+          },
+          "hold_action": {
+            "action": "none"
+          },
+          "double_tap_action": {
+            "action": "none"
+          }
+        },
+        {
+          "type": "button",
+          "entity": "button.renamed_24",
+          "name": "Descartar borrador",
+          "tap_action": {
+            "action": "toggle"
+          },
+          "hold_action": {
+            "action": "none"
+          },
+          "double_tap_action": {
+            "action": "none"
+          }
+        },
+        {
+          "type": "entities",
+          "title": "Estado del borrador y reconciliación",
+          "show_header_toggle": false,
+          "entities": [
+            {
+              "type": "attribute",
+              "entity": "button.renamed_23",
+              "attribute": "draft_pending",
+              "name": "draft_pending"
+            },
+            {
+              "type": "attribute",
+              "entity": "button.renamed_23",
+              "attribute": "draft_revision",
+              "name": "draft_revision"
+            },
+            {
+              "type": "attribute",
+              "entity": "button.renamed_23",
+              "attribute": "apply_revision",
+              "name": "apply_revision"
+            },
+            {
+              "type": "attribute",
+              "entity": "button.renamed_23",
+              "attribute": "apply_phase",
+              "name": "apply_phase"
+            },
+            {
+              "type": "attribute",
+              "entity": "button.renamed_23",
+              "attribute": "apply_result",
+              "name": "apply_result"
+            },
+            {
+              "type": "attribute",
+              "entity": "button.renamed_23",
+              "attribute": "write_submitted",
+              "name": "write_submitted"
+            },
+            {
+              "type": "attribute",
+              "entity": "button.renamed_23",
+              "attribute": "needs_reconciliation",
+              "name": "needs_reconciliation"
+            },
+            {
+              "type": "attribute",
+              "entity": "button.renamed_23",
+              "attribute": "verified_at",
+              "name": "verified_at"
+            },
+            {
+              "type": "attribute",
+              "entity": "button.renamed_23",
+              "attribute": "cleanup_result",
+              "name": "cleanup_result"
+            }
+          ]
+        },
+        {
+          "type": "entities",
+          "title": "Pasos — última observación",
+          "show_header_toggle": false,
+          "entities": [
+            {
+              "entity": "sensor.renamed_0",
+              "name": "Pasos de hoy"
+            },
+            {
+              "entity": "sensor.renamed_1",
+              "name": "Última lectura correcta: pasos"
+            },
+            {
+              "type": "attribute",
+              "entity": "sensor.renamed_0",
+              "attribute": "record_date",
+              "name": "record_date"
+            },
+            {
+              "type": "attribute",
+              "entity": "sensor.renamed_0",
+              "attribute": "fresh",
+              "name": "fresh"
+            }
+          ]
+        },
+        {
+          "type": "markdown",
+          "content": "El gráfico muestra observaciones de Recorder de HA, NO el historial diario importado del reloj ni muestras retroactivas. Requiere Recorder con esta entidad incluida. Sin datos no se inventan fechas ni ceros."
+        },
+        {
+          "type": "history-graph",
+          "title": "Pasos registrados por HA",
+          "hours_to_show": 24,
+          "entities": [
+            "sensor.renamed_0"
+          ]
+        },
+        {
+          "type": "markdown",
+          "content": "### Configuración observada, solo lectura\nDesfases estándar y DST configurado no son el desfase efectivo actual. La duración codificada NO es una cuenta atrás en marcha. No hay relojes en vivo ni sincronización de hora ni servicio genérico de escritura en este panel. fresh es evidencia del productor, no una garantía de vigencia por edad."
+        },
+        {
+          "type": "entities",
+          "title": "Zonas horarias observadas",
+          "show_header_toggle": false,
+          "entities": [
+            {
+              "entity": "sensor.renamed_5",
+              "name": "Última lectura correcta: zonas"
+            },
+            {
+              "entity": "sensor.renamed_3",
+              "name": "Desfase UTC estándar principal"
+            },
+            {
+              "type": "attribute",
+              "entity": "sensor.renamed_3",
+              "attribute": "configured_dst_increment_minutes",
+              "name": "configured_dst_increment_minutes"
+            },
+            {
+              "type": "attribute",
+              "entity": "sensor.renamed_3",
+              "attribute": "dst_rule_code",
+              "name": "dst_rule_code"
+            },
+            {
+              "type": "attribute",
+              "entity": "sensor.renamed_3",
+              "attribute": "fresh",
+              "name": "fresh"
+            },
+            {
+              "type": "attribute",
+              "entity": "sensor.renamed_3",
+              "attribute": "primary_dst_on",
+              "name": "primary_dst_on"
+            },
+            {
+              "type": "attribute",
+              "entity": "sensor.renamed_3",
+              "attribute": "primary_dst_auto",
+              "name": "primary_dst_auto"
+            },
+            {
+              "entity": "sensor.renamed_4",
+              "name": "Desfase UTC estándar secundario"
+            },
+            {
+              "type": "attribute",
+              "entity": "sensor.renamed_4",
+              "attribute": "configured_dst_increment_minutes",
+              "name": "configured_dst_increment_minutes"
+            },
+            {
+              "type": "attribute",
+              "entity": "sensor.renamed_4",
+              "attribute": "dst_rule_code",
+              "name": "dst_rule_code"
+            },
+            {
+              "type": "attribute",
+              "entity": "sensor.renamed_4",
+              "attribute": "fresh",
+              "name": "fresh"
+            }
+          ]
+        },
+        {
+          "type": "entities",
+          "title": "Ajustes y temporizador observados",
+          "show_header_toggle": false,
+          "entities": [
+            {
+              "entity": "sensor.renamed_6",
+              "name": "Formato horario observado"
+            },
+            {
+              "type": "attribute",
+              "entity": "sensor.renamed_6",
+              "attribute": "last_read",
+              "name": "last_read"
+            },
+            {
+              "type": "attribute",
+              "entity": "sensor.renamed_6",
+              "attribute": "fresh",
+              "name": "fresh"
+            },
+            {
+              "type": "attribute",
+              "entity": "sensor.renamed_6",
+              "attribute": "button_tone_enabled",
+              "name": "button_tone_enabled"
+            },
+            {
+              "type": "attribute",
+              "entity": "sensor.renamed_6",
+              "attribute": "light_duration_mode",
+              "name": "light_duration_mode"
+            },
+            {
+              "entity": "sensor.renamed_7",
+              "name": "Ajuste automático configurado"
+            },
+            {
+              "type": "attribute",
+              "entity": "sensor.renamed_7",
+              "attribute": "last_read",
+              "name": "last_read"
+            },
+            {
+              "type": "attribute",
+              "entity": "sensor.renamed_7",
+              "attribute": "fresh",
+              "name": "fresh"
+            },
+            {
+              "type": "attribute",
+              "entity": "sensor.renamed_7",
+              "attribute": "adjustment_minute",
+              "name": "adjustment_minute"
+            },
+            {
+              "entity": "sensor.renamed_8",
+              "name": "Duración codificada del temporizador"
+            },
+            {
+              "type": "attribute",
+              "entity": "sensor.renamed_8",
+              "attribute": "last_read",
+              "name": "last_read"
+            },
+            {
+              "type": "attribute",
+              "entity": "sensor.renamed_8",
+              "attribute": "fresh",
+              "name": "fresh"
+            },
+            {
+              "type": "attribute",
+              "entity": "sensor.renamed_8",
+              "attribute": "encoded_hours",
+              "name": "encoded_hours"
+            },
+            {
+              "type": "attribute",
+              "entity": "sensor.renamed_8",
+              "attribute": "encoded_minutes",
+              "name": "encoded_minutes"
+            },
+            {
+              "type": "attribute",
+              "entity": "sensor.renamed_8",
+              "attribute": "encoded_seconds",
+              "name": "encoded_seconds"
+            }
+          ]
+        },
+        {
+          "type": "button",
+          "entity": "button.renamed_16",
+          "name": "Leer pasos — una vez",
+          "tap_action": {
+            "action": "toggle"
+          },
+          "hold_action": {
+            "action": "none"
+          },
+          "double_tap_action": {
+            "action": "none"
+          }
+        },
+        {
+          "type": "entities",
+          "title": "Leer pasos — una vez",
+          "show_header_toggle": false,
+          "entities": [
+            {
+              "type": "attribute",
+              "entity": "button.renamed_16",
+              "attribute": "phase",
+              "name": "phase"
+            },
+            {
+              "type": "attribute",
+              "entity": "button.renamed_16",
+              "attribute": "wait_expires_at",
+              "name": "wait_expires_at"
+            }
+          ]
+        },
+        {
+          "type": "button",
+          "entity": "button.renamed_17",
+          "name": "Leer alarmas — una vez",
+          "tap_action": {
+            "action": "toggle"
+          },
+          "hold_action": {
+            "action": "none"
+          },
+          "double_tap_action": {
+            "action": "none"
+          }
+        },
+        {
+          "type": "entities",
+          "title": "Leer alarmas — una vez",
+          "show_header_toggle": false,
+          "entities": [
+            {
+              "type": "attribute",
+              "entity": "button.renamed_17",
+              "attribute": "phase",
+              "name": "phase"
+            },
+            {
+              "type": "attribute",
+              "entity": "button.renamed_17",
+              "attribute": "wait_expires_at",
+              "name": "wait_expires_at"
+            }
+          ]
+        },
+        {
+          "type": "button",
+          "entity": "button.renamed_18",
+          "name": "Leer zonas — una vez",
+          "tap_action": {
+            "action": "toggle"
+          },
+          "hold_action": {
+            "action": "none"
+          },
+          "double_tap_action": {
+            "action": "none"
+          }
+        },
+        {
+          "type": "entities",
+          "title": "Leer zonas — una vez",
+          "show_header_toggle": false,
+          "entities": [
+            {
+              "type": "attribute",
+              "entity": "button.renamed_18",
+              "attribute": "phase",
+              "name": "phase"
+            },
+            {
+              "type": "attribute",
+              "entity": "button.renamed_18",
+              "attribute": "wait_expires_at",
+              "name": "wait_expires_at"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
