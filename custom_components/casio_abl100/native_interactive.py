@@ -324,6 +324,7 @@ class NativeInteractiveSession:
         if caller.cancelling():
             raise asyncio.CancelledError
         if (not operable(self.session) or self.session.interactive_session is not self
+                or self.session.alarm_draft.needs_reconciliation
                 or not self.usable or self.operation_caller is not None):
             raise _failed()
         complete = asyncio.get_running_loop().create_future()
@@ -528,6 +529,11 @@ class _InteractiveRead(NativeSyncRead):
                 outcome = await AlarmApplyView(self, adapter).apply(request)
                 self.guard()
                 adapter.guard()
+                if outcome.result in ('unchanged', 'conflict'):
+                    await self.session.alarm_safety.async_complete(
+                        outcome.result, False, lambda: (self.guard(), adapter.guard()))
+                    self.guard()
+                    adapter.guard()
                 finish_apply(self.session, request, outcome)
                 c.operation_result = outcome.result
                 c.apply_request = None
@@ -554,8 +560,10 @@ class _InteractiveRead(NativeSyncRead):
                     setattr(self.session, value, snapshot)
                     setattr(self.session, timestamp, observed_at)
                     setattr(self.session, freshness, True)
-                    if group == 'alarms' and hasattr(self.session, '_alarm_draft'):
-                        self.session.alarm_draft.needs_reconciliation = False
+                    if group == 'alarms' and self.session.alarm_safety is not None:
+                        await self.session.alarm_safety.async_reconcile()
+                        self.guard()
+                        adapter.guard()
                     c.group_results[group] = 'success'
                 except BaseException:
                     c.group_results[group] = 'failed'

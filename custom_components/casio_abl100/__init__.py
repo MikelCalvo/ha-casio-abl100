@@ -92,6 +92,7 @@ class WatchSession:
         self.timer_last_sync = None
         self.timer_fresh = False
         self.observations = None
+        self.alarm_safety = None
 
     def _queue_observation_save(self, group):
         """Observation failures cannot revoke a validated synchronous commit."""
@@ -443,7 +444,7 @@ class WatchSession:
         # Old standalone read fixtures need no editing or ConfigEntry imports.
         if not hasattr(self, '_alarm_draft'):
             from .alarm_editing import AlarmDraft
-            self._alarm_draft = AlarmDraft()
+            self._alarm_draft = AlarmDraft(self.alarm_safety)
         return self._alarm_draft
 
     def _admit_alarm_stage(self):
@@ -531,26 +532,39 @@ class WatchSession:
                         await asyncio.gather(*tasks, return_exceptions=True)
         finally:
             self.listeners.clear()
-            if self.observations is not None:
-                await self.observations.async_close()
+            try:
+                if self.alarm_safety is not None:
+                    await self.alarm_safety.async_close()
+            finally:
+                if self.observations is not None:
+                    await self.observations.async_close()
 
 
 async def async_setup_entry(hass, entry):
     manager = WatchSession(hass, entry.data['address'], identity=entry.unique_id, entry=entry)
     entry.runtime_data = manager
     cancel_update = None
+    cancel_stop = None
     try:
         modes = tuple(entry.options.get(key, False) for key in ('auto_read_steps', 'auto_read_all'))
         if any(type(value) is not bool for value in modes) or all(modes):
             from homeassistant.exceptions import ConfigEntryError
             raise ConfigEntryError('Invalid automatic read options')
+        from .alarm_write_safety import AlarmWriteSafety
+        manager.alarm_safety = AlarmWriteSafety(hass, entry)
+        await manager.alarm_safety.async_load()
         manager.observations = EntryObservations(hass, entry.entry_id, manager.address, entry)
         await manager.observations.async_load_into(manager)
 
         async def stop_observations(_event):
             await manager.observations.async_close()
 
-        entry.async_on_unload(hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, stop_observations))
+        cancel_stop = hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, stop_observations)
+        try:
+            entry.async_on_unload(cancel_stop)
+        except BaseException:
+            cancel_stop()
+            raise
         await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
         if entry.options.get('auto_read_steps') is True or entry.options.get('auto_read_all') is True:
             from .auto_read import AutoStepReader
@@ -576,6 +590,13 @@ async def async_setup_entry(hass, entry):
 async def async_remove_entry(hass, entry):
     """Invalidate the original Store even after successful native unload."""
     await async_remove_entry_observations(hass, entry)
+    from .alarm_write_safety import AlarmWriteSafety
+    manager = getattr(entry, 'runtime_data', None)
+    if isinstance(manager, WatchSession) and manager.alarm_safety is not None:
+        await manager.shutdown()
+        await manager.alarm_safety.async_remove()
+    else:
+        await AlarmWriteSafety(hass, entry).async_remove()
 
 
 async def _async_options_updated(hass, entry):

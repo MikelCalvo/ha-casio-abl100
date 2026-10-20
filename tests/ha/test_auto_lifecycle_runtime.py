@@ -92,7 +92,7 @@ async def test_session_shutdown_keeps_reader_cleanup_owned_through_caller_cancel
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize('failure', ['timer', 'listener', 'on_unload', 'platform'])
+@pytest.mark.parametrize('failure', ['timer', 'listener', 'on_unload_early', 'on_unload_late', 'platform'])
 async def test_failed_setup_finalizes_session_and_partial_platform_resources(
     hass: HomeAssistant, enable_custom_integrations, enable_bluetooth, failure,
 ):
@@ -107,13 +107,25 @@ async def test_failed_setup_finalizes_session_and_partial_platform_resources(
         await forward(*args)
         raise RuntimeError('SETUP_FAILURE')
 
+    original_on_unload = MockConfigEntry.async_on_unload
+    registrations = 0
+
+    def late_failure(owner, callback):
+        nonlocal registrations
+        registrations += 1
+        if registrations == 2:
+            raise RuntimeError('SETUP_FAILURE')
+        return original_on_unload(owner, callback)
+
     target, kwargs = {
         'timer': ('custom_components.casio_abl100.auto_read.async_track_time_interval',
                   {'side_effect': RuntimeError('SETUP_FAILURE')}),
         'listener': ('pytest_homeassistant_custom_component.common.MockConfigEntry.add_update_listener',
                      {'side_effect': RuntimeError('SETUP_FAILURE')}),
-        'on_unload': ('pytest_homeassistant_custom_component.common.MockConfigEntry.async_on_unload',
-                      {'side_effect': RuntimeError('SETUP_FAILURE')}),
+        'on_unload_early': ('pytest_homeassistant_custom_component.common.MockConfigEntry.async_on_unload',
+                            {'side_effect': RuntimeError('SETUP_FAILURE')}),
+        'on_unload_late': ('pytest_homeassistant_custom_component.common.MockConfigEntry.async_on_unload',
+                           {'new': late_failure}),
         'platform': (None, {}),
     }[failure]
     failure_patch = (patch(target, **kwargs) if target else
@@ -131,13 +143,15 @@ async def test_failed_setup_finalizes_session_and_partial_platform_resources(
         assert not entry.update_listeners
         from homeassistant.helpers import entity_registry as er
         registry = er.async_get(hass)
+        expected_count = 0 if failure == 'on_unload_early' else 11 + 4 + 4 + 4 + 13
         assert len([entity for entity in registry.entities.values()
-                    if entity.config_entry_id == entry.entry_id]) == 11 + 4 + 4 + 4 + 13
+                    if entity.config_entry_id == entry.entry_id]) == expected_count
         states = [state for state in hass.states.async_all()
                   if 'casio_abl_100we' in state.entity_id]
-        assert len(states) == 11 + 4 + 4 + 4 + 13
+        assert len(states) == expected_count
         from tests.ha.test_zone_entities import assert_zone_addition
-        assert_zone_addition(hass, entry)
+        if failure != 'on_unload_early':
+            assert_zone_addition(hass, entry)
         assert all(state.state == 'unavailable' and state.attributes.get('restored')
                    for state in states)  # HA preserves registry placeholders.
         get_manager().scanner_adv_received(advertisement(monotonic_time_coarse()))

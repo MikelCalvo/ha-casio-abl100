@@ -1,11 +1,11 @@
-# Alarm/SIG draft controls — local implementation, blocked validation
+# Alarm/SIG draft controls — corrected local candidate
 
 This source increment adds 13 controls to the existing 23 identities on the
 same watch device: five time drafts, five enable drafts, one hourly-signal
 draft and explicit Apply/Discard buttons. It is not installed, independently
-accepted or physically write-tested. The full owning validation currently has
-an out-of-scope fixture blocker; do not deploy this checkpoint as an approved
-release.
+accepted or physically write-tested. The reload safety and finite fixture
+corrections have local synthetic coverage; independent SPEC then QUALITY are
+still required before installation. Historical rejected checkpoints remain blocked.
 
 ## Requested versus observed
 
@@ -54,6 +54,30 @@ refresh obtains a complete alarm group. That reconciliation does not change
 the historical failed Apply into `verified`. No implicit retry, rollback,
 reconnect, compensating SET, device END or host clock synchronization exists.
 Cleanup status is separate from the alarm outcome.
+
+A separate entry-bound local safety journal retains the reconciliation barrier
+and bounded outcome metadata across reload and Core restart. It stores no draft,
+desired value, raw frame or connection authority. Before the first possible SET,
+an executor writes a conservative pending barrier under HA's `.storage`, flushes
+and fsyncs the file, atomically replaces it and fsyncs the directory. A failed or
+cancelled save admits zero SET. The original native owner joins outstanding local
+IO and rechecks entry, generation, cancellation and deadline before dispatch.
+Only a complete actual readback or explicitly initiated **Refresh connected
+watch** full alarm-group GET can clear the barrier. Apply's own baseline cannot
+satisfy a preexisting prerequisite. A later unrelated group failure does not
+undo a completed alarm reconciliation. GET-only recovery preserves historical
+`unknown`; Discard and reload do not make it `verified`.
+
+Missing initial journal means never-written; malformed/unreadable metadata or a
+changed immutable entry/selected-address binding blocks Apply but leaves GET-only
+recovery available. Changing address does not erase uncertainty. Removing the
+entry deliberately removes its owned record after joining its owner. Restored
+metadata is not a fresh physical observation; pending recorded before a crash
+can conservatively indicate possible submission even if dispatch never happened.
+Local acknowledgment is limited to successful filesystem API returns, not hostile
+filesystem, backup rollback, dishonest storage or hardware/power-loss guarantees.
+Do not delete the safety file to bypass recovery. There is no extra BLE client,
+lock, automatic retry or executable recovery intent.
 
 Wire notifications have no transaction ID. Phase and duplicate/error checks
 cannot authenticate an identical delayed response as belonging to the newest

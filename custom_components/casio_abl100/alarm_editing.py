@@ -13,7 +13,8 @@ class AlarmApplyOutcome:
 
 
 class AlarmDraft:
-    def __init__(self):
+    def __init__(self, safety=None):
+        self.safety = safety
         self.times = {}
         self.enabled = {}
         self.signal = None
@@ -22,11 +23,22 @@ class AlarmDraft:
         self.applying = False
         self.apply_revision = None
         self.phase = 'idle'
-        self.outcome = None
-        self.write_submitted = False
+        self.outcome = (AlarmApplyOutcome(safety.result, safety.submitted)
+                        if safety is not None and safety.result is not None else None)
+        self.write_submitted = safety.submitted if safety is not None else False
         self.needs_reconciliation = False
         self.verified_at = None
         self.conflicted = False
+
+    @property
+    def needs_reconciliation(self):
+        return self.safety.blocked if self.safety is not None else self._needs_reconciliation
+
+    @needs_reconciliation.setter
+    def needs_reconciliation(self, value):
+        self._needs_reconciliation = value
+        if value and self.safety is not None:
+            self.safety.blocked = True
 
     @property
     def pending(self):

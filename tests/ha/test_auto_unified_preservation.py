@@ -553,9 +553,36 @@ NEW_ALARM_MODULES = {'alarm_write.py': '2cff26befd829fd9a5b6340cb060cec0af4ce4ff
  'switch.py': '6133f26f512e7ec9c08515c95efd9821a130c37a0aeb85bcfe10404d4b36e292'}
 
 
+# R1 safety correction inverse: reconstruct rejected45e5307 exactly first.
+R1_INVERSE = {'__init__.py': {'baseline_sha256': '90ab59501f49da8ae4464f709b87a541f940fe82b52ef938fe00556f03246442', 'hunks': [[94, 95, '11bd01adfe49b93904cf8b8b98b91bfa800dfb02ed5e41c10dceadc012a4bab3', ''], [446, 447, 'f27d5888d3870109b164bad1400fbd1d4cfb59781800c9e3131ee27efb15b0a8', '            self._alarm_draft = AlarmDraft()\n'], [534, 540, 'e751fc1a20cd55a1ce461f21ef6e6d6a823549e73e644058a4ad0c11da224a25', '            if self.observations is not None:\n                await self.observations.async_close()\n'], [546, 547, '94196040c95102720245c535e6a5dcba7f57eb06d9b9f9bbb2815ad5abc259c4', ''], [552, 555, 'f0594e455e144cdf5bb37b7bd2b5797c2571de6f14846e10c69094496b290abf', ''], [561, 567, '1dc9b3f462e482853aa179a11c23254aa718f7e3aca24c5299af23f242470069', '        entry.async_on_unload(hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, stop_observations))\n'], [592, 599, '1120006dcb63f0c093ba2d051a267a461383f06ece940c81537d6a0d194e77b2', '']]}, 'alarm_editing.py': {'baseline_sha256': '12dece7464445864840291712924f74e2590c05f7633b265573869c932c459bd', 'hunks': [[15, 17, '16039b9a106f00c31c1926218437f6a39f859e51867228ac524d28ff83b2e94d', '    def __init__(self):\n'], [25, 28, '552007b839416d821f736ba2230cb4979fee5fae1133e0050b88976d76f6e387', '        self.outcome = None\n        self.write_submitted = False\n'], [31, 41, '95d3b9256c2341cbfb6113efb5c39d8a45ef4c71a90da3573fa31a2defd25594', '']]}, 'native_alarm_edit.py': {'baseline_sha256': '86d2f7da45330740627dc594b20394e54354bac5b71f14fa1b600a11561915bf', 'hunks': [[82, 85, '409e42b0c8ef7d9ace2255c81c52baf9b5905f26bf85c5655c1fc2d7d4d88f46', ''], [94, 98, '15bae1df852b14dceadd6618e3abbf10b536c360540a1740564f8175e91a7fb6', '            return AlarmApplyOutcome(compare_alarm_write_readback(baseline,request.intent,observed),True,observed_at)\n']]}, 'native_interactive.py': {'baseline_sha256': 'ba1993f46c6d108862f4bfab1f2012b87588780a3dcd30f1be8fd087c89c01a6', 'hunks': [[326, 327, 'ec44d3ccf86e723180eaa1b3dc04e6ea4c6191211a0c49f26083ff6db0be15eb', ''], [531, 536, 'ce5a3fa42c3353cfbbc1f9a45383f798c8fb6bdebca535cab5ec0963ba7ce586', ''], [562, 566, 'a3fb2d7514d5ab567096b6001b917bcd711fd958c2e63492ef89da1824c13c1a', "                    if group == 'alarms' and hasattr(self.session, '_alarm_draft'):\n                        self.session.alarm_draft.needs_reconciliation = False\n"]]}}
+R1_NEW = {'alarm_write_safety.py': '9067a8460b87db8b3cc969a6e6f638aeb786b2ef1b79d671ed674f063690106f'}
+
+
+def r1_source(name):
+    source = (ROOT / name).read_text()
+    if name in R1_INVERSE:
+        oracle = R1_INVERSE[name]
+        lines = source.splitlines(keepends=True)
+        for start,end,expected_hash,original in reversed(oracle['hunks']):
+            assert digest(''.join(lines[start:end]).encode()) == expected_hash, (name,start)
+            lines[start:end] = original.splitlines(keepends=True)
+        source = ''.join(lines)
+        assert digest(source.encode()) == oracle['baseline_sha256'], name
+    return source
+
+
+def test_r1_correction_inverse_restores_rejected45e5307():
+    assert set(R1_INVERSE) == {'__init__.py','alarm_editing.py','native_alarm_edit.py','native_interactive.py'}
+    assert set(R1_NEW) == {'alarm_write_safety.py'}
+    for name in R1_INVERSE:
+        r1_source(name)
+    for name,expected in R1_NEW.items():
+        assert digest((ROOT / name).read_bytes()) == expected
+
+
 def value_editing_source(name):
     """Reconstruct exact installed16227ef before any historical inversion."""
-    source = (ROOT / name).read_text()
+    source = r1_source(name)
     if name in VALUE_EDITING_INVERSE:
         oracle = VALUE_EDITING_INVERSE[name]
         lines = source.splitlines(keepends=True)
@@ -574,7 +601,7 @@ def test_value_editing_inverse_restores_installed16227ef_and_exact_new_paths():
     for name in VALUE_EDITING_INVERSE:
         value_editing_source(name)
     for name,expected_hash in NEW_ALARM_MODULES.items():
-        assert digest((ROOT / name).read_bytes()) == expected_hash, name
+        assert digest(r1_source(name).encode()) == expected_hash, name
 
 
 def installed_source(name):
@@ -621,10 +648,10 @@ def digest(data):
 
 
 def test_exact_component_inventory_and_unowned_bytes():
-    expected = set(IMMUTABLE) | set(INVERSE) | set(JSON_BASE) | {'native_interactive.py', 'observations.py'} | set(NEW_ALARM_MODULES)
+    expected = set(IMMUTABLE) | set(INVERSE) | set(JSON_BASE) | {'native_interactive.py', 'observations.py'} | set(NEW_ALARM_MODULES) | set(R1_NEW)
     actual = {str(p.relative_to(ROOT)) for p in ROOT.rglob('*')
               if p.is_file() and '__pycache__' not in p.parts}
-    assert actual == expected and len(actual) == 33
+    assert actual == expected and len(actual) == 34
     assert digest((ROOT / 'observations.py').read_bytes()) == OBSERVATIONS_SHA256
     installed_source('native_interactive.py')
     for name, expected_hash in IMMUTABLE.items():

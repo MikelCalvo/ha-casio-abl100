@@ -52,7 +52,9 @@ async def test_unknown_before_manual_read_and_no_setup_poll():
     entry = SimpleNamespace(entry_id='syntheticalarmentry', data={'address': ADDR}, unique_id=ADDR, options={},
                             add_update_listener=add_update_listener, async_on_unload=on_unload)
     observations = SimpleNamespace(async_load_into=AsyncMock(), async_close=AsyncMock())
-    with patch('custom_components.casio_abl100.EntryObservations', return_value=observations), patch('custom_components.casio_abl100.establish_connection') as connect:
+    safety = SimpleNamespace(async_load=AsyncMock(), async_close=AsyncMock(),
+                             blocked=False, result=None, submitted=False)
+    with patch('custom_components.casio_abl100.alarm_write_safety.AlarmWriteSafety', return_value=safety), patch('custom_components.casio_abl100.EntryObservations', return_value=observations), patch('custom_components.casio_abl100.establish_connection') as connect:
         await async_setup_entry(hass, entry)
         assert entry.runtime_data.alarm_snapshot is None
         assert entry.runtime_data.alarm_last_sync is None

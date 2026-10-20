@@ -80,6 +80,9 @@ class AlarmApplyView:
                 return AlarmApplyOutcome('conflict',False,observed_at)
             if pair is None:
                 return AlarmApplyOutcome('unchanged',False,observed_at)
+            # A local acknowledged conservative barrier precedes any possible SET.
+            await self.reader.session.alarm_safety.async_pending()
+            self.guard()
             # Both canonical packets were built before the first invocation.
             for data in pair:
                 self.guard()
@@ -89,7 +92,10 @@ class AlarmApplyView:
             draft.phase = 'readback'
             observed = await read_alarm_group(self)
             observed_at = self.commit(observed)
-            return AlarmApplyOutcome(compare_alarm_write_readback(baseline,request.intent,observed),True,observed_at)
+            result = compare_alarm_write_readback(baseline,request.intent,observed)
+            await self.reader.session.alarm_safety.async_complete(result, True, self.guard)
+            self.guard()
+            return AlarmApplyOutcome(result,True,observed_at)
         finally:
             self._receiver = None
             self.adapter.receiver = None

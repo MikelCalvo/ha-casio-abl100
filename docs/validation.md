@@ -6,10 +6,13 @@ The local source adds 13 nonpersistent draft controls and explicit Apply/readbac
 through the retained interactive native owner. Focused real-HA services with a
 synthetic external memory wire exercise staging without IO, Connect without SET,
 canonical SET15/16, held readback, mismatch/unknown and GET-only reconciliation.
-This is not installation or physical write acceptance. Full owning validation
-is blocked by an ungranted zone-acceptance fixture that excludes only previous
-additions; an early setup-failure fixture also fails on the pristine baseline.
-Independent complete-unit SPEC and QUALITY remain pending. See
+This is not installation or physical write acceptance. Correction R1 preserves
+the reconciliation prerequisite across actual reload and cold saved-byte load
+using a separate acknowledged local safety journal, without persisting drafts.
+Zone acceptance now counts named alarm additions while preserving historical
+names; setup-failure fixtures distinguish pre-platform zero from late 36 restored
+placeholders and retain the original STOP callback census. Local test receipts
+are private; independent complete-unit SPEC and QUALITY remain pending. See
 [alarm draft semantics and limits](native-alarm-editing.md). Historical physical
 claims below are unchanged.
 

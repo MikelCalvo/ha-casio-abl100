@@ -12,7 +12,7 @@ from homeassistant.config_entries import ConfigEntryState
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.casio_abl100 import DOMAIN
-from tests.ha.test_native_alarm_runtime import native, spin_until, ADDRESS, TARGET, SOURCE
+from tests.ha.test_native_alarm_runtime import native, ADDRESS, TARGET, SOURCE
 from tests.ha.test_unified_sync_runtime import SyncWire, drive, assert_clean, QUERIES
 from tests.ha.test_native_interactive_ui_runtime import entities, press, connect_ui
 from tests.ha.test_zone_entities import OLD_KEYS, ZONE_KEYS, SYNC_KEYS, INTERACTIVE_KEYS
@@ -21,6 +21,14 @@ BASE23 = OLD_KEYS | ZONE_KEYS | SYNC_KEYS | INTERACTIVE_KEYS
 ALARM_EDIT_KEYS = {*(f'alarm_{n}_time_draft' for n in range(1,6)),
                    *(f'alarm_{n}_enabled_draft' for n in range(1,6)),
                    'hourly_signal_draft', 'apply_alarm_draft', 'discard_alarm_draft'}
+async def spin_until(predicate):
+    # Local acknowledged safety IO runs in executor, not 100 loop-only ticks.
+    async with asyncio.timeout(5):
+        while not predicate():
+            await asyncio.sleep(0.001)
+    assert predicate(), 'Expected cooperative stage not reached'
+
+
 FIRST = bytes.fromhex('15 40 07 06 11')
 REST = bytes.fromhex('16 00 00 08 09 40 07 0a 0b 00 07 0c 0d 40 00 0e 0f')
 
