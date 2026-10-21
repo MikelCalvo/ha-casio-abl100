@@ -50,7 +50,7 @@ class WatchConnectionSwitch(DraftEntity, SwitchEntity):
 
     async def _set(self, enabled):
         entry = self.session.entry
-        options = {**entry.options, 'auto_connect_retained': enabled}
+        options = {**entry.options, 'auto_connect_retained': enabled, 'observe_windows': False}
         if enabled:
             options.update(auto_read_steps=False, auto_read_all=False)
         # Revoke synchronously before the options listener can unload entities.

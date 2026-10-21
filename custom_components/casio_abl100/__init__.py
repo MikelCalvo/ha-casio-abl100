@@ -14,6 +14,7 @@ from .protocol import ProtocolError
 from .transport import ReadError, disconnect_client, read_record, read_alarms as read_alarm_snapshot
 
 DOMAIN = 'casio_abl100'
+AUTO_READ_OPTION_KEYS = ('auto_read_steps', 'auto_read_all', 'auto_connect_retained', 'observe_windows')
 PLATFORMS = (Platform.SENSOR, Platform.BUTTON, Platform.BINARY_SENSOR, Platform.TIME, Platform.SWITCH)
 MODEL = 'ABL-100WE'
 _LOGGER = logging.getLogger(__name__)
@@ -581,8 +582,7 @@ async def async_setup_entry(hass, entry):
     cancel_update = None
     cancel_stop = None
     try:
-        modes = tuple(entry.options.get(key, False) for key in (
-            'auto_read_steps', 'auto_read_all', 'auto_connect_retained'))
+        modes = tuple(entry.options.get(key, False) for key in AUTO_READ_OPTION_KEYS)
         if any(type(value) is not bool for value in modes) or sum(modes) > 1:
             from homeassistant.exceptions import ConfigEntryError
             raise ConfigEntryError('Invalid automatic read options')
@@ -609,6 +609,7 @@ async def async_setup_entry(hass, entry):
             from .auto_read import AutoStepReader
 
             manager.auto_reader = AutoStepReader(hass, entry, manager, mode=(
+                'observe' if entry.options.get('observe_windows') is True else
                 'retained' if entry.options.get('auto_connect_retained') is True else
                 'all' if entry.options.get('auto_read_all') is True else 'steps'))
             manager.auto_reader.start()

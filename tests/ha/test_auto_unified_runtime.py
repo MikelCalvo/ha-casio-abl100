@@ -114,7 +114,10 @@ async def test_options_conflict_never_mutates_or_reloads(hass, enable_custom_int
 
 @pytest.mark.parametrize('options', [
     {'auto_read_steps': True, 'auto_read_all': True}, {'auto_read_all': 1},
-    {'auto_read_steps': 0}, {'auto_read_all': 'true'}, {'auto_read_all': None}])
+    {'auto_read_steps': 0}, {'auto_read_all': 'true'}, {'auto_read_all': None},
+    *({'observe_windows': value} for value in (0, 1, None, 'true', [], {})),
+    *({'observe_windows': True, key: True} for key in (
+        'auto_read_steps', 'auto_read_all', 'auto_connect_retained'))])
 async def test_invalid_stored_modes_fail_before_forwarding(hass, enable_custom_integrations, options):
     entry = MockConfigEntry(domain=DOMAIN, data={'address': 'AA:BB:CC:DD:EE:FF'},
                             unique_id='AA:BB:CC:DD:EE:FF', options=options)
@@ -454,7 +457,7 @@ async def test_metadata_maintenance_cannot_dispatch_and_no_ordinary_callback(pro
     assert not p.wire.calls
 
 
-@pytest.mark.parametrize('option', ['auto_read_steps', 'auto_read_all', 'auto_connect_retained'])
+@pytest.mark.parametrize('option', ['auto_read_steps', 'auto_read_all', 'auto_connect_retained', 'observe_windows'])
 async def test_malformed_automatic_options_block_reconfigure(hass, enable_custom_integrations, option):
     entry = MockConfigEntry(domain=DOMAIN, data={'address': 'AA:BB:CC:DD:EE:FF'},
                             unique_id='AA:BB:CC:DD:EE:FF', options={option: 0})

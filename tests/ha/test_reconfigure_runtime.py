@@ -152,7 +152,7 @@ async def test_both_flows_reject_another_entry_transport_or_stable_identity(
         connect.assert_not_called()
 
 
-@pytest.mark.parametrize('option', ['auto_read_steps', 'auto_read_all', 'auto_connect_retained'])
+@pytest.mark.parametrize('option', ['auto_read_steps', 'auto_read_all', 'auto_connect_retained', 'observe_windows'])
 @pytest.mark.parametrize('enabled_at_start', [False, True])
 async def test_reconfigure_requires_auto_read_off_including_submission_race(
     hass, enable_custom_integrations, enabled_at_start, option,

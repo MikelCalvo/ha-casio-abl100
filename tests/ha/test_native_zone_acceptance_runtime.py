@@ -604,7 +604,7 @@ async def test_unload_before_observer_delivery_and_populated_diagnostics_whiteli
     assert zone.session.zones_fresh and zone.session.zone_snapshot is not None
     assert not seen
     diagnostics = await async_get_config_entry_diagnostics(real, zone.watch)
-    assert set(diagnostics) == {'model', 'has_successful_read', 'last_sync', 'record_date', 'fresh'}
+    assert set(diagnostics) == {'model', 'has_successful_read', 'last_sync', 'record_date', 'fresh', 'window_observation'}
     assert '-330' not in json.dumps(diagnostics) and 'zone' not in json.dumps(diagnostics)
     assert await real.config_entries.async_unload(zone.watch.entry_id)
     assert all(handle.cancelled() for handle, _ in queued)

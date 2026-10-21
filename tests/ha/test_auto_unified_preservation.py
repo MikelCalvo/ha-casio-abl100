@@ -586,8 +586,47 @@ HISTORY_INVERSE = {'sensor.py': {'baseline_sha256': '526de558230d0f7ece094859476
                                 '            self._groups = {**self._groups, group: encoded}\n']]}}
 
 
-def streamlined_source(name):
+def window_capture_source(name):
+    """Restore byte-exact e9a3855 before any historical inverse."""
     source = (ROOT / name).read_text()
+    oracle = json.loads(Path(__file__).with_name('window_capture_inverse.json').read_text()).get(name)
+    if oracle is not None:
+        lines = source.splitlines(keepends=True)
+        for start, end, expected_hash, original in reversed(oracle['hunks']):
+            assert digest(''.join(lines[start:end]).encode()) == expected_hash, (name, start)
+            lines[start:end] = original.splitlines(keepends=True)
+        source = ''.join(lines)
+        assert digest(source.encode()) == oracle['baseline_sha256'], name
+    return source
+
+
+def test_window_capture_exact_outer_keys_hunks_and_e9a3855_bytes():
+    expected = {
+        '__init__.py': '5240f2a1251a8dcd1864004f07e2ee73de43fcc0278047c37837de7d69759e3e',
+        'auto_read.py': 'd4fa346649560ef540370e992f443a4baf0603bd487a7f2329f3c39b77884d36',
+        'config_flow.py': 'ed10861292506356a38829e48579151e4776b4e5e1b97270e5aab8476222b48f',
+        'diagnostics.py': '35373addef9e6abb305a95db8155c0a884e360c1fbd0a7b53239ec6deb476abc',
+        'switch.py': '2d23b309558e4db94d98931f63e9d05807254c93eedcac2291e137e4320961d8',
+        'strings.json': '399d8dc54ef4a57cebfe5eed0da9409f94053a1f780a61651e5684292dd8a50b',
+        'translations/en.json': '399d8dc54ef4a57cebfe5eed0da9409f94053a1f780a61651e5684292dd8a50b',
+        'translations/es.json': '12337e08f4ae17e289cc130f801e9889644c31234f3c6559f9b46ed64c85d9b4',
+    }
+    oracles = json.loads(Path(__file__).with_name('window_capture_inverse.json').read_text())
+    assert set(oracles) == set(expected)
+    for name, expected_hash in expected.items():
+        oracle = oracles[name]
+        assert set(oracle) == {'baseline_sha256', 'hunks'}
+        assert oracle['baseline_sha256'] == expected_hash and oracle['hunks']
+        previous_end = 0
+        for start, end, hunk_hash, original in oracle['hunks']:
+            assert 0 <= previous_end <= start <= end
+            assert len(hunk_hash) == 64 and isinstance(original, str)
+            previous_end = end
+        assert digest(window_capture_source(name).encode()) == expected_hash
+
+
+def streamlined_source(name):
+    source = window_capture_source(name)
     correction = json.loads(Path(__file__).with_name('runtime_correction_inverse.json').read_text()).get(name)
     if correction is not None:
         lines = source.splitlines(keepends=True)

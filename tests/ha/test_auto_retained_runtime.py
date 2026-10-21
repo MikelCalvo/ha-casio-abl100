@@ -102,7 +102,7 @@ async def test_invalid_retained_setup_fails_before_platforms(hass, enable_custom
         assert forward.call_count == 0 and entry.runtime_data.closed
 
 
-@pytest.mark.parametrize('other', ['auto_read_steps', 'auto_read_all'])
+@pytest.mark.parametrize('other', ['auto_read_steps', 'auto_read_all', 'observe_windows'])
 async def test_retained_options_conflict_preserves_entry(hass, enable_custom_integrations, other):
     entry = MockConfigEntry(domain=DOMAIN, data={'address': 'AA:BB:CC:DD:EE:FF'},
                             options={'keep': [1]})

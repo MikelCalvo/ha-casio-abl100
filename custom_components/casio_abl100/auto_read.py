@@ -1,6 +1,6 @@
 """Optional HA-native step requests for observed advertisement windows."""
 import asyncio
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 import logging
 import math
 
@@ -18,6 +18,8 @@ _LOGGER = logging.getLogger(__name__)
 QUIET_GAP = 30.0
 MAX_AGE = 5.0
 _NAMES = ('ABL-100', 'ABL-100WE', 'CASIO ABL-100', 'CASIO ABL-100WE')
+_WINDOW_COUNT_MAX = 2**31 - 1
+_WINDOW_HISTORY_MAX = 16
 
 
 def _finite_time(value):
@@ -52,6 +54,57 @@ class AutoStepReader:
         self._source = None
         self._pending_admission = None
         self._retained_admission = None
+        # Capture state is never admission authority or persisted watch data.
+        self._window_started = datetime.now(timezone.utc).isoformat()
+        self._window_coverage = None
+        self._window_last_seen = None
+        self._window_bursts = []
+        self._window_burst_count = 0
+        self._window_raw_count = 0
+        self._window_gap_count = 0
+
+    def _end_window_coverage(self):
+        if self.mode == 'observe' and self._window_coverage is not None:
+            self._window_gap_count = min(_WINDOW_COUNT_MAX, self._window_gap_count + 1)
+            self._window_coverage = None
+            self._window_last_seen = None
+
+    def _begin_window_coverage(self):
+        if (self.mode == 'observe' and not self._stopped and not self._faulted
+                and not self._suspended and self._window_coverage is None):
+            self._window_coverage = datetime.now(timezone.utc).isoformat()
+
+    def _capture_window(self, seen):
+        stamp = datetime.now(timezone.utc).isoformat()
+        if self._window_last_seen is None or seen - self._window_last_seen >= QUIET_GAP:
+            self._window_burst_count = min(_WINDOW_COUNT_MAX, self._window_burst_count + 1)
+            self._window_bursts.append({
+                'first_seen_utc': stamp, 'last_seen_utc': stamp,
+                'raw_record_count': 0, 'cause': 'unknown',
+            })
+            del self._window_bursts[:-_WINDOW_HISTORY_MAX]
+        burst = self._window_bursts[-1]
+        burst['last_seen_utc'] = stamp
+        burst['raw_record_count'] = min(_WINDOW_COUNT_MAX, burst['raw_record_count'] + 1)
+        self._window_raw_count = min(_WINDOW_COUNT_MAX, self._window_raw_count + 1)
+        self._window_last_seen = seen
+
+    def window_observation(self):
+        """Copy only the bounded, address-free host-reception projection."""
+        if self.mode != 'observe':
+            return None
+        bound = self._raw_valid() and not self._stopped and not self._faulted
+        if not bound:
+            self._detach_raw()
+        return {
+            'enabled': not self._stopped, 'bound': bound, 'suspended': self._suspended,
+            'coverage_since_utc': self._window_coverage,
+            'observation_started_utc': self._window_started,
+            'burst_count': self._window_burst_count, 'raw_record_count': self._window_raw_count,
+            'coverage_gap_count': self._window_gap_count,
+            'recent_bursts': [dict(burst) for burst in self._window_bursts],
+            'cause': 'unknown', 'clock_fault': self._faulted,
+        }
 
     def retained_terminal(self, controller):
         """Anchor rearm to joined native cleanup, never the initial read return."""
@@ -67,6 +120,7 @@ class AutoStepReader:
         now = monotonic_time_coarse()
         if not _finite_time(now) or (self._clock is not None and now < self._clock):
             self._faulted = True
+            self._end_window_coverage()
             return None
         self._clock = now
         return now
@@ -79,12 +133,12 @@ class AutoStepReader:
         self._started = True
         now = self._now()
         cached = bluetooth.async_last_service_info(self.hass, self.session.address, connectable=True)
-        if cached is not None:
+        if cached is not None and self.mode != 'observe':
             self._observe(cached, allow_request=False)
         if now is None or self._faulted:
             return
         try:
-            if self.mode in ('all', 'retained'):
+            if self.mode in ('all', 'retained', 'observe'):
                 device = bluetooth.async_ble_device_from_address(self.hass, self.session.address, connectable=True)
                 name = (device.name or '').rstrip('\x00 \t\r\n') if device is not None else ''
                 if device is not None and (device.address.upper() != self.session.address or name not in _NAMES):
@@ -117,7 +171,7 @@ class AutoStepReader:
                     cancel()
                 except (Exception, asyncio.CancelledError):
                     _LOGGER.warning('Automatic step observer cleanup failed')
-            if self.mode in ('all', 'retained'):
+            if self.mode in ('all', 'retained', 'observe'):
                 self._detach_raw()
                 if self._cancel_timer is not None:
                     cancel, self._cancel_timer = self._cancel_timer, None
@@ -126,6 +180,7 @@ class AutoStepReader:
             raise
 
     def _detach_raw(self):
+        self._end_window_coverage()
         self._raw_binding = None
         if self._pending_admission is not None:
             self._pending_admission.consumed = True
@@ -163,6 +218,7 @@ class AutoStepReader:
                     self._detach_raw()
             callbacks.add(disconnected)
             self._cancel_disconnect = lambda: callbacks.discard(disconnected)
+            self._begin_window_coverage()
         except BaseException:
             self._detach_raw()
             raise
@@ -193,6 +249,10 @@ class AutoStepReader:
     @callback
     def _raw_advertisement(self, message):
         if self._stopped or self._faulted or not self._raw_valid():
+            if self.mode == 'observe':
+                self._detach_raw()
+            return
+        if self.mode == 'observe' and self._suspended:
             return
         for adv in message.advertisements:
             if adv.address != int(self.session.address.replace(':', ''), 16) or adv.address_type not in (0, 1):
@@ -203,6 +263,9 @@ class AutoStepReader:
             seen = self._now()
             if seen is None:
                 return
+            if self.mode == 'observe':
+                self._capture_window(seen)
+                continue
             from .native_sync import _RawSyncAdmission
             runtime, client, connection, proxy, callbacks = self._raw_binding
             admission = _RawSyncAdmission(
@@ -326,6 +389,7 @@ class AutoStepReader:
     @callback
     def suspend(self):
         self._suspended = True
+        self._end_window_coverage()
         if self._pending_admission is not None:
             self._pending_admission.consumed = True
             self._pending_admission = None
@@ -334,9 +398,11 @@ class AutoStepReader:
     def resume(self):
         # A failed unload must not reinterpret the current window as a new one.
         cached = bluetooth.async_last_service_info(self.hass, self.session.address, connectable=True)
-        if cached is not None:
+        if cached is not None and self.mode != 'observe':
             self._observe(cached, allow_request=False)
         self._suspended = False
+        if self.mode == 'observe' and self._raw_valid():
+            self._begin_window_coverage()
 
     async def stop(self):
         """Remove observers; wait for cooperative cleanup even if this caller cancels.
@@ -345,7 +411,7 @@ class AutoStepReader:
         does not impose a timeout or forcibly abandon the owned reader.
         """
         self._stopped = True
-        if self.mode in ('all', 'retained'):
+        if self.mode in ('all', 'retained', 'observe'):
             self._detach_raw()
         for attribute in ('_cancel_callback', '_cancel_timer', '_cancel_disconnect'):
             cancel = getattr(self, attribute)

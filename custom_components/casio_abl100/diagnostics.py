@@ -5,6 +5,9 @@ from homeassistant.util import dt as dt_util
 async def async_get_config_entry_diagnostics(hass, entry):
     manager = entry.runtime_data
     return {
+        'window_observation': (manager.auto_reader.window_observation()
+                               if manager.auto_reader is not None and manager.auto_reader.mode == 'observe'
+                               else None),
         'model': 'ABL-100WE',
         'has_successful_read': manager.last_sync is not None,
         'last_sync': manager.last_sync.isoformat() if manager.last_sync else None,

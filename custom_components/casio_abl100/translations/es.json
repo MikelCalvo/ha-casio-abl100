@@ -150,11 +150,12 @@
     "step": {
       "init": {
         "title": "Casio ABL-100WE",
-        "description": "Experimental y opcional: selecciona como máximo un modo automático. Los anuncios Bluetooth solo indican una ventana de disponibilidad, no reconocen CNCT. Leer todos los datos requiere una fuente ESPHome nativa disponible y un anuncio en vivo que incluya un nombre compatible. Conectar y mantener lee una vez y conserva el enlace hasta su pérdida o cierre explícito, sin caducidad por inactividad o duración de sesión. No garantiza permanencia física ni escribe ajustes automáticamente. Desactiva todos los modos antes de cambiar la dirección.",
+        "description": "Experimental: elige como máximo un modo. Observar ventanas captura anuncios de forma pasiva sin conectar ni leer. Los lectores automáticos de pasos/todos los datos y la conexión mantenida son activos; requieren anuncios del reloj, no prueban CNCT. Observar/todos los datos/conexión mantenida requieren una fuente ESPHome nativa disponible. La conexión mantenida lee y conserva el enlace hasta pérdida o cierre; no garantiza permanencia física. Ningún modo ajusta la hora. Desactiva todos los modos antes de cambiar la dirección. Los resúmenes pasivos están solo en memoria; descarga los diagnósticos antes de desactivar o recargar.",
         "data": {
           "auto_read_steps": "Leer pasos al detectar el reloj",
           "auto_read_all": "Leer todos los datos al detectar el reloj",
-          "auto_connect_retained": "Conectar y mantener al detectar el reloj"
+          "auto_connect_retained": "Conectar y mantener al detectar el reloj",
+          "observe_windows": "Observar ventanas de anuncios del reloj (pasivo)"
         }
       }
     },

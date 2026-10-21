@@ -5,7 +5,7 @@ from homeassistant import config_entries
 from homeassistant.components import bluetooth
 from homeassistant.core import callback
 from homeassistant.helpers import selector
-from . import DOMAIN
+from . import AUTO_READ_OPTION_KEYS, DOMAIN
 
 MAC = re.compile(r'^[0-9A-F]{2}(?::[0-9A-F]{2}){5}$')
 
@@ -49,7 +49,7 @@ class CasioConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         entry = self._get_reconfigure_entry()
         if not entry.unique_id:
             return self.async_abort(reason='missing_identity')
-        if any(entry.options.get(key, False) is not False for key in ('auto_read_steps', 'auto_read_all', 'auto_connect_retained')):
+        if any(entry.options.get(key, False) is not False for key in AUTO_READ_OPTION_KEYS):
             return self.async_abort(reason='auto_read_enabled')
         if user_input is not None:
             address, errors = self._selected_address(user_input)
@@ -116,11 +116,10 @@ class CasioOptionsFlow(config_entries.OptionsFlow):
     async def async_step_init(self, user_input=None):
         errors = {}
         if user_input is not None:
-            for key in ('auto_read_steps', 'auto_read_all', 'auto_connect_retained'):
+            for key in AUTO_READ_OPTION_KEYS:
                 if type(user_input.get(key)) is not bool:
                     errors[key] = 'invalid_boolean'
-            if not errors and sum(user_input[key] for key in (
-                    'auto_read_steps', 'auto_read_all', 'auto_connect_retained')) > 1:
+            if not errors and sum(user_input[key] for key in AUTO_READ_OPTION_KEYS) > 1:
                 errors['base'] = 'automatic_modes_conflict'
             if not errors:
                 return self.async_create_entry(title='', data={
@@ -129,15 +128,8 @@ class CasioOptionsFlow(config_entries.OptionsFlow):
         return self.async_show_form(
             step_id='init',
             data_schema=vol.Schema({
-                vol.Required('auto_read_steps', default=self.config_entry.options.get(
-                    'auto_read_steps', False,
-                )): bool,
-                vol.Required('auto_read_all', default=self.config_entry.options.get(
-                    'auto_read_all', False,
-                )): bool,
-                vol.Required('auto_connect_retained', default=self.config_entry.options.get(
-                    'auto_connect_retained', False,
-                )): bool,
+                vol.Required(key, default=self.config_entry.options.get(key, False)): bool
+                for key in AUTO_READ_OPTION_KEYS
             }),
             errors=errors,
         )

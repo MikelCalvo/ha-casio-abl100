@@ -1,0 +1,228 @@
+{
+  "__init__.py": {
+    "baseline_sha256": "5240f2a1251a8dcd1864004f07e2ee73de43fcc0278047c37837de7d69759e3e",
+    "hunks": [
+      [
+        16,
+        17,
+        "84a82537e0a1ee1a7cb965cce80f0a1173c909ea2549a9363c705972af6c0256",
+        ""
+      ],
+      [
+        584,
+        585,
+        "0c265000502eaeaef540af08444f43b4496090dba188947de3fcceec2107f982",
+        "        modes = tuple(entry.options.get(key, False) for key in (\n            'auto_read_steps', 'auto_read_all', 'auto_connect_retained'))\n"
+      ],
+      [
+        611,
+        612,
+        "baf4b46555341f2bcbdda27d12409c8d1ef2b1b18f36520b4d47dd6da86878ff",
+        ""
+      ]
+    ]
+  },
+  "auto_read.py": {
+    "baseline_sha256": "d4fa346649560ef540370e992f443a4baf0603bd487a7f2329f3c39b77884d36",
+    "hunks": [
+      [
+        2,
+        3,
+        "a573797ab71c2e157bd03ea306c1283be05df256e7c47ea8f4ab0b303777b9a5",
+        "from datetime import timedelta\n"
+      ],
+      [
+        20,
+        22,
+        "170481284c97542ee360c430d0ec76cce843b0198bdbd546a80b6ef02306d7ab",
+        ""
+      ],
+      [
+        56,
+        107,
+        "d96ded29d2202672e6e07d8037432b01d80ca78fc0b693c52c0f4250749e1b4d",
+        ""
+      ],
+      [
+        122,
+        123,
+        "283ccf0e6610476e1ac54aa5486b8a445eb7809ece533df08176f0ecdb4c9c1c",
+        ""
+      ],
+      [
+        135,
+        136,
+        "6c890c5316e5853c0c0fc9ae82d5bb1ccee01c493959d00ef9eef3095f4d3c02",
+        "        if cached is not None:\n"
+      ],
+      [
+        140,
+        141,
+        "ac97bbf1999c336c48207593071d874dc428cf4ec46eec29db6979bca6526008",
+        "            if self.mode in ('all', 'retained'):\n"
+      ],
+      [
+        173,
+        174,
+        "ac97bbf1999c336c48207593071d874dc428cf4ec46eec29db6979bca6526008",
+        "            if self.mode in ('all', 'retained'):\n"
+      ],
+      [
+        182,
+        183,
+        "087b0a3cf5ea0a2a7cc0bbba2c1603ca28e6b9b5f579a535910460bc4430d745",
+        ""
+      ],
+      [
+        220,
+        221,
+        "810556c9a68df254afc6dae5360ad5c7bb8c13504569381d9e5b020c0190fd08",
+        ""
+      ],
+      [
+        251,
+        255,
+        "c867f91ffb42cec0545a986cde4796000a58ab3ee82c3a72a4be0990fb0c7b8b",
+        ""
+      ],
+      [
+        265,
+        268,
+        "c4c709906cf96ad044688f40d4516653bc23313d92c8078bf7ca28dc6cba3160",
+        ""
+      ],
+      [
+        391,
+        392,
+        "087b0a3cf5ea0a2a7cc0bbba2c1603ca28e6b9b5f579a535910460bc4430d745",
+        ""
+      ],
+      [
+        400,
+        401,
+        "6c890c5316e5853c0c0fc9ae82d5bb1ccee01c493959d00ef9eef3095f4d3c02",
+        "        if cached is not None:\n"
+      ],
+      [
+        403,
+        405,
+        "47cf1764783a9f4b844256f1149712495ab945d03ba8fc3ad6f8811e516c008c",
+        ""
+      ],
+      [
+        413,
+        414,
+        "82619e6dbe3812c8d083fbc640482426d17281f33680bfbaeaa8fecb52a02def",
+        "        if self.mode in ('all', 'retained'):\n"
+      ]
+    ]
+  },
+  "config_flow.py": {
+    "baseline_sha256": "ed10861292506356a38829e48579151e4776b4e5e1b97270e5aab8476222b48f",
+    "hunks": [
+      [
+        7,
+        8,
+        "ea1a24025490974acd21821851f86813b08bf6d46b5999afff3472ad4db06f81",
+        "from . import DOMAIN\n"
+      ],
+      [
+        51,
+        52,
+        "f1c93c0f848caeecca211f15f39fc4b640d7c5431ab14415f213d95736f55401",
+        "        if any(entry.options.get(key, False) is not False for key in ('auto_read_steps', 'auto_read_all', 'auto_connect_retained')):\n"
+      ],
+      [
+        118,
+        119,
+        "3da4b235c6f950545bd47332b27d31532feec7706c52137d2f00ce661ab1a3de",
+        "            for key in ('auto_read_steps', 'auto_read_all', 'auto_connect_retained'):\n"
+      ],
+      [
+        121,
+        122,
+        "03a626fe3e284af6b099675343c796c341030125964da533adcf6c844cb39058",
+        "            if not errors and sum(user_input[key] for key in (\n                    'auto_read_steps', 'auto_read_all', 'auto_connect_retained')) > 1:\n"
+      ],
+      [
+        130,
+        132,
+        "394888faad539882d33fcdb1689d900ccc2bdb85880023f02321dcecc4646f5f",
+        "                vol.Required('auto_read_steps', default=self.config_entry.options.get(\n                    'auto_read_steps', False,\n                )): bool,\n                vol.Required('auto_read_all', default=self.config_entry.options.get(\n                    'auto_read_all', False,\n                )): bool,\n                vol.Required('auto_connect_retained', default=self.config_entry.options.get(\n                    'auto_connect_retained', False,\n                )): bool,\n"
+      ]
+    ]
+  },
+  "diagnostics.py": {
+    "baseline_sha256": "35373addef9e6abb305a95db8155c0a884e360c1fbd0a7b53239ec6deb476abc",
+    "hunks": [
+      [
+        7,
+        10,
+        "72bb1c69ae92d1bd1882a11325317be1f3193cbc98f438e5c26c5d62429c1989",
+        ""
+      ]
+    ]
+  },
+  "switch.py": {
+    "baseline_sha256": "2d23b309558e4db94d98931f63e9d05807254c93eedcac2291e137e4320961d8",
+    "hunks": [
+      [
+        52,
+        53,
+        "1b694a1e3b6724f65cd4500268dc439c6de6ee61d4d5a4a4cd5ea112ca51fa55",
+        "        options = {**entry.options, 'auto_connect_retained': enabled}\n"
+      ]
+    ]
+  },
+  "strings.json": {
+    "baseline_sha256": "399d8dc54ef4a57cebfe5eed0da9409f94053a1f780a61651e5684292dd8a50b",
+    "hunks": [
+      [
+        152,
+        153,
+        "d027d9094a3638173cc656d11e5181e86390f8a0c48c04a7e87c2c35d8c4c9e8",
+        "        \"description\": \"Experimental and opt-in: select at most one automatic mode. Bluetooth advertising indicates an availability window, not recognition of CNCT. Reading all data requires an available native ESPHome source and a live advertisement carrying a supported name. Connect and retain reads once and keeps the link until loss or explicit close, without idle or session-lifetime expiry. Physical permanence is not guaranteed and no settings are written automatically. Turn all modes off before changing the address.\",\n"
+      ],
+      [
+        156,
+        158,
+        "cc9b6588b8a6606d7227a94fae2f0ea97066ba9ad64dd2ba5021dbbfb0f26cbc",
+        "          \"auto_connect_retained\": \"Connect and retain when watch becomes available\"\n"
+      ]
+    ]
+  },
+  "translations/en.json": {
+    "baseline_sha256": "399d8dc54ef4a57cebfe5eed0da9409f94053a1f780a61651e5684292dd8a50b",
+    "hunks": [
+      [
+        152,
+        153,
+        "d027d9094a3638173cc656d11e5181e86390f8a0c48c04a7e87c2c35d8c4c9e8",
+        "        \"description\": \"Experimental and opt-in: select at most one automatic mode. Bluetooth advertising indicates an availability window, not recognition of CNCT. Reading all data requires an available native ESPHome source and a live advertisement carrying a supported name. Connect and retain reads once and keeps the link until loss or explicit close, without idle or session-lifetime expiry. Physical permanence is not guaranteed and no settings are written automatically. Turn all modes off before changing the address.\",\n"
+      ],
+      [
+        156,
+        158,
+        "cc9b6588b8a6606d7227a94fae2f0ea97066ba9ad64dd2ba5021dbbfb0f26cbc",
+        "          \"auto_connect_retained\": \"Connect and retain when watch becomes available\"\n"
+      ]
+    ]
+  },
+  "translations/es.json": {
+    "baseline_sha256": "12337e08f4ae17e289cc130f801e9889644c31234f3c6559f9b46ed64c85d9b4",
+    "hunks": [
+      [
+        152,
+        153,
+        "e9705721ff17d8b60afa7b8eee85c9669e1a28f9dee94b7b1f558257e782036a",
+        "        \"description\": \"Experimental y opcional: selecciona como máximo un modo automático. Los anuncios Bluetooth solo indican una ventana de disponibilidad, no reconocen CNCT. Leer todos los datos requiere una fuente ESPHome nativa disponible y un anuncio en vivo que incluya un nombre compatible. Conectar y mantener lee una vez y conserva el enlace hasta su pérdida o cierre explícito, sin caducidad por inactividad o duración de sesión. No garantiza permanencia física ni escribe ajustes automáticamente. Desactiva todos los modos antes de cambiar la dirección.\",\n"
+      ],
+      [
+        156,
+        158,
+        "3e8a7f0eecae98529f225d443b272ffb1e86940aa0d0ddafaab13cbc7f3dcb36",
+        "          \"auto_connect_retained\": \"Conectar y mantener al detectar el reloj\"\n"
+      ]
+    ]
+  }
+}

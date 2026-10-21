@@ -24,6 +24,7 @@ async def test_listen_switch_supported_options_and_stop(producer):
     p.session = p.watch.runtime_data
     assert p.watch.options['auto_connect_retained'] is True
     assert p.watch.options['auto_read_steps'] is p.watch.options['auto_read_all'] is False
+    assert p.watch.options['observe_windows'] is False
     c = await initial(p, p.session.auto_reader)
     await service(p, 'watch_connection', 'turn_off')
     await p.hass.async_block_till_done()

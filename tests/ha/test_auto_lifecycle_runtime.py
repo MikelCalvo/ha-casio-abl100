@@ -37,6 +37,7 @@ async def test_session_shutdown_keeps_reader_cleanup_owned_through_caller_cancel
     # missing shutdown boundary rather than stopping at an owner-presence check.
     reader = AutoStepReader(hass, entry, session)
     session.auto_reader = reader
+    assert reader.window_observation() is None  # Active steps never expose passive history.
     writing, cleaning, release, cleaned = (asyncio.Event() for _ in range(4))
     client = FakeClient()
     client.block = asyncio.Event()

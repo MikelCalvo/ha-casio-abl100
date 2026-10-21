@@ -150,11 +150,12 @@
     "step": {
       "init": {
         "title": "Casio ABL-100WE",
-        "description": "Experimental and opt-in: select at most one automatic mode. Bluetooth advertising indicates an availability window, not recognition of CNCT. Reading all data requires an available native ESPHome source and a live advertisement carrying a supported name. Connect and retain reads once and keeps the link until loss or explicit close, without idle or session-lifetime expiry. Physical permanence is not guaranteed and no settings are written automatically. Turn all modes off before changing the address.",
+        "description": "Experimental: select at most one mode. Observe windows captures advertising passively without connecting or reading. Automatic steps/all-data readers and retained connection are active; they require watch advertising, not proof of CNCT. Observe/all-data/retained modes require an available native ESPHome source. Retained mode reads and keeps the link until loss or close; physical permanence is not guaranteed. No mode adjusts the time. Turn all modes off before changing the address. Passive summaries are memory-only; download diagnostics before disabling or reloading.",
         "data": {
           "auto_read_steps": "Read steps when watch becomes available",
           "auto_read_all": "Read all watch data when watch becomes available",
-          "auto_connect_retained": "Connect and retain when watch becomes available"
+          "auto_connect_retained": "Connect and retain when watch becomes available",
+          "observe_windows": "Observe watch advertisement windows (passive)"
         }
       }
     },

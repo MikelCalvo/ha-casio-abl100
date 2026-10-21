@@ -22,9 +22,10 @@ async def test_diagnostics_are_bounded_and_do_not_include_mac_or_payload():
     setattr(manager, 'private_canary', 'PRIVATE_ALARM_CANARY')
     result = await async_get_config_entry_diagnostics(None, SimpleNamespace(runtime_data=manager, data={'address': manager.address}))
     serialized = json.dumps(result)
-    assert set(result) == {'model', 'has_successful_read', 'last_sync', 'record_date', 'fresh'}
+    assert set(result) == {'model', 'has_successful_read', 'last_sync', 'record_date', 'fresh', 'window_observation'}
     assert all(token not in serialized for token in (
         'AA:BB', 'PRIVATE', '23:59', '09:30', 'alarm_snapshot',
         'alarm_last_sync', 'alarms_fresh', 'flags', 'aux', 'hourly_signal',
     ))
     assert result['has_successful_read'] is True
+    assert result['window_observation'] is None
