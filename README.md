@@ -152,22 +152,20 @@ From the repository root, with `PYTHON` pointing to that environment:
 # Offline protocol and HA-boundary tests; synthetic external IO.
 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH="$PWD" \
   "$PYTHON" -B -m pytest -p pytest_asyncio.plugin -p no:cacheprovider \
-  -q tests/protocol tests/ha --ignore-glob='tests/ha/*runtime.py'
+  -q tests/protocol tests/ha tests/dashboard --ignore-glob='tests/ha/*runtime*.py' \
+  --ignore-glob='tests/dashboard/*runtime.py'
 
 # Real HA registries, services, translations and lifecycle; synthetic native IO.
 env -u PYTEST_DISABLE_PLUGIN_AUTOLOAD -u PYTHONOPTIMIZE \
   PYTHONDONTWRITEBYTECODE=1 PYTHONPATH="$PWD" \
   "$PYTHON" -B -m pytest -p no:cacheprovider -o asyncio_mode=auto \
-  -q tests/ha/*runtime.py
+  -q tests/ha/*runtime*.py
 
-# Pure dashboard and separate real-HA registry-to-dashboard composition.
-PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH="$PWD" \
-  "$PYTHON" -B -m pytest -p no:cacheprovider -q \
-  tests/dashboard/test_generator.py tests/dashboard/test_generator_safety.py
+# Full real-HA dashboard/template composition, separate from offline stubs.
 env -u PYTEST_DISABLE_PLUGIN_AUTOLOAD -u PYTHONOPTIMIZE \
   PYTHONDONTWRITEBYTECODE=1 PYTHONPATH="$PWD" \
   "$PYTHON" -B -m pytest -p no:cacheprovider -o asyncio_mode=auto \
-  -q tests/dashboard/test_dashboard_runtime.py
+  -q tests/dashboard/*runtime.py
 ```
 
 Public fixtures are constructed synthetic data, not captured watch records. Fixture counts are not physical results. Local tests/reviews, installed source, physical receipt, visual comparison and reliability are separate verification layers.
