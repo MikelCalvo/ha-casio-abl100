@@ -1,8 +1,8 @@
 # Native interactive watch session
 
-## Current installed pilot — 2026-10-20
+## Current installed pilot — 2026-10-21
 
-Base `2b665d1` is installed with **36 preserved identities**. Its three native buttons and link-status binary sensor share the existing device with read entities and [13 alarm/SIG draft controls](native-alarm-editing.md). This source adds a 37th listening switch and periodic retained reads; publication is not installation or physical acceptance.
+Component `e9a3855` is installed with **37 identities**, preserving all 36 earlier identities, observations and local safety state. Its three native buttons and link-status binary sensor share the existing device with read entities, [13 alarm/SIG draft controls](native-alarm-editing.md) and the listening switch. Two coordinated manual Connect/Refresh sessions completed all six read groups. A second refresh later lost the link at `get15_wait`, status 8; an idle control with no second refresh also lost it 64.517 seconds after read success, before the HA idle limit. Last-good observations survived and native cleanup released the proxy. The idle control's terminal watch display was unobserved. These results do not validate retained automatic refresh, diagnose the loss or certify reliability. See [current validation](validation.md). Publication of a newer candidate is not installation.
 
 The historical `badfe909` native owner completed a coordinated disabled-alarm-5 time change `00:00` → `00:01` and restoration to `00:00`, with native readback and operator comparison (`12:01`, then `12:00` on the watch). Clean explicit Close and fresh post-use source, identity, ownership/proxy and node-health checks were authenticated. **Both terminal screens showed ERR**. Neither a verified alarm outcome nor native disconnect proves a normal watch screen or everyday link reliability; ERR's cause remains unknown. The operator's roughly 20 seconds is an estimate, not measured timing. All three automatic modes were off at that historical trial.
 

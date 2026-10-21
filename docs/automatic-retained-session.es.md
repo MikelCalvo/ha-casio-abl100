@@ -1,16 +1,19 @@
 # Conexión automática retenida (experimental)
 
-**Estado:** la base `2b665d1` está instalada, con 36 identidades y los tres modos automáticos desactivados. El incremento de uso diario añade el interruptor de escucha y refrescos periódicos; su código nuevo necesita instalación y aceptación física propias. No abras una oportunidad Bluetooth sin una coordinación aparte.
+**Estado, 2026-10-21:** `e9a3855` está instalado con 37 identidades, incluido el interruptor de escucha. Dos conexiones manuales completaron la lectura de los seis grupos, pero la escucha automática y la estabilidad retenida siguen sin aceptación. Un control sin segunda lectura perdió el enlace 64,517 segundos después de la primera, antes del límite de HA; la causa sigue abierta y la pantalla final no se observó. Los tres modos automáticos quedaron desactivados. Una versión nueva publicada no equivale a una nueva instalación ni autoriza otra prueba física.
 
-## Tres modos, uno como máximo
+La nueva opción `observe_windows` es independiente y excluyente: **solo observa anuncios**, no conecta ni refresca. No uses Iniciar escucha para esa captura, porque selecciona el modo retenido y desactiva la observación pasiva. Consulta la [guía de captura de ventanas](passive-windows.es.md) para descargar los resúmenes antes de recargar o parar.
 
-En **Configurar** hay tres booleanos, todos desactivados por defecto:
+## Cuatro opciones, una como máximo
+
+En **Configurar** hay cuatro booleanos, todos desactivados por defecto:
 
 - `auto_read_steps`: lectura puntual de pasos/historial; conserva su significado.
 - `auto_read_all`: lectura puntual de los seis grupos y cierre; conserva su significado.
 - `auto_connect_retained`: conecta automáticamente ante una oportunidad RAW admisible, hace **una lectura completa inicial**, y conserva el propietario nativo original para refrescos periódicos y acciones explícitas.
+- `observe_windows`: captura pasiva de anuncios en diagnósticos, sin conectar ni leer.
 
-Los valores malformados o combinaciones incompatibles impiden la configuración. Guardar recarga solo la entrada seleccionada y conserva las 36 identidades anteriores y el nuevo interruptor de escucha, 37 en total. Desactiva los tres modos antes de cambiar la dirección Bluetooth. La carga, recarga o restauración de observaciones antiguas no inicia trabajo.
+Los valores malformados o combinaciones incompatibles impiden la configuración. Guardar recarga solo la entrada seleccionada y conserva las 36 identidades anteriores y el nuevo interruptor de escucha, 37 en total. Desactiva las cuatro opciones antes de cambiar la dirección Bluetooth. La carga, recarga o restauración de observaciones antiguas no inicia una lectura por sí sola.
 
 ## Qué se conserva y qué no
 
@@ -32,6 +35,6 @@ Una ráfaga se consume incluso estando ocupado, suspendido o tras un fallo. No q
 
 ## Límites de la evidencia
 
-Las pruebas atraviesan HA real y los métodos de la API nativa instalada con transporte externo sintético, duraciones reducidas y almacenamiento de pruebas. No son una instalación, una lectura física ni una prueba de estabilidad cotidiana. No se ha activado este modo en un HA real.
+Las pruebas atraviesan HA real y los métodos de la API nativa instalada con transporte externo sintético, duraciones reducidas y almacenamiento de pruebas. No son pruebas de radio. El código ya está instalado y el modo automático se intentó durante una prueba coordinada, pero falló antes de leer grupos. Las dos lecturas completas posteriores fueron manuales; no validan el disparador automático ni los refrescos periódicos.
 
 Existe una muestra manual confirmada por el operador que incluyó una pulsación MODE; es **una observación**, no un experimento causal. No demuestra que MODE sea un keepalive, que una conexión deba durar indefinidamente o que esta política corrija ERR. Los ERR históricos, los resultados de datos y la limpieza nativa son observaciones distintas. La causa de ERR sigue abierta.

@@ -1,15 +1,55 @@
 # Pilot validation
 
-## Current installed boundary — alarm-5 roundtrip, 2026-10-20
+## Current installed boundary — daily-use R3, 2026-10-21
 
-Reviewed component revision **`badfe909c74f63a2b2d81c69b3b872df596e1b1c`**
-is installed: **34 component files and 36 entity identities**, preserving all
-23 pre-editing identities on the existing watch device. This documentation-only
-revision describes unchanged component/test bytes; its Git HEAD is not a new
-installed component. Source gates and independent source reviews predate this
-documentation update. Their external native IO was synthetic; no production
-suite was rerun for these prose changes, and no new deployment or device action
-is implied.
+Reviewed component revision **`e9a385558034e9e401a4a39d3665b9f824825c08`**
+is installed: **37 component files and 37 entity identities**, preserving all
+36 earlier identities, semantic observations, original timestamps, local Store
+and safety journal. The modern stock dashboard was installed and inspected in
+real desktop and 390-pixel mobile views. A disconnected Send displayed the
+connection-required error; it did not send a watch-setting change. Source
+SPEC/QUALITY, recoverable installation and physical behavior are separate gates.
+A newer cleanup/window-capture candidate is not installed merely by publication.
+
+### Coordinated read and idle samples — 2026-10-21
+
+Two separate manually pre-armed connections followed immediately by an explicit
+Refresh completed all six groups: alarms, steps, zones, basic settings,
+automatic-time configuration and encoded timer. Each group published its own
+new observation timestamp; valid unknown automatic-time semantics remained
+unknown, not disabled. These were real integration-owned reads, not replayed
+fixtures or restored observations. They do not visually validate every setting.
+
+- In the first useful sample, another Refresh approximately 60 seconds after
+  the completed read lost the native link at `get15_wait`, status **8**, before
+  accepting the second alarm group.
+- In the idle control, no second read was sent. The link was lost **64.517
+  seconds** after the successful read, before the manual 120-second HA idle
+  limit. Therefore a second read is not necessary for this observed failure;
+  its timing alone does not establish a radio or watch-side cause.
+- Last-good values and timestamps across 27 checked observation/editor entities
+  remained preserved after each loss. Cleanup succeeded, the original proxy
+  slot was free, and the selected watch/ESPHome entries remained loaded.
+- The operator confirmed connection during the reads but **did not observe the
+  idle control's terminal screen**. Their report that automatic disconnections
+  usually show ERR is not a confirmed ERR for that sample.
+- An automatic retained attempt failed before any group was read. An earlier
+  parent browser experiment also failed to dispatch its intended read because
+  it inspected a stale frontend Hass object; it is excluded as a read trial.
+  The corrected parent sequencer was verified separately before the useful
+  samples. Neither that helper correction nor the data reads repair link loss.
+
+No setting SET, pairing, reset or firmware change was made in these read
+samples. All three automatic modes were off at final postflight; no new physical
+window was armed. Persistent listening, 30-second automatic refreshes and
+naturally occurring automatic windows still require their own acceptance.
+
+### Historical alarm-5 roundtrip — 2026-10-20
+
+The following results belong to the previously installed
+**`badfe909c74f63a2b2d81c69b3b872df596e1b1c`** component, with 34 component
+files and 36 identities. They remain valid historical evidence, not new R3
+write trials.
 
 | Verification layer | Confirmed result | Limit |
 | --- | --- | --- |
@@ -295,10 +335,16 @@ Home Assistant `2026.9.4`, ESPHome `2026.9.1`, Bleak `3.0.2`, bleak-retry-connec
 - **ERR remains unresolved**: it appeared in the historical joint read and on
   both alarm-write terminal screens. A native success or released proxy is not
   evidence of normal watch-side session completion.
-- Bounded interactive controls and both optional automatic readers are
-  implemented and installed. That does not establish unlimited session lifetime,
-  automatic fresh-window acceptance or unattended reliability. Both automatic
-  modes remain off.
+- Bounded interactive controls and all three optional automatic modes are
+  implemented in the installed R3 component. Two manual full reads succeeded;
+  the automatic retained attempt failed before useful reads. Automatic fresh-window
+  acceptance, 30-second periodic reads and unattended reliability remain open.
+  All three automatic modes were off at final postflight.
+- The newer source adds an exclusive default-OFF passive `observe_windows`
+  option on the existing native RAW owner. It creates no read admission or
+  connection and keeps bounded volatile diagnostic summaries only. Its source
+  verification is separate from installation and actual four-period capture;
+  no such physical capture is claimed here. See [passive windows](passive-windows.es.md).
 - The dated history snapshot was not independently compared for all seven days.
   Other read-only settings from the historical joint trial were not individually
   visually compared; its unavailable auto-time observation remains unverifiable.
