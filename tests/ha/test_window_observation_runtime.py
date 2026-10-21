@@ -321,3 +321,45 @@ async def test_terminal_detaches_only_own_binding_and_prevents_late_capture(prod
     assert reader.window_observation()['raw_record_count'] == 1
     assert len(p.wire.handlers) == 1 and not p.runtime.disconnect_callbacks
     assert not p.wire.calls and not p.session.tasks and reader._task is None
+
+
+@pytest.mark.parametrize('outcome', ['false', 'exception'])
+async def test_invalid_resume_cannot_capture_without_new_coverage(producer, outcome):
+    from custom_components.casio_abl100 import async_unload_entry
+    p = producer
+    reader = await observe(p)
+    p.wire.raw()
+    assert (await summary(p))['raw_record_count'] == 1
+
+    async def failed_unload(*args):
+        assert reader._suspended
+        # Source goes unavailable while unload is suspended and remains so
+        # through resume. No timer/RAW/diagnostics invalidation is delivered.
+        p.runtime.available = False
+        if outcome == 'exception':
+            raise RuntimeError('reviewer synthetic unload failure')
+        return False
+
+    with patch.object(p.hass.config_entries, 'async_unload_platforms', side_effect=failed_unload):
+        if outcome == 'exception':
+            with pytest.raises(RuntimeError):
+                await async_unload_entry(p.hass, p.watch)
+        else:
+            assert await async_unload_entry(p.hass, p.watch) is False
+    assert not reader._suspended and reader._window_coverage is None
+    assert reader._window_gap_count == 1
+    # The same source object recovers before the next one-second timer.
+    p.runtime.available = True
+    p.wire.raw()
+    value = await summary(p)
+    assert not p.wire.calls and reader._task is None
+    assert value['raw_record_count'] == 1, (
+        'RAW counted after invalid resume without rebind/coverage', value)
+    assert value['coverage_since_utc'] is None
+    reader._maintain_raw(None)
+    p.wire.raw()
+    value = await summary(p)
+    assert value['coverage_since_utc'] is not None
+    assert value['raw_record_count'] == value['burst_count'] == 2
+    assert value['coverage_gap_count'] == 1 and not p.wire.calls
+    assert len(p.wire.handlers) == 2  # Existing scanner plus rebound observer.

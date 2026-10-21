@@ -401,8 +401,11 @@ class AutoStepReader:
         if cached is not None and self.mode != 'observe':
             self._observe(cached, allow_request=False)
         self._suspended = False
-        if self.mode == 'observe' and self._raw_valid():
-            self._begin_window_coverage()
+        if self.mode == 'observe':
+            if self._raw_valid():
+                self._begin_window_coverage()
+            else:
+                self._detach_raw()
 
     async def stop(self):
         """Remove observers; wait for cooperative cleanup even if this caller cancels.
